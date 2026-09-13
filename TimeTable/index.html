@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2026-2027-1 · 26学前教育 课表</title>
+<style>
+:root{
+  --bg:#f6f7fb;
+  --bg-soft:#ffffff;
+  --ink:#1c2333;
+  --ink-2:#5a6478;
+  --ink-3:#97a0b5;
+  --line:#e6e9f2;
+  --line-strong:#d3d8e6;
+  --brand:#3d4fd6;
+  --brand-2:#7b5cf0;
+  --online:#0ea5a4;
+  --radius:14px;
+  --shadow-s:0 1px 2px rgba(28,35,51,.06), 0 2px 8px rgba(28,35,51,.05);
+  --shadow-m:0 2px 6px rgba(28,35,51,.07), 0 12px 28px rgba(28,35,51,.08);
+  --font:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+html[data-theme="dark"]{
+  --bg:#0e1119;
+  --bg-soft:#161b26;
+  --ink:#e8ecf6;
+  --ink-2:#a4adc2;
+  --ink-3:#6b7488;
+  --line:#242b3a;
+  --line-strong:#2f3849;
+  --shadow-s:0 1px 2px rgba(0,0,0,.4);
+  --shadow-m:0 2px 6px rgba(0,0,0,.4), 0 12px 28px rgba(0,0,0,.35);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--ink);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.55;
+  font-size:15px;
+}
+body::before{
+  content:"";position:fixed;inset:0 0 auto 0;height:340px;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(900px 320px at 12% -30%, rgba(61,79,214,.20), transparent 70%),
+    radial-gradient(760px 300px at 88% -40%, rgba(123,92,240,.18), transparent 70%);
+}
+html[data-theme="dark"] body::before{
+  background:
+    radial-gradient(900px 320px at 12% -30%, rgba(61,79,214,.30), transparent 70%),
+    radial-gradient(760px 300px at 88% -40%, rgba(123,92,240,.24), transparent 70%);
+}
+
+/* ---------- header ---------- */
+.hero{position:relative;z-index:1;padding:38px 28px 6px;max-width:1560px;margin:0 auto}
+.eyebrow{
+  display:inline-block;margin:0 0 10px;padding:4px 12px;border-radius:999px;
+  font-size:12.5px;letter-spacing:.08em;font-weight:600;
+  color:var(--brand);background:rgba(61,79,214,.10);
+  border:1px solid rgba(61,79,214,.18);
+}
+html[data-theme="dark"] .eyebrow{color:#a9b4ff;background:rgba(120,140,255,.12);border-color:rgba(120,140,255,.22)}
+h1{margin:0 0 8px;font-size:clamp(24px,3.4vw,36px);font-weight:800;letter-spacing:-.01em}
+h1 .accent{
+  background:linear-gradient(100deg,var(--brand),var(--brand-2));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.sub{margin:0;color:var(--ink-2);font-size:14.5px}
+.sub b{color:var(--ink);font-weight:700}
+
+/* ---------- toolbar ---------- */
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin:20px 0 14px}
+.seg{
+  display:inline-flex;align-items:center;gap:10px;background:var(--bg-soft);
+  border:1px solid var(--line);border-radius:999px;padding:7px 14px;box-shadow:var(--shadow-s);
+}
+.seg label{font-size:13px;color:var(--ink-2);font-weight:600;white-space:nowrap}
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:190px;height:4px;border-radius:999px;
+  background:var(--line-strong);outline:none;cursor:pointer;vertical-align:middle;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:linear-gradient(140deg,var(--brand),var(--brand-2));
+  border:2px solid var(--bg-soft);box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:grab;
+}
+input[type=range]::-moz-range-thumb{
+  width:14px;height:14px;border:2px solid var(--bg-soft);border-radius:50%;
+  background:var(--brand);box-shadow:0 1px 4px rgba(0,0,0,.25);cursor:grab;
+}
+.weekVal{font-size:13px;font-weight:700;color:var(--brand);min-width:74px;font-variant-numeric:tabular-nums}
+html[data-theme="dark"] .weekVal{color:#a9b4ff}
+.btn{
+  border:1px solid var(--line);background:var(--bg-soft);color:var(--ink-2);
+  border-radius:999px;padding:8px 15px;font-size:13px;font-weight:600;cursor:pointer;
+  font-family:inherit;box-shadow:var(--shadow-s);transition:.16s ease;
+}
+.btn:hover{color:var(--brand);border-color:rgba(61,79,214,.4);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+
+/* ---------- legend ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 26px}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;padding:5px 12px 5px 9px;border-radius:999px;
+  font-size:12.5px;font-weight:600;cursor:pointer;user-select:none;
+  background:var(--bg-soft);border:1px solid var(--line);color:var(--ink-2);
+  box-shadow:var(--shadow-s);transition:.16s ease;
+}
+.chip:hover{transform:translateY(-1px);box-shadow:var(--shadow-m)}
+.chip .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.chip.on{color:#fff;border-color:transparent}
+.chip.on .dot{background:#fff !important;box-shadow:0 0 0 2px rgba(255,255,255,.35)}
+.chip .cnt{font-size:11px;opacity:.7;font-weight:600}
+
+/* ---------- grid ---------- */
+.wrap{position:relative;z-index:1;max-width:1560px;margin:0 auto;padding:0 28px 64px}
+.board{
+  background:var(--bg-soft);border:1px solid var(--line);border-radius:18px;
+  box-shadow:var(--shadow-m);overflow:hidden;
+}
+.grid{display:grid;grid-template-columns:112px repeat(7,minmax(0,1fr));min-width:1080px}
+.boardScroll{overflow-x:auto;overflow-y:visible;border-radius:18px}
+
+.hcell{
+  position:sticky;top:0;z-index:5;
+  background:linear-gradient(180deg,rgba(61,79,214,.055),rgba(61,79,214,.015));
+  backdrop-filter:blur(6px);
+  color:var(--ink);font-weight:700;font-size:13.5px;letter-spacing:.03em;
+  padding:14px 8px;text-align:center;border-bottom:1px solid var(--line-strong);
+  border-right:1px solid var(--line);
+}
+html[data-theme="dark"] .hcell{background:linear-gradient(180deg,rgba(120,140,255,.10),rgba(120,140,255,.03))}
+.hcell:first-child{
+  left:0;z-index:7;text-align:center;color:var(--ink-2);font-size:12.5px;
+  border-right:1px solid var(--line-strong);
+  background:linear-gradient(180deg,rgba(61,79,214,.10),rgba(61,79,214,.04));
+}
+.hcell.sun{color:#c2410c}
+html[data-theme="dark"] .hcell.sun{color:#fb923c}
+.hcell.sat{color:var(--ink-3)}
+
+.pcell{
+  position:sticky;left:0;z-index:3;
+  background:var(--bg-soft);
+  border-right:1px solid var(--line-strong);border-bottom:1px solid var(--line);
+  padding:16px 10px;text-align:center;
+  display:flex;flex-direction:column;justify-content:center;gap:4px;
+}
+.pcell .pname{font-weight:700;font-size:13.5px}
+.pcell .ptime{font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+
+.cell{
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+  padding:8px;display:flex;flex-direction:column;gap:8px;min-height:112px;
+  background:transparent;transition:background .16s ease;
+}
+.grid .cell:nth-child(8n){border-right:none}
+.cell:hover{background:rgba(61,79,214,.035)}
+html[data-theme="dark"] .cell:hover{background:rgba(120,140,255,.05)}
+.cell.empty{background-image:linear-gradient(135deg,transparent calc(50% - .5px),var(--line) 50%,transparent calc(50% + .5px))}
+
+/* course card */
+.lec{
+  --c:#3d4fd6;
+  position:relative;border-radius:11px;padding:9px 11px 10px 13px;
+  background:color-mix(in srgb, var(--c) 9%, var(--bg-soft));
+  border:1px solid color-mix(in srgb, var(--c) 22%, transparent);
+  box-shadow:0 1px 2px rgba(28,35,51,.04);
+  transition:transform .16s ease, box-shadow .16s ease, opacity .2s ease, filter .2s ease;
+}
+.lec::before{
+  content:"";position:absolute;left:0;top:9px;bottom:9px;width:3.5px;border-radius:0 4px 4px 0;
+  background:var(--c);opacity:.9;
+}
+.lec:hover{transform:translateY(-2px);box-shadow:0 6px 18px color-mix(in srgb, var(--c) 26%, transparent)}
+.lec .nm{font-weight:700;font-size:13.5px;line-height:1.35;color:color-mix(in srgb, var(--c) 72%, var(--ink));letter-spacing:.01em}
+html[data-theme="dark"] .lec{background:color-mix(in srgb, var(--c) 18%, var(--bg-soft));border-color:color-mix(in srgb, var(--c) 34%, transparent)}
+html[data-theme="dark"] .lec .nm{color:color-mix(in srgb, var(--c) 42%, #fff)}
+.lec .rows{margin-top:5px;display:flex;flex-direction:column;gap:2.5px}
+.lec .row{display:flex;gap:6px;font-size:12px;color:var(--ink-2);line-height:1.45}
+.lec .row .k{color:var(--ink-3);flex:0 0 auto;font-size:11.5px}
+.lec .row .v{min-width:0;word-break:break-word}
+.badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;font-weight:700;padding:1.5px 7px;border-radius:999px;
+  background:color-mix(in srgb, var(--c) 16%, transparent);
+  color:color-mix(in srgb, var(--c) 80%, var(--ink));
+  font-variant-numeric:tabular-nums;letter-spacing:.01em;
+}
+html[data-theme="dark"] .badge{color:color-mix(in srgb, var(--c) 45%, #fff)}
+.badge.online{background:rgba(14,165,164,.14);color:#0d7f7e}
+html[data-theme="dark"] .badge.online{color:#5eead4}
+.tagWarn{background:rgba(148,163,184,.18);color:var(--ink-2)}
+
+.lec.dim{opacity:.16;filter:grayscale(1)}
+.lec.hit{box-shadow:0 0 0 2px var(--c), 0 6px 18px color-mix(in srgb, var(--c) 30%, transparent)}
+
+/* mobile */
+.mobile{display:none;flex-direction:column;gap:18px}
+.mday{background:var(--bg-soft);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-s);overflow:hidden}
+.mday h3{
+  margin:0;padding:13px 16px;font-size:14.5px;font-weight:700;
+  border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;
+  background:linear-gradient(180deg,rgba(61,79,214,.05),transparent);
+}
+.mday h3 .n{font-size:12px;color:var(--ink-3);font-weight:600}
+.mbody{padding:12px;display:flex;flex-direction:column;gap:10px}
+.mrow{display:grid;grid-template-columns:64px 1fr;gap:10px;align-items:start}
+.mrow .mt{font-size:11.5px;color:var(--ink-3);font-weight:600;padding-top:9px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* footer table */
+.foot{margin-top:34px}
+.foot h2{font-size:17px;font-weight:800;margin:0 0 4px;letter-spacing:-.01em}
+.foot p.desc{margin:0 0 14px;color:var(--ink-2);font-size:13.5px}
+.tblwrap{background:var(--bg-soft);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-s);overflow:hidden}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line)}
+th{font-size:12.5px;color:var(--ink-2);font-weight:700;letter-spacing:.03em;background:rgba(61,79,214,.045)}
+html[data-theme="dark"] th{background:rgba(120,140,255,.07)}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:rgba(61,79,214,.035)}
+td .cname{font-weight:700;display:inline-flex;align-items:center;gap:8px}
+td .swatch{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+td.num{font-variant-numeric:tabular-nums;color:var(--ink-2)}
+
+.note{
+  margin-top:18px;padding:13px 16px;border-radius:13px;font-size:12.5px;color:var(--ink-2);
+  background:rgba(61,79,214,.05);border:1px solid rgba(61,79,214,.14);
+}
+html[data-theme="dark"] .note{background:rgba(120,140,255,.07);border-color:rgba(120,140,255,.18)}
+.note b{color:var(--ink)}
+
+/* ---------- responsive ---------- */
+@media (max-width:900px){
+  .hero{padding:26px 16px 4px}
+  .wrap{padding:0 16px 44px}
+  .boardScroll{display:none}
+  .mobile{display:flex}
+  input[type=range]{width:130px}
+}
+@media (min-width:901px){ .mobile{display:none !important} }
+
+/* ---------- print ---------- */
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  body{background:#fff;font-size:10px}
+  body::before{display:none}
+  .hero{padding:0 0 8px;max-width:none}
+  .toolbar,.legend,.note{display:none !important}
+  .wrap{padding:0;max-width:none}
+  .board{box-shadow:none;border-radius:0;border-color:#bbb}
+  .boardScroll{overflow:visible;border-radius:0}
+  .grid{min-width:0}
+  .hcell{background:#f0f2f8 !important;position:static;backdrop-filter:none}
+  .pcell{position:static;background:#fafbfe}
+  .lec{box-shadow:none;background:#fff !important;border-color:#c9cede !important;break-inside:avoid}
+  .lec.dim{opacity:1 !important;filter:none !important}
+  .cell{min-height:0;padding:5px}
+  .lec .nm{font-size:9.5px}
+  .lec .row{font-size:8.5px}
+  .badge{font-size:8px}
+  .foot{margin-top:12px}
+  .foot h2,.foot p.desc{display:none}
+  th,td{padding:4px 6px;font-size:8.5px}
+  .mday,.mbody{display:none}
+}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <span class="eyebrow">2026 — 2027 学年 · 第一学期</span>
+  <h1><span class="accent">26学前教育</span> 课表</h1>
+  <p class="sub">
+    共 <b id="statCourses">—</b> 门课程 · <b id="statLessons">—</b> 个上课时段 · 每日 <b>5</b> 个大节
+  </p>
+
+  <div class="toolbar">
+    <div class="seg">
+      <label for="week">周次</label>
+      <input type="range" id="week" min="1" max="20" step="1" value="1">
+      <span class="weekVal" id="weekVal">全部</span>
+    </div>
+    <button class="btn" id="todayBtn">定位当前周</button>
+    <button class="btn" id="resetBtn">显示全部</button>
+    <button class="btn" id="themeBtn">🌙 深色</button>
+  </div>
+
+  <div class="legend" id="legend"></div>
+</header>
+
+<div class="wrap">
+  <div class="board">
+    <div class="boardScroll">
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+
+  <div class="mobile" id="mobile"></div>
+
+  <section class="foot">
+    <h2>课程一览</h2>
+    <p class="desc">按课程汇总的上课安排，便于快速核对教师与周次。</p>
+    <div class="tblwrap">
+      <table>
+        <thead>
+          <tr><th style="width:23%">课程</th><th style="width:14%">教师</th><th style="width:26%">涉及周次</th><th style="width:27%">地点</th><th style="width:10%">人数</th></tr>
+        </thead>
+        <tbody id="sumBody"></tbody>
+      </table>
+    </div>
+    <div class="note">
+      <b>说明：</b>单元格中 <span class="badge tagWarn">预占位</span> 表示该时段已预留但教师/教室尚未落实；
+      人数为排课系统记录的选课人数（<b>0 人</b>表示暂无学生选课）。
+      原表中每门课后的「[一,二]」「[三,四]」等标注对应该课程所在的大节序号，与左侧节次行一致，故本表未重复展示。
+    </div>
+  </section>
+</div>
+
+<script>
+/* ============================ 数据 ============================ */
+const DAYS = ['星期一','星期二','星期三','星期四','星期五','星期六','星期日'];
+const PERIODS = [
+  {name:'第1-2节',  time:'08:30 – 10:00'},
+  {name:'第3-4节',  time:'10:20 – 11:50'},
+  {name:'第5-6节',  time:'14:00 – 15:30'},
+  {name:'第7-8节',  time:'15:40 – 17:10'},
+  {name:'第9-10节', time:'18:30 – 20:00'}
+];
+
+/* c=课程  w=周次区间  t=教师  r=地点  n=人数  o=线上 */
+const DATA = {
+  '0-1':[
+    {c:'大学英语I', w:[[4,15]], t:'王敏',   r:'海综B203', n:59},
+    {c:'大学日语I', w:[[4,15]], t:'李庆安', r:'海综C202', n:0}
+  ],
+  '0-3':[{c:'体育课', w:[[9,11]], t:'预占位', r:'', n:null}],
+
+  '1-0':[{c:'音乐技能I', w:[[6,9]],  t:'禹浩',   r:'海树504（数码钢琴室二）', n:59}],
+  '1-1':[{c:'音乐技能I', w:[[6,9]],  t:'禹浩',   r:'海树504（数码钢琴室二）', n:59}],
+  '1-2':[{c:'舞蹈技能I', w:[[4,17]], t:'张凯妮', r:'海树601（舞蹈室）',      n:59}],
+  '1-3':[{c:'舞蹈技能I', w:[[4,17]], t:'张凯妮', r:'海树601（舞蹈室）',      n:59}],
+
+  '2-0':[
+    {c:'学前教育原理', w:[[6,17]], t:'罗希明', r:'海树501（美术与手工室）', n:60},
+    {c:'学前教育原理', w:[[4,6]],  t:'苏鸿',   r:'海树501（美术与手工室）', n:60}
+  ],
+  '2-1':[{c:'音乐技能I',  w:[[6,17]], t:'禹浩',   r:'海树504（数码钢琴室二）', n:59}],
+  '2-2':[{c:'儿童发展I',  w:[[4,17]], t:'王少杰', r:'海综B305',               n:60}],
+  '2-3':[{c:'舞蹈技能I',  w:[[4,17]], t:'厉玥',   r:'海树601（舞蹈室）',      n:59}],
+
+  '3-0':[
+    {c:'中国近现代史纲要', w:[[12,14]],           t:'黄泽纯', r:'线上教学',  n:109, o:1},
+    {c:'中国近现代史纲要', w:[[4,11],[15,15]],    t:'黄泽纯', r:'海综B411',  n:109}
+  ],
+  '3-1':[
+    {c:'舞蹈技能I', w:[[4,6]], t:'厉玥', r:'海树601（舞蹈室）', n:59},
+    {c:'大学生职业发展与就业指导I', w:[[6,14]], t:'林裕佳', r:'海综C102', n:59}
+  ],
+  '3-2':[{c:'音乐技能I', w:[[6,17]], t:'禹浩', r:'海树504（数码钢琴室二）', n:59}],
+  '3-3':[{c:'体育课',    w:[[5,17]], t:'预占位', r:'', n:null}],
+  '3-4':[
+    {c:'舞蹈技能I', w:[[10,11]], t:'张凯妮', r:'海树601（舞蹈室）', n:59},
+    {c:'舞蹈技能I', w:[[4,5]],   t:'张凯妮', r:'海树601（舞蹈室）', n:59}
+  ],
+
+  '4-0':[
+    {c:'中国近现代史纲要', w:[[12,14]],        t:'黄泽纯', r:'线上教学', n:109, o:1},
+    {c:'中国近现代史纲要', w:[[4,11],[15,15]], t:'黄泽纯', r:'海综B411', n:109}
+  ],
+  '4-1':[{c:'军事理论', w:[[4,11]], t:'吴琦', r:'海综C202', n:59}],
+  '4-2':[
+    {c:'儿童发展I',    w:[[4,5]],  t:'王少杰', r:'海树401（综合实训室）', n:60},
+    {c:'信息科技基础', w:[[9,16]], t:'熊燕',   r:'海综C301',               n:58},
+    {c:'学前教育原理', w:[[6,7]],  t:'罗希明', r:'海树401（综合实训室）', n:60}
+  ],
+
+  '6-0':[
+    {c:'形势与政策I', w:[[13,13]], t:'吴琦', r:'线上教学', n:109, o:1},
+    {c:'形势与政策I', w:[[12,12]], t:'吴琦', r:'海综C102', n:109}
+  ]
+};
+
+/* 课程配色 */
+const COLORS = {
+  '学前教育原理':            '#2563eb',
+  '儿童发展I':               '#0d9488',
+  '音乐技能I':               '#d97706',
+  '舞蹈技能I':               '#db2777',
+  '大学英语I':               '#4f46e5',
+  '大学日语I':               '#7c3aed',
+  '体育课':                  '#16a34a',
+  '中国近现代史纲要':        '#dc2626',
+  '大学生职业发展与就业指导I':'#9333ea',
+  '军事理论':                '#475569',
+  '信息科技基础':            '#0891b2',
+  '形势与政策I':             '#ea580c'
+};
+const FALLBACK = ['#0ea5e9','#f43f5e','#84cc16','#a855f7','#f59e0b','#14b8a6'];
+let fbIdx = 0;
+const colorOf = c => COLORS[c] || (COLORS[c] = FALLBACK[fbIdx++ % FALLBACK.length]);
+
+/* ============================ 工具 ============================ */
+function weeksText(w){
+  return w.map(([s,e]) => s === e ? `${s}` : `${s}–${e}`).join('、');
+}
+function weeksLabel(w){
+  const parts = w.map(([s,e]) => s === e ? `第${s}周` : `第${s}-${e}周`);
+  return parts.join('、');
+}
+function inWeek(w, wk){ return w.some(([s,e]) => wk >= s && wk <= e); }
+function lastWeek(){
+  let m = 0;
+  Object.values(DATA).flat().forEach(x => x.w.forEach(([,e]) => { if (e > m) m = e; }));
+  return m;
+}
+const MAXW = lastWeek();
+document.getElementById('week').max = MAXW;
+
+/* ============================ 渲染课表 ============================ */
+const grid = document.getElementById('grid');
+
+// 表头
+grid.insertAdjacentHTML('beforeend', '<div class="hcell">节次 / 星期</div>');
+DAYS.forEach((d,i) => {
+  const cls = i === 5 ? 'sat' : (i === 6 ? 'sun' : '');
+  grid.insertAdjacentHTML('beforeend', `<div class="hcell ${cls}">${d}</div>`);
+});
+
+// 行
+PERIODS.forEach((p, ri) => {
+  grid.insertAdjacentHTML('beforeend',
+    `<div class="pcell"><span class="pname">${p.name}</span><span class="ptime">${p.time}</span></div>`);
+
+  DAYS.forEach((d, di) => {
+    const items = DATA[`${di}-${ri}`] || [];
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (items.length ? '' : ' empty');
+    items.forEach(it => cell.appendChild(card(it)));
+    grid.appendChild(cell);
+  });
+});
+
+function card(it){
+  const el = document.createElement('div');
+  el.className = 'lec';
+  el.style.setProperty('--c', colorOf(it.c));
+  el.dataset.course = it.c;
+  el.dataset.weeks = JSON.stringify(it.w);
+
+  const online = it.o ? `<span class="badge online">◉ 线上</span>` : '';
+  const people = it.n === null
+    ? `<span class="badge tagWarn">待定</span>`
+    : `<span class="badge">${it.n} 人</span>`;
+  const roomRow = it.r
+    ? `<div class="row"><span class="k">地点</span><span class="v">${it.r}</span></div>`
+    : '';
+
+  el.innerHTML = `
+    <div class="nm">${it.c}</div>
+    <div class="rows">
+      <div class="row"><span class="k">周次</span><span class="v">${weeksLabel(it.w)}</span></div>
+      <div class="row"><span class="k">教师</span><span class="v">${it.t}</span></div>
+      ${roomRow}
+    </div>
+    <div style="margin-top:7px;display:flex;gap:6px;flex-wrap:wrap">${people}${online}</div>
+  `;
+  return el;
+}
+
+/* ============================ 移动端视图 ============================ */
+const mobile = document.getElementById('mobile');
+DAYS.forEach((d, di) => {
+  const items = [];
+  PERIODS.forEach((p, ri) => (DATA[`${di}-${ri}`] || []).forEach(it => items.push({p, it})));
+  items.sort((a,b) => PERIODS.indexOf(a.p) - PERIODS.indexOf(b.p));
+
+  const day = document.createElement('div');
+  day.className = 'mday';
+  day.innerHTML = `<h3>${d}<span class="n">${items.length ? items.length + ' 个时段' : '无课'}</span></h3>`;
+  const body = document.createElement('div');
+  body.className = 'mbody';
+  if(!items.length){
+    body.innerHTML = `<div style="color:var(--ink-3);font-size:13px;padding:6px 2px">本日无课</div>`;
+  }else{
+    items.forEach(({p,it}) => {
+      const row = document.createElement('div');
+      row.className = 'mrow';
+      row.innerHTML = `<div class="mt">${p.name}<br>${p.time.split(' – ')[0]}</div>`;
+      row.appendChild(card(it));
+      body.appendChild(row);
+    });
+  }
+  day.appendChild(body);
+  mobile.appendChild(day);
+});
+
+/* ============================ 图例 / 筛选 ============================ */
+const all = Object.values(DATA).flat();
+const statCourses = new Set(all.map(x => x.c)).size;
+document.getElementById('statCourses').textContent = statCourses;
+document.getElementById('statLessons').textContent = all.length;
+
+const counts = {};
+all.forEach(x => counts[x.c] = (counts[x.c] || 0) + 1);
+
+const legend = document.getElementById('legend');
+Object.keys(COLORS).forEach(name => {
+  if(!counts[name]) return;
+  const c = COLORS[name];
+  const chip = document.createElement('span');
+  chip.className = 'chip';
+  chip.dataset.course = name;
+  chip.innerHTML = `<span class="dot" style="background:${c}"></span>${name}<span class="cnt">${counts[name]}</span>`;
+  chip.addEventListener('click', () => {
+    const on = chip.classList.toggle('on');
+    if(on) chip.style.background = c;
+    else chip.style.background = '';
+    apply();
+  });
+  legend.appendChild(chip);
+});
+
+/* ============================ 周次筛选 ============================ */
+const weekInput = document.getElementById('week');
+const weekVal = document.getElementById('weekVal');
+let curWeek = null;
+
+function apply(){
+  const picked = [...legend.querySelectorAll('.chip.on')].map(x => x.dataset.course);
+  document.querySelectorAll('.lec').forEach(el => {
+    const w = JSON.parse(el.dataset.weeks);
+    const weekOK = curWeek === null || inWeek(w, curWeek);
+    const courseOK = !picked.length || picked.includes(el.dataset.course);
+    el.classList.toggle('dim', !(weekOK && courseOK));
+    el.classList.toggle('hit', picked.length > 0 && courseOK);
+  });
+  document.querySelectorAll('.mday').forEach(day => {
+    const lecs = [...day.querySelectorAll('.lec')];
+    const any = lecs.some(l => !l.classList.contains('dim'));
+    day.style.opacity = any ? '1' : '.45';
+  });
+}
+
+weekInput.addEventListener('input', () => {
+  curWeek = Number(weekInput.value);
+  weekVal.textContent = `第 ${curWeek} 周`;
+  apply();
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  curWeek = null;
+  weekVal.textContent = '全部';
+  legend.querySelectorAll('.chip.on').forEach(c => { c.classList.remove('on'); c.style.background = ''; });
+  apply();
+});
+
+document.getElementById('todayBtn').addEventListener('click', () => {
+  // 以 2026-09-01 为学期第 1 周起点估算当前周
+  const start = new Date(2026, 8, 1);
+  const now = new Date();
+  let wk = Math.floor((now - start) / 604800000) + 1;
+  wk = Math.min(Math.max(wk, 1), MAXW);
+  weekInput.value = wk;
+  curWeek = wk;
+  weekVal.textContent = `第 ${wk} 周`;
+  apply();
+});
+
+/* ============================ 深色模式 ============================ */
+const themeBtn = document.getElementById('themeBtn');
+function setTheme(t){
+  document.documentElement.dataset.theme = t;
+  themeBtn.textContent = t === 'dark' ? '☀️ 浅色' : '🌙 深色';
+}
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+setTheme(prefersDark ? 'dark' : 'light');
+themeBtn.addEventListener('click', () => {
+  setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+});
+
+/* ============================ 课程一览表 ============================ */
+const sumBody = document.getElementById('sumBody');
+const groups = {};
+all.forEach(x => {
+  const key = x.c;
+  (groups[key] = groups[key] || {t:new Set(), r:new Set(), w:[], n:new Set()});
+  const g = groups[key];
+  g.t.add(x.t);
+  if(x.r) g.r.add(x.r);
+  if(x.n !== null) g.n.add(x.n);
+  g.w.push(...x.w);
+});
+Object.keys(COLORS).forEach(name => {
+  const g = groups[name];
+  if(!g) return;
+  const merged = g.w.slice().sort((a,b) => a[0] - b[0]);
+  const uniq = [];
+  merged.forEach(r => {
+    const last = uniq[uniq.length - 1];
+    if(last && r[0] <= last[1] + 1) last[1] = Math.max(last[1], r[1]);
+    else uniq.push([...r]);
+  });
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><span class="cname"><span class="swatch" style="background:${COLORS[name]}"></span>${name}</span></td>
+    <td>${[...g.t].join('、')}</td>
+    <td>${weeksLabel(uniq)}</td>
+    <td>${[...g.r].join(' / ') || '<span style="color:var(--ink-3)">待定</span>'}</td>
+    <td class="num">${g.n.size ? [...g.n].join(' / ') + ' 人' : '—'}</td>
+  `;
+  sumBody.appendChild(tr);
+});
+
+apply();
+</script>
+</body>
+</html>

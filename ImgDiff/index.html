@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AB 图片对比器</title>
+<style>
+:root{
+  --bg:#10161f; --panel:#151c27; --card:#0c1119; --line:#1e2836;
+  --fg:#cfd9e8; --muted:#5b6b80; --accent:#4a7dff; --red:#ff5c5c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font:14px/1.5 "Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+img{user-select:none;-webkit-user-drag:none}
+
+.app{display:flex;height:100vh}
+
+/* 左侧列表 */
+.sidebar{width:288px;flex:none;display:flex;flex-direction:column;background:var(--panel);border-right:1px solid var(--line)}
+.sidebar-head{padding:14px 14px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.app-title{font-size:15px;font-weight:600;color:#e7eef8}
+.add-btn{display:flex;align-items:center;gap:4px;background:#1d2a40;color:#a9c2ff;padding:6px 10px;border-radius:8px;font-size:12px;white-space:nowrap}
+.add-btn:hover{background:#26385a}
+.add-btn kbd{margin-left:6px;font-size:10px;color:#6d84b3;border:1px solid #33466b;border-radius:4px;padding:0 4px}
+.list{flex:1;overflow-y:auto}
+.tab{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;position:relative}
+.tab:hover{background:#1a2434}
+.tab.active{background:#1a2a44;box-shadow:inset 3px 0 0 var(--accent)}
+.tab-thumbs{display:flex;flex:none}
+.tab-thumb{width:42px;height:42px;flex:none;border:1px solid #2a3a52;border-radius:4px;background:#0a0f17;display:flex;align-items:center;justify-content:center;font-size:11px;color:#5b6b80;overflow:hidden}
+.tab-thumb+.tab-thumb{margin-left:-10px}
+.tab-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.tab-meta{flex:1;min-width:0}
+.tab-name{font-size:12px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab-empty{color:var(--muted);font-size:12px}
+.tab-time{font-size:11px;color:var(--muted)}
+.tab-del{flex:none;width:22px;height:22px;border-radius:6px;color:var(--muted);opacity:0;font-size:14px;line-height:1}
+.tab:hover .tab-del{opacity:1}
+.tab-del:hover{color:var(--red);background:#3a1e26}
+.sidebar-foot{padding:10px 12px;border-top:1px solid var(--line)}
+#clearBtn{width:100%;padding:7px 0;font-size:12px;color:var(--muted);background:var(--card);border:1px solid #223047;border-radius:8px}
+#clearBtn:hover{color:var(--red);border-color:#5a2a33;background:#1d2026}
+
+/* 主区 */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.toolbar{display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+.mode-group{display:flex;background:var(--card);border-radius:8px;overflow:hidden}
+#centerBtn{margin-left:auto}
+.mode-group button{padding:6px 14px;font-size:13px;color:var(--muted)}
+.mode-group button.active{background:var(--accent);color:#fff}
+.mode-group button:disabled{opacity:.4;cursor:default}
+.diff-ctl{display:flex;align-items:center;gap:10px;padding:5px 12px;background:var(--card);border:1px solid #223047;border-radius:10px;font-size:12px;color:var(--muted)}
+.diff-ctl .dc-label{flex:none}
+.diff-ctl input[type=range]{-webkit-appearance:none;appearance:none;width:110px;height:4px;border-radius:2px;background:#2a3a52;outline:none;cursor:pointer}
+.diff-ctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.diff-ctl input[type=range]::-moz-range-thumb{width:8px;height:8px;border-radius:50%;background:#fff;border:3px solid var(--accent)}
+.diff-ctl input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:#2a3a52}
+.diff-ctl .dc-divider{width:1px;height:16px;background:#2a3a52;flex:none}
+.diff-ctl .dc-pct{display:flex;align-items:baseline;gap:5px;min-width:64px;font-variant-numeric:tabular-nums;flex:none;white-space:nowrap}
+.diff-ctl .dc-pct b{font-weight:600;color:var(--muted);font-size:11px}
+.diff-ctl .dc-pct em{font-style:normal;color:#7ee0a3}
+.tool-btn{background:var(--card);border:1px solid #223047;color:var(--fg);padding:6px 12px;border-radius:8px;font-size:13px}
+.tool-btn:hover{background:#1d2a40}
+
+/* 画布 */
+.stage{flex:1;position:relative;overflow:hidden;background:var(--bg);touch-action:none;-webkit-user-select:none;user-select:none}
+.surface{position:absolute;inset:0;overflow:hidden;cursor:grab}
+.surface.panning{cursor:grabbing}
+.box{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;pointer-events:none}
+.box img{display:block}
+.anim .box{transition:transform .18s ease-out}
+.splitter{position:absolute;top:0;bottom:0;width:16px;margin-left:-8px;background:transparent;cursor:col-resize;z-index:6}
+.splitter::before{content:"";position:absolute;left:6.5px;top:0;bottom:0;width:3px;background:var(--accent)}
+.splitter::after{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:36px;height:60px;border-radius:8px;background:var(--accent);opacity:.16}
+.tag{position:absolute;top:12px;z-index:7;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:7px;pointer-events:auto;cursor:pointer;color:#fff;max-width:38%;transition:filter .12s}
+.tag b{font-weight:600;flex:none}
+.tag em{font-style:normal;font-weight:400;font-size:11px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag em.add{opacity:1}
+.tag .x{font-style:normal;font-size:12px;opacity:.75;padding:0 3px;border-radius:4px}
+.tag .x:hover{opacity:1;background:rgba(0,0,0,.3)}
+.tag:hover{filter:brightness(1.18)}
+.tag.over{outline:2px solid var(--accent);outline-offset:1px}
+.tag-a{left:12px;background:rgba(74,125,255,.88)}
+.tag-b{right:12px;background:rgba(255,92,92,.88)}
+.pane{position:relative;flex:1;overflow:hidden;background:var(--card);border-right:1px solid var(--line);cursor:grab}
+.pane:last-child{border-right:none}
+.pane-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;cursor:pointer;background:repeating-linear-gradient(45deg,rgba(255,255,255,.015) 0 10px,transparent 10px 20px)}
+.pane-empty:hover{color:var(--accent)}
+.pane .tag{z-index:7}
+#surfSync{display:flex}
+.clipB{position:absolute;inset:0}
+
+/* 上传卡 */
+.upload-row{position:absolute;inset:0;display:flex;gap:14px;padding:20px}
+.card{flex:1;border:1px dashed #33445c;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--muted);cursor:pointer;background:rgba(255,255,255,.02);transition:.15s}
+.card:hover{border-color:#4a7dff;color:var(--fg)}
+.card.dragover{border-color:var(--accent);background:rgba(74,125,255,.09);color:#fff}
+.card .slot-label{font-size:12px;font-weight:700;color:#7d8ca3}
+.card .main{font-size:14px;color:var(--fg)}
+.card .formats{font-size:11px}
+.card .icon{width:34px;height:34px;opacity:.5;margin-bottom:4px}
+.card .icon svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#1d2a40;color:var(--fg);padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;pointer-events:none;z-index:50;border:1px solid #33466b}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <span class="app-title">AB 图片对比</span>
+      <button class="add-btn" id="addBtn">＋ 新增对比<kbd>N</kbd></button>
+    </div>
+    <div class="list" id="list"></div>
+    <div class="sidebar-foot"><button id="clearBtn">清空历史记录</button></div>
+  </aside>
+
+  <section class="main">
+    <div class="toolbar" id="toolbar" hidden>
+      <div class="mode-group">
+        <button data-mode="split">分隔对比</button>
+        <button data-mode="sync" class="active">同步对比</button>
+        <button data-mode="diff">差异对比</button>
+      </div>
+      <div class="diff-ctl" id="diffCtl" hidden>
+        <span class="dc-label">阈值</span>
+        <input id="thresh" type="range" min="0" max="100" value="24">
+        <span class="dc-divider"></span>
+        <span class="dc-pct"><b>差异</b><em id="diffPct">--</em></span>
+      </div>
+      <button class="tool-btn" id="centerBtn">居中显示<kbd style="margin-left:6px;font-size:10px;color:#6d84b3;border:1px solid #33466b;border-radius:4px;padding:0 4px">Z</kbd></button>
+    </div>
+
+    <div class="stage" id="stage">
+      <input type="file" id="fileInputA" accept="image/*" hidden>
+      <input type="file" id="fileInputB" accept="image/*" hidden>
+      <div class="upload-row" id="uploadRow">
+        <div class="card" data-slot="a">
+          <div class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.4"/><path d="M7 16l3.2-3.4 2.8 2.7 2.2-2.2L17 15"/></svg></div>
+          <div class="slot-label">A</div>
+          <div class="main">拖入或点击添加 A 图</div>
+          <div class="formats">jpg png webp gif bmp svg avif · 支持 Ctrl+V 粘贴</div>
+        </div>
+        <div class="card" data-slot="b">
+          <div class="icon"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.4"/><path d="M7 16l3.2-3.4 2.8 2.7 2.2-2.2L17 15"/></svg></div>
+          <div class="slot-label">B</div>
+          <div class="main">拖入或点击添加 B 图</div>
+          <div class="formats">jpg png webp gif bmp svg avif · 支持 Ctrl+V 粘贴</div>
+        </div>
+      </div>
+
+      <div class="surface" id="surfSplit" hidden>
+        <div class="box" id="boxSplit">
+          <img id="sA" draggable="false">
+          <div class="clipB" id="clipB"><img id="sB" draggable="false"></div>
+        </div>
+        <div class="splitter" id="splitter" hidden></div>
+        <span class="tag tag-a" id="tagSplitA" data-slot="a">A</span>
+        <span class="tag tag-b" id="tagSplitB" data-slot="b">B</span>
+      </div>
+
+      <div class="surface" id="surfSync" hidden>
+        <div class="pane" id="paneA"><div class="box" id="boxSyncA"><img id="yA" draggable="false"></div><span class="tag tag-a" id="tagSyncA" data-slot="a">A</span><div class="pane-empty" id="emptyA" data-slot="a" hidden>拖入 A 图</div></div>
+        <div class="pane" id="paneB"><div class="box" id="boxSyncB"><img id="yB" draggable="false"></div><span class="tag tag-b" id="tagSyncB" data-slot="b">B</span><div class="pane-empty" id="emptyB" data-slot="b" hidden>拖入 B 图</div></div>
+      </div>
+
+      <div class="surface" id="surfDiff" hidden>
+        <div class="box" id="boxDiff"><img id="dA" draggable="false"></div>
+        <span class="tag tag-a" id="tagDiffA" data-slot="a">A</span>
+        <span class="tag tag-b" id="tagDiffB" data-slot="b">B</span>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const KEY="ab_compare_v2";
+const state={items:[],activeId:null};
+const imgCache=new Map();
+const stage=$("#stage"), toast=$("#toast");
+let fitAnimTimer=null;
+
+/* ---------- 工具 ---------- */
+function loadImage(file){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file);
+    const im=new Image();
+    im.onload=()=>{
+      const size=file.size;
+      const fr=new FileReader();
+      fr.onload=()=>{
+        URL.revokeObjectURL(url);
+        res({src:fr.result,name:file.name,w:im.naturalWidth,h:im.naturalHeight,size});
+      };
+      fr.onerror=()=>rej(new Error("read fail"));
+      fr.readAsDataURL(file);
+    };
+    im.onerror=()=>{URL.revokeObjectURL(url);rej(new Error("无法解码图片："+(file.name||"")));};
+    im.src=url;
+  });
+}
+function scaleImage(src,maxDim,quality){
+  return new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>{
+      const k=Math.min(1,maxDim/Math.max(im.naturalWidth,im.naturalHeight));
+      const w=Math.max(1,Math.round(im.naturalWidth*k)),h=Math.max(1,Math.round(im.naturalHeight*k));
+      const c=document.createElement("canvas");c.width=w;c.height=h;
+      c.getContext("2d").drawImage(im,0,0,w,h);
+      let data=c.toDataURL("image/jpeg",quality||0.85);
+      if(data.length>1400000&&maxDim>640)res(scaleImage(src,640,0.8));
+      else res(data);
+    };
+    im.onerror=()=>res(src);
+    im.src=src;
+  });
+}
+function makeThumb(data,size){
+  return new Promise(res=>{
+    const im=new Image();
+    im.onload=()=>{
+      const c=document.createElement("canvas");c.width=size;c.height=size;
+      const k=Math.min(size/im.naturalWidth,size/im.naturalHeight);
+      const w=im.naturalWidth*k,h=im.naturalHeight*k;
+      c.getContext("2d").drawImage(im,(size-w)/2,(size-h)/2,w,h);
+      res(c.toDataURL("image/jpeg",0.8));
+    };
+    im.onerror=()=>res(null);im.src=data;
+  });
+}
+function getImg(src){
+  if(!imgCache.has(src))imgCache.set(src,new Promise(res=>{const im=new Image();im.onload=()=>res(im);im.src=src;}));
+  return imgCache.get(src);
+}
+function fmtSize(n){return n>1048576?(n/1048576).toFixed(1)+" MB":n>1024?Math.round(n/1024)+" KB":n+" B";}
+function fmtTime(t){const d=new Date(t);const p=n=>String(n).padStart(2,"0");return `${d.getMonth()+1}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;}
+function showToast(msg){toast.textContent=msg;toast.classList.add("show");clearTimeout(showToast._t);showToast._t=setTimeout(()=>toast.classList.remove("show"),1600);}
+
+/* ---------- 数据 ---------- */
+function addItem(){
+  const item={id:"c"+Date.now()+Math.random().toString(36).slice(2,6),t:Date.now(),a:null,b:null,mode:"sync",splitPct:50,view:null};
+  state.items.push(item);
+  saveHistory();
+  activate(item.id);
+  return item;
+}
+function active(){return state.items.find(i=>i.id===state.activeId);}
+function activate(id){
+  $("#stage").classList.remove("anim");
+  state.activeId=id;
+  renderList();   // 刷新高亮
+  refresh();      // refresh 内 renderView 会重置视图为 cover
+}
+function deleteItem(id){
+  state.items=state.items.filter(i=>i.id!==id);
+  imgCache.clear();
+  if(state.activeId===id){
+    state.activeId=state.items.length?state.items[0].id:null;
+    if(state.activeId){const ni=active();if(ni)ni.view=null;}
+    else{addItem();return;}
+  }
+  saveHistory();renderList();refresh();
+}
+function hasImages(item){return !!(item&&(item.a||item.b));}
+function canDiff(item){return !!(item&&item.a&&item.b);}
+
+/* ---------- 工具栏 ---------- */
+function renderToolbar(){
+  const it=active();
+  const tb=$("#toolbar");
+  if(!hasImages(it)){tb.hidden=true;return;}
+  tb.hidden=false;
+  const md=$("#diffCtl");
+  const showDiff=it.mode==="diff";
+  md.hidden=!showDiff;
+  if(showDiff&&canDiff(it))renderDiff();
+  const pct=$("#diffPct");if(!canDiff(it))pct.textContent="";
+  $$(".mode-group button").forEach(b=>{
+    b.classList.toggle("active",b.dataset.mode===it.mode);
+    b.disabled=b.dataset.mode==="diff"&&!canDiff(it);
+  });
+}
+
+/* ---------- 主视图 ---------- */
+function stageRect(){return stage.getBoundingClientRect();}
+function paneRect(p){return p.getBoundingClientRect();}
+function setTransform(el,v){el.style.transform=`translate(${v.tx}px,${v.ty}px) scale(${v.s})`;}
+
+function fitFor(rect,w,h){
+  if(!w||!h)return{s:1,tx:0,ty:0};
+  // 默认填满显示区（超出部分裁切），避免黑边；滚轮缩小可查看整张图
+  const s=Math.max(rect.width/w,rect.height/h);
+  return{s,tx:(rect.width-w*s)/2,ty:(rect.height-h*s)/2};
+}
+function fixMode(it){if(it&&it.mode==="diff"&&!canDiff(it))it.mode="sync";}
+function refresh(){fixMode(active());renderView();}
+function renderView(){
+  const it=active();
+  fixMode(it);
+  // 每次渲染都强制重置视图，由渲染函数按 cover 重新计算——杜绝任何残留/复用视图导致的跳变
+  if(it)it.view=null;
+  const up=$("#uploadRow"),ss=$("#surfSplit"),sy=$("#surfSync"),sd=$("#surfDiff");
+  if(!it.a&&!it.b){
+    up.hidden=false;ss.hidden=true;sy.hidden=true;sd.hidden=true;
+    renderToolbar();
+    return;
+  }
+  up.hidden=true;
+  ss.hidden=sy.hidden=sd.hidden=true;
+  if(it.mode==="split"){
+    ss.hidden=false;
+    renderSplit(it);
+  }else if(it.mode==="sync"){
+    sy.hidden=false;
+    renderSync(it);
+  }else if(it.mode==="diff"&&canDiff(it)){
+    sd.hidden=false;
+    renderDiffView(it);
+  }else{
+    // diff 不可用时退回同步
+    it.mode="sync";sy.hidden=false;renderSync(it);
+  }
+  renderTags(it);
+  renderToolbar();
+}
+function renderTags(it){
+  [["a","#tagSplitA"],["b","#tagSplitB"],["a","#tagSyncA"],["b","#tagSyncB"],["a","#tagDiffA"],["b","#tagDiffB"]].forEach(([slot,sel])=>{
+    const el=$(sel);if(!el)return;
+    el.textContent="";
+    const im=it[slot];
+    const b=document.createElement("b");b.textContent=slot==="a"?"A":"B";
+    const em=document.createElement("em");em.textContent=im?im.name:"＋";if(!im)em.classList.add("add");
+    el.classList.toggle("has",!!im);
+    el.title=im?("点击替换 "+im.name):"点击添加 "+(slot==="a"?"A":"B")+" 图";
+    el.append(b,em);
+    if(im){
+      const x=document.createElement("i");x.className="x";x.textContent="✕";
+      x.onclick=ev=>{ev.stopPropagation();it[slot]=null;fixMode(it);saveHistory();renderList();refresh();};
+      el.append(x);
+    }
+  });
+}
+
+function renderSplit(it){
+  const base=it.a||it.b;                    // 主图：有 A 用 A，只有 B 用 B
+  const aw=base.w,ah=base.h;
+  const box=$("#boxSplit");
+  box.style.width=aw+"px";box.style.height=ah+"px";
+  const a=$("#sA");a.style.width=aw+"px";a.style.height=ah+"px";a.src=base.src;
+  const clip=$("#clipB"),b=$("#sB"),sp=$("#splitter");
+  if(it.a&&it.b){
+    const k=Math.min(aw/it.b.w,ah/it.b.h);
+    const bw=it.b.w*k,bh=it.b.h*k,bx=(aw-bw)/2,by=(ah-bh)/2;
+    clip.style.display="block";
+    b.style.width=bw+"px";b.style.height=bh+"px";b.style.left=bx+"px";b.style.top=by+"px";b.src=it.b.src;
+    sp.hidden=false;
+  }else{
+    clip.style.display="none";sp.hidden=true;
+  }
+  if(!it.view){it.view=fitFor(stageRect(),aw,ah);}
+  setTransform(box,it.view);
+  placeSplitter(it,box);
+}
+function placeSplitter(it,box){
+  const sp=$("#splitter");
+  if(sp.hidden)return;
+  const v=it.view;
+  const x=v.tx+(it.splitPct/100)*it.a.w*v.s;
+  sp.style.left=x+"px";
+  $("#clipB").style.clipPath=`inset(0 0 0 ${it.splitPct}%)`;
+}
+function renderSync(it){
+  const pA=$("#paneA"),pB=$("#paneB"),boxA=$("#boxSyncA"),boxB=$("#boxSyncB");
+  const yA=$("#yA"),yB=$("#yB"),ea=$("#emptyA"),eb=$("#emptyB");
+  const rA=paneRect(pA),rB=paneRect(pB);
+  if(it.a){
+    boxA.style.display="block";yA.style.display="block";
+    boxA.style.width=it.a.w+"px";boxA.style.height=it.a.h+"px";
+    yA.style.width=it.a.w+"px";yA.style.height=it.a.h+"px";yA.src=it.a.src;
+    ea.hidden=true;
+  }else{
+    boxA.style.display="none";yA.style.display="none";
+    ea.hidden=false;
+  }
+  if(it.b){
+    boxB.style.display="block";yB.style.display="block";
+    boxB.style.width=it.b.w+"px";boxB.style.height=it.b.h+"px";
+    yB.style.width=it.b.w+"px";yB.style.height=it.b.h+"px";yB.src=it.b.src;
+    eb.hidden=true;
+  }else{
+    boxB.style.display="none";yB.style.display="none";
+    eb.hidden=false;
+  }
+  if(!it.view){
+    it.view={
+      a:it.a?fitFor(rA,it.a.w,it.a.h):null,
+      b:it.b?fitFor(rB,it.b.w,it.b.h):null
+    };
+  }
+  if(it.a)setTransform(boxA,it.view.a);
+  if(it.b)setTransform(boxB,it.view.b);
+}
+function diffDims(it){
+  return new Promise(res=>{
+    // 以降采样后的 data 为基准，分辨率低、解码快，差异图即时显示
+    const im=new Image();
+    im.onload=()=>res({w:im.naturalWidth,h:im.naturalHeight});
+    im.onerror=()=>res({w:it.a.w,h:it.a.h});
+    im.src=it.a.data||it.a.src;
+  });
+}
+async function renderDiffView(it){
+  const d=await diffDims(it),box=$("#boxDiff");
+  box.style.width=d.w+"px";box.style.height=d.h+"px";
+  if(!it.view)it.view=fitFor(stageRect(),d.w,d.h);
+  setTransform(box,it.view);
+  renderDiff(it);
+}
+let diffRAF=0;
+function renderDiff(it){
+  cancelAnimationFrame(diffRAF);
+  diffRAF=requestAnimationFrame(()=>computeDiff(it));
+}
+async function computeDiff(it){
+  if(!canDiff(it))return;
+  const d=await diffDims(it);
+  const w=d.w,h=d.h;
+  const [ia,ib]=await Promise.all([getImg(it.a.data||it.a.src),getImg(it.b.data||it.b.src)]);
+  const ca=document.createElement("canvas"),cb=document.createElement("canvas");
+  ca.width=cb.width=w;ca.height=cb.height=h;
+  const caX=ca.getContext("2d"),cbX=cb.getContext("2d");
+  caX.drawImage(ia,0,0,w,h);
+  const kb=Math.min(w/it.b.w,h/it.b.h);
+  const bw=it.b.w*kb,bh=it.b.h*kb,bx=(w-bw)/2,by=(h-bh)/2;
+  cbX.drawImage(ib,bx,by,bw,bh);
+  const dA=caX.getImageData(0,0,w,h).data,dB=cbX.getImageData(0,0,w,h).data;
+  const out=new Uint8ClampedArray(dA);
+  const th=parseFloat($("#thresh").value);
+  let diff=0,cover=0;
+  for(let i=0;i<dA.length;i+=4){
+    if(dB[i+3]===0)continue;
+    cover++;
+    const dist=(Math.abs(dA[i]-dB[i])+Math.abs(dA[i+1]-dB[i+1])+Math.abs(dA[i+2]-dB[i+2]))/3;
+    if(dist>=th){
+      diff++;
+      out[i]=0.75*255+0.25*dA[i];
+      out[i+1]=0.15*dA[i+1];
+      out[i+2]=0.15*dA[i+2];
+      out[i+3]=255;
+    }
+  }
+  const oc=document.createElement("canvas");oc.width=w;oc.height=h;
+  oc.getContext("2d").putImageData(new ImageData(out,w,h),0,0);
+  const pct=cover?(diff/cover*100):0;
+  $("#diffPct").textContent=pct.toFixed(1)+"%";
+  $("#dA").src=oc.toDataURL("image/png");
+  $("#dA").style.width=w+"px";$("#dA").style.height=h+"px";
+}
+
+/* ---------- 交互 ---------- */
+function fitActive(anim){
+  const it=active();
+  if(!hasImages(it))return;
+  it.view=null;
+  if(anim){
+    const st=$("#stage");st.classList.add("anim");
+    clearTimeout(fitAnimTimer);fitAnimTimer=setTimeout(()=>st.classList.remove("anim"),220);
+  }
+  renderView();
+}
+let pan=null;
+stage.addEventListener("pointerdown",e=>{
+  if(e.button!==0)return;
+  const it=active();
+  if(!hasImages(it))return;
+  if(it.mode==="split"&&e.target.closest("#splitter")){startSplitter(e);return;}
+  if(e.target.closest(".tag"))return; // 标签点击用于换图，不触发拖拽
+  stage.setPointerCapture(e.pointerId);
+  stage.classList.add("panning");
+  pan={x:e.clientX,y:e.clientY};
+});
+stage.addEventListener("pointermove",e=>{
+  if(!pan)return;
+  const dx=e.clientX-pan.x,dy=e.clientY-pan.y;pan={x:e.clientX,y:e.clientY};
+  const it=active();if(!it||!hasImages(it))return;
+  if(it.mode==="sync"){
+    if(it.view.a){it.view.a.tx+=dx;it.view.a.ty+=dy;setTransform($("#boxSyncA"),it.view.a);}
+    if(it.view.b){it.view.b.tx+=dx;it.view.b.ty+=dy;setTransform($("#boxSyncB"),it.view.b);}
+  }else{
+    it.view.tx+=dx;it.view.ty+=dy;
+    const box=it.mode==="split"?$("#boxSplit"):$("#boxDiff");
+    setTransform(box,it.view);
+    if(it.mode==="split")placeSplitter(it,box);
+  }
+});
+stage.addEventListener("pointerup",e=>{
+  if(pan){pan=null;stage.classList.remove("panning");stage.releasePointerCapture(e.pointerId);}
+});
+function startSplitter(e){
+  const it=active();
+  if(!it||!it.b)return;
+  stage.setPointerCapture(e.pointerId);
+  const move=ev=>{
+    const r=stageRect(),v=it.view;
+    const x=ev.clientX-r.left;
+    const localX=(x-v.tx)/v.s;
+    it.splitPct=Math.max(0,Math.min(100,localX/it.a.w*100));
+    placeSplitter(it,$("#boxSplit"));
+  };
+  const up=()=>{stage.removeEventListener("pointermove",move);stage.removeEventListener("pointerup",up);};
+  stage.addEventListener("pointermove",move);
+  stage.addEventListener("pointerup",up);
+  move(e);
+}
+stage.addEventListener("wheel",e=>{
+  e.preventDefault();
+  const it=active();if(!hasImages(it))return;
+  const f=e.deltaY<0?1.12:0.89;
+  if(it.mode==="sync"){
+    const r=paneRect(e.target.closest(".pane")||$("#paneA"));
+    const mx=e.clientX-r.left,my=e.clientY-r.top;
+    ["a","b"].forEach(slot=>{
+      if(!it.view[slot])return;
+      const v=it.view[slot];
+      const ax=(mx-v.tx)/v.s,ay=(my-v.ty)/v.s;
+      v.s=Math.max(0.03,Math.min(24,v.s*f));
+      v.tx=mx-ax*v.s;v.ty=my-ay*v.s;
+    });
+    if(it.view.a)setTransform($("#boxSyncA"),it.view.a);
+    if(it.view.b)setTransform($("#boxSyncB"),it.view.b);
+  }else{
+    const r=stageRect();
+    const mx=e.clientX-r.left,my=e.clientY-r.top;
+    const v=it.view;
+    const ax=(mx-v.tx)/v.s,ay=(my-v.ty)/v.s;
+    v.s=Math.max(0.03,Math.min(24,v.s*f));
+    v.tx=mx-ax*v.s;v.ty=my-ay*v.s;
+    const box=it.mode==="split"?$("#boxSplit"):$("#boxDiff");
+    setTransform(box,v);
+    if(it.mode==="split")placeSplitter(it,box);
+  }
+},{passive:false});
+window.addEventListener("resize",()=>{if(active())fitActive(false);});
+
+/* ---------- 文件输入 / 拖拽 / 粘贴 ---------- */
+const fileInputA=$("#fileInputA"),fileInputB=$("#fileInputB");
+fileInputA.addEventListener("change",()=>{if(fileInputA.files.length){handleFiles(fileInputA.files,"a");fileInputA.value="";}});
+fileInputB.addEventListener("change",()=>{if(fileInputB.files.length){handleFiles(fileInputB.files,"b");fileInputB.value="";}});
+function pickFor(slot){const inp=slot==="a"?fileInputA:fileInputB;inp.click();}
+async function handleFiles(files,slot){
+  const it=active();
+  if(!it)return;
+  const arr=Array.from(files).filter(f=>f.type.startsWith("image/")||/\.(png|jpe?g|webp|gif|bmp|svg|avif|ico|tiff?)$/i.test(f.name));
+  if(!arr.length){showToast("请选择图片文件");return;}
+  if(arr.length===1){
+    await assign(it,slot||firstEmpty(it),arr[0]);
+  }else{
+    // 两张图：分别放到 A、B
+    const sA=slot==="b"?"b":"a";
+    const sB=slot==="b"?"a":"b";
+    await assign(it,sA,arr[0]);
+    await assign(it,sB,arr[1]);
+  }
+}
+function firstEmpty(it){return it.a? (it.b?null:"b") : "a";}
+async function assign(it,slot,file){
+  if(!slot)return;
+  try{
+    const rec=await loadImage(file);
+    rec.data=await scaleImage(rec.src,1200);
+    // 记录降采样后的真实尺寸：恢复历史时按此渲染，避免用原图尺寸拉伸导致异常
+    const dim=await new Promise(r=>{const im=new Image();im.onload=()=>r({w:im.naturalWidth,h:im.naturalHeight});im.onerror=()=>r({w:rec.w,h:rec.h});im.src=rec.data;});
+    rec.dw=dim.w;rec.dh=dim.h;
+    rec.thumb=await makeThumb(rec.data,84);   // 加载时一次性生成缩略图，列表渲染只读缓存、不异步解码
+    it[slot]=rec;
+    fixMode(it);
+    saveHistory();
+    renderList();   // 更新该条目的名称与缩略图
+    refresh();
+    showToast(slot==="a"?"已添加 A 图":"已添加 B 图");
+  }catch(err){showToast(err.message||"读取图片失败");}
+}
+function onDrop(e){
+  e.preventDefault();
+  stage.classList.remove("dragover");
+  const it=active();if(!it)return;
+  const slot=e.target.closest("[data-slot]")?.dataset.slot||firstEmpty(it)||"b";
+  handleFiles(e.dataTransfer.files,slot);
+}
+stage.addEventListener("dragover",e=>{e.preventDefault();stage.classList.add("dragover");});
+stage.addEventListener("dragleave",e=>{
+  if(!stage.contains(e.relatedTarget))stage.classList.remove("dragover");
+});
+stage.addEventListener("drop",onDrop);
+document.addEventListener("paste",e=>{
+  const it=active();if(!it)return;
+  const items=Array.from(e.clipboardData?.items||[]).filter(i=>i.type.startsWith("image/"));
+  if(!items.length)return;
+  e.preventDefault();
+  const slot=firstEmpty(it)||"b";
+  handleFiles(items.map(i=>i.getAsFile()).filter(Boolean),slot);
+});
+
+/* ---------- 列表 ---------- */
+function renderList(){
+  const list=$("#list");list.innerHTML="";
+  for(const it of state.items){
+    const d=document.createElement("div");
+    d.className="tab"+(it.id===state.activeId?" active":"");
+    const th=document.createElement("div");th.className="tab-thumbs";
+    for(const slot of ["a","b"]){
+      const im=it[slot];
+      const cell=document.createElement("div");cell.className="tab-thumb";
+      if(im&&im.thumb){
+        const img=document.createElement("img");
+        img.title=im.name;img.src=im.thumb;
+        cell.appendChild(img);
+      }else{
+        cell.textContent=slot.toUpperCase();   // 缩略图未就绪时先显示 A/B 字母占位，稳定无闪
+      }
+      th.appendChild(cell);
+    }
+    const m=document.createElement("div");m.className="tab-meta";
+    const n=document.createElement("div");n.className="tab-name";
+    if(it.a&&it.b)n.textContent=`${it.a.name} · ${it.b.name}`;
+    else if(it.a)n.textContent=it.a.name;
+    else if(it.b)n.textContent=it.b.name;
+    else{n.textContent="空对比";n.className="tab-name tab-empty";}
+    const tm=document.createElement("div");tm.className="tab-time";tm.textContent=fmtTime(it.t);
+    m.append(n,tm);
+    const del=document.createElement("button");del.className="tab-del";del.textContent="✕";del.title="删除";
+    del.onclick=ev=>{ev.stopPropagation();if(confirm("删除这条对比记录？"))deleteItem(it.id);};
+    d.append(th,m,del);
+    d.onclick=()=>activate(it.id);
+    list.appendChild(d);
+  }
+}
+
+/* ---------- 持久化 ---------- */
+function saveHistory(){
+  clearTimeout(saveHistory._t);
+  saveHistory._t=setTimeout(()=>{
+    try{
+      const slim=state.items.map(i=>({
+        id:i.id,t:i.t,mode:i.mode,
+        a:i.a?{name:i.a.name,data:i.a.data,w:i.a.w,h:i.a.h,dw:i.a.dw,dh:i.a.dh,size:i.a.size}:null,
+        b:i.b?{name:i.b.name,data:i.b.data,w:i.b.w,h:i.b.h,dw:i.b.dw,dh:i.b.dh,size:i.b.size}:null
+      })).slice(-24);
+      localStorage.setItem(KEY,JSON.stringify(slim));
+    }catch(err){
+      // 容量超限：去掉图片只留缩略信息继续
+      try{
+        const slim=state.items.map(i=>({id:i.id,t:i.t,
+          a:i.a?{name:i.a.name,data:null,w:i.a.w,h:i.a.h}:null,
+          b:i.b?{name:i.b.name,data:null,w:i.b.w,h:i.b.h}:null})).slice(-12);
+        localStorage.setItem(KEY,JSON.stringify(slim));
+      }catch(e2){console.warn("历史保存失败",e2);}
+    }
+  },400);
+}
+function loadHistory(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(!raw)return false;
+    const arr=JSON.parse(raw);
+    if(!Array.isArray(arr)||!arr.length)return false;
+    state.items=arr.map(i=>({
+      id:i.id,t:i.t,
+      mode:i.mode||"sync",
+      a:i.a&&i.a.data?{src:i.a.data,name:i.a.name,w:i.a.dw||i.a.w,h:i.a.dh||i.a.h,size:i.a.size,data:i.a.data}:null,
+      b:i.b&&i.b.data?{src:i.b.data,name:i.b.name,w:i.b.dw||i.b.w,h:i.b.dh||i.b.h,size:i.b.size,data:i.b.data}:null,
+      splitPct:50,view:null
+    }));
+    state.activeId=state.items[state.items.length-1].id;
+    return true;
+  }catch(e){return false;}
+}
+
+/* ---------- 键盘 ---------- */
+document.addEventListener("keydown",e=>{
+  if(e.target.matches("input,textarea"))return;
+  if(e.key==="n"||e.key==="N"){e.preventDefault();addItem();}
+  if(e.key==="z"||e.key==="Z"){e.preventDefault();fitActive(true);}
+});
+
+/* ---------- 初始化 ---------- */
+$("#addBtn").onclick=()=>addItem();
+$$(".mode-group button").forEach(b=>{
+  b.onclick=()=>{
+    const it=active();
+    if(!it||!hasImages(it))return;
+    if(b.dataset.mode==="diff"&&!canDiff(it)){showToast(!it.a?"需要先添加 A 图":"需要先添加 B 图");return;}
+    it.mode=b.dataset.mode;
+    it.view=null;
+    refresh();
+  };
+});
+$("#centerBtn").onclick=()=>fitActive(true);
+$$(".card").forEach(c=>{
+  c.onclick=()=>pickFor(c.dataset.slot);
+  c.ondragover=e=>{e.preventDefault();c.classList.add("dragover");};
+  c.ondragleave=()=>c.classList.remove("dragover");
+});
+$("#emptyA").onclick=()=>pickFor("a");
+$("#emptyB").onclick=()=>pickFor("b");
+$$(".tag").forEach(t=>{
+  const slot=t.dataset.slot;
+  t.onclick=()=>pickFor(slot);
+  t.ondragover=ev=>{ev.preventDefault();ev.stopPropagation();t.classList.add("over");};
+  t.ondragleave=()=>t.classList.remove("over");
+  t.ondrop=ev=>{ev.preventDefault();ev.stopPropagation();t.classList.remove("over");handleFiles(ev.dataTransfer.files,slot);};
+});
+$("#clearBtn").onclick=()=>{
+  if(!confirm("清空全部历史记录？已添加的图片数据将一并删除。"))return;
+  localStorage.removeItem(KEY);
+  imgCache.clear();
+  state.items=[];
+  addItem();
+  showToast("历史记录已清空");
+};
+const th=$("#thresh");
+function paintTrack(){
+  const p=(th.value-th.min)/(th.max-th.min)*100;
+  th.style.background=`linear-gradient(to right,var(--accent) ${p}%,#2a3a52 ${p}%)`;
+}
+th.addEventListener("input",()=>{
+  paintTrack();
+  const it=active();
+  if(it&&canDiff(it))renderDiff(it);
+});
+paintTrack();
+
+if(!loadHistory())addItem();
+state.activeId=state.activeId||state.items[0].id;
+state.items.forEach(i=>i.view=null);   // 刷新后强制所有条目视图重置，统一按 cover 填满显示
+renderList();
+lazyThumbs();   // 后台为恢复的条目补生成缩略图（列表先显示字母占位，不阻塞渲染）
+refresh();
+function lazyThumbs(){
+  let pending=0;
+  const done=()=>{if(pending===0)renderList();};
+  for(const it of state.items){
+    for(const slot of ["a","b"]){
+      const im=it[slot];
+      if(im&&!im.thumb){
+        pending++;
+        makeThumb(im.data||im.src,84).then(t=>{im.thumb=t;pending--;done();});
+      }
+    }
+  }
+  if(pending===0)renderList();
+}
+</script>
+</body>
+</html>
