@@ -4,6 +4,9 @@ A collection of static web pages hosted and deployed with GitHub Pages.
 
 ## Projects
 
+### [AIConversation](AIConversation)
+A static web app that lets two OpenAI-compatible models take turns in one conversation, with per-topic system prompts, streaming replies and Markdown / JSON export.
+
 ### [CUHKSZPASSPORT](CUHKSZPASSPORT)
 A static, offline-ready web app that simulates the CUHKSZ Passport, installable on mobile devices and supporting customizable information display.
 

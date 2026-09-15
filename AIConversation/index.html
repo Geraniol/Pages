@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="zh" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<title>AI Discussion</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2318181b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7.9 20A9 9 0 1 0 4 16.1L2 22Z'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ─── Lucide icon sprite (ISC License, lucide.dev) ─── -->
+<svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="i-message-circle-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M8 12h8"/><path d="M12 8v8"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v13"/><path d="m16 6-4-4-4 4"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/></symbol>
+  <symbol id="i-fold-horizontal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h6"/><path d="M22 12h-6"/><path d="M12 2v2"/><path d="M12 8v2"/><path d="M12 14v2"/><path d="M12 20v2"/><path d="m19 9-3 3 3 3"/><path d="m5 15 3-3-3-3"/></symbol>
+  <symbol id="i-unfold-horizontal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12h6"/><path d="M8 12H2"/><path d="M12 2v2"/><path d="M12 8v2"/><path d="M12 14v2"/><path d="M12 20v2"/><path d="m19 15 3-3-3-3"/><path d="m5 9-3 3 3 3"/></symbol>
+  <symbol id="i-square-pen" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></symbol>
+  <symbol id="i-copy-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 12v6"/><path d="M12 15h6"/><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"/><path d="m21.854 2.147-10.94 10.939"/></symbol>
+  <symbol id="i-badge-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-circle-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+  <symbol id="i-loader" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+</svg>
+
+<div class="app">
+
+  <!-- ─── Sidebar ─── -->
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <span class="app-title" data-i18n="app.title">AI Discussion</span>
+      <button type="button" class="icon-btn" id="btn-new-topic" data-i18n-title="topic.new">
+        <svg class="ic"><use href="#i-message-circle-plus"/></svg>
+      </button>
+    </div>
+    <nav class="topic-list" id="topic-list"></nav>
+  </aside>
+
+  <!-- ─── Main ─── -->
+  <main class="main">
+    <header class="topbar">
+      <button type="button" class="icon-btn" id="btn-settings" data-i18n-title="settings.title">
+        <svg class="ic"><use href="#i-settings"/></svg>
+      </button>
+      <div class="topbar-right">
+        <span class="round-counter" id="round-counter"></span>
+        <button type="button" class="icon-btn" id="btn-theme" data-i18n-title="theme.toggle">
+          <svg class="ic"><use href="#i-sun" id="theme-icon"/></svg>
+        </button>
+        <button type="button" class="icon-btn" id="btn-width">
+          <svg class="ic"><use href="#i-unfold-horizontal" id="width-icon"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="stage" id="stage">
+      <div class="empty-state" id="empty-state">
+        <button type="button" class="empty-btn" id="btn-empty-new">
+          <span data-i18n="empty.newTopic">开始新话题</span>
+        </button>
+      </div>
+
+      <section class="conversation" id="conversation" hidden>
+        <div class="messages-wrap">
+          <div class="notices" id="notices"></div>
+          <div class="anchors" id="anchors"></div>
+          <div class="messages" id="messages"></div>
+          <div class="anchor-tip" id="anchor-tip" hidden></div>
+        </div>
+        <div class="run-bar">
+          <button type="button" class="run-btn" id="btn-run">
+            <svg class="ic"><use href="#i-play" id="run-icon"/></svg>
+          </button>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- ─── Settings modal ─── -->
+<div class="modal" id="settings-modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-head">
+      <svg class="ic"><use href="#i-settings"/></svg>
+      <h2 id="settings-title" data-i18n="settings.title">设置</h2>
+      <button type="button" class="icon-btn" data-close data-i18n-title="action.close">
+        <svg class="ic"><use href="#i-x"/></svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <section class="group">
+        <h3 class="group-title" data-i18n="settings.language">语言</h3>
+        <div class="seg" id="lang-seg">
+          <button type="button" class="seg-item" data-lang="zh">中文</button>
+          <button type="button" class="seg-item" data-lang="en">English</button>
+        </div>
+      </section>
+
+      <section class="group" id="group-model1">
+        <h3 class="group-title" data-i18n="settings.model1">模型 1</h3>
+        <label class="field">
+          <span data-i18n="settings.endpoint">Endpoint URL</span>
+          <input type="text" id="a-endpoint" spellcheck="false" autocomplete="off" placeholder="https://api.openai.com/v1">
+        </label>
+        <label class="field">
+          <span data-i18n="settings.apiKey">API Key</span>
+          <input type="password" id="a-key" spellcheck="false" autocomplete="off">
+        </label>
+        <div class="field field-inline">
+          <label class="grow">
+            <span data-i18n="settings.modelName">Model Name</span>
+            <input type="text" id="a-model" spellcheck="false" autocomplete="off">
+          </label>
+          <button type="button" class="btn" id="test-a">
+            <svg class="ic"><use href="#i-send"/></svg><span data-i18n="action.test">测试</span>
+          </button>
+        </div>
+        <div class="test-result" id="result-a"></div>
+      </section>
+
+      <section class="group" id="group-model2">
+        <div class="group-head">
+          <h3 class="group-title" data-i18n="settings.model2">模型 2</h3>
+          <button type="button" class="switch" id="same-toggle" role="switch" aria-checked="false">
+            <span class="switch-knob"></span>
+          </button>
+        </div>
+        <p class="group-sub" id="same-label" data-i18n="settings.sameAsModel1">和模型 1 保持一致</p>
+        <label class="field">
+          <span data-i18n="settings.endpoint">Endpoint URL</span>
+          <input type="text" id="b-endpoint" spellcheck="false" autocomplete="off" placeholder="https://api.openai.com/v1">
+        </label>
+        <label class="field">
+          <span data-i18n="settings.apiKey">API Key</span>
+          <input type="password" id="b-key" spellcheck="false" autocomplete="off">
+        </label>
+        <div class="field field-inline">
+          <label class="grow">
+            <span data-i18n="settings.modelName">Model Name</span>
+            <input type="text" id="b-model" spellcheck="false" autocomplete="off">
+          </label>
+          <button type="button" class="btn" id="test-b">
+            <svg class="ic"><use href="#i-send"/></svg><span data-i18n="action.test">测试</span>
+          </button>
+        </div>
+        <div class="test-result" id="result-b"></div>
+      </section>
+
+      <section class="group" id="group-runtime">
+        <h3 class="group-title" data-i18n="settings.runtime">运行</h3>
+        <label class="field field-inline">
+          <span class="grow" data-i18n="settings.maxRounds">最大轮数</span>
+          <input type="number" id="max-rounds" min="0" step="1" value="0" class="num"
+                 data-i18n-title="settings.maxRoundsHint">
+        </label>
+      </section>
+
+      <section class="group">
+        <h3 class="group-title" data-i18n="settings.data">数据配置</h3>
+        <div class="btn-row">
+          <button type="button" class="btn btn-wide" id="btn-clear-config">
+            <span data-i18n="settings.clearConfig">清除配置数据（保留对话）</span>
+          </button>
+          <button type="button" class="btn btn-wide btn-danger" id="btn-clear-all">
+            <span data-i18n="settings.clearAll">清除所有会话数据</span>
+          </button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Export modal ─── -->
+<div class="modal" id="export-modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card modal-card-sm" role="dialog" aria-modal="true" aria-labelledby="export-title">
+    <div class="modal-head">
+      <svg class="ic"><use href="#i-share"/></svg>
+      <h2 id="export-title" data-i18n="export.title">导出聊天记录</h2>
+      <button type="button" class="icon-btn" data-close data-i18n-title="action.close">
+        <svg class="ic"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <section class="group">
+        <h3 class="group-title" data-i18n="export.format">格式</h3>
+        <div class="seg" id="export-seg">
+          <button type="button" class="seg-item" data-format="md">Markdown</button>
+          <button type="button" class="seg-item" data-format="json">JSON</button>
+        </div>
+      </section>
+      <section class="group" id="export-opt-row">
+        <label class="check-row">
+          <input type="checkbox" id="export-reason" checked>
+          <span data-i18n="export.includeReasoning">包含思考过程</span>
+        </label>
+      </section>
+      <div class="btn-row btn-row-end">
+        <button type="button" class="btn" data-close data-i18n="action.cancel">取消</button>
+        <button type="button" class="btn btn-primary" id="export-go" data-i18n="export.action">导出</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Confirm modal ─── -->
+<div class="modal" id="confirm-modal" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card modal-card-sm" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title">
+    <div class="modal-head">
+      <svg class="ic ic-danger"><use href="#i-circle-alert"/></svg>
+      <h2 id="confirm-title"></h2>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-body" id="confirm-body"></p>
+      <div class="btn-row btn-row-end">
+        <button type="button" class="btn" id="confirm-cancel" data-i18n="action.cancel">取消</button>
+        <button type="button" class="btn btn-danger" id="confirm-ok" data-i18n="action.confirm">确认</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
