@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>极轴校对 · 星点漂移模拟</title>
+<style>
+  :root{
+    --bg:#05070c;
+    --panel-bg:rgba(11,17,28,.9);
+    --card:rgba(255,255,255,.028);
+    --line:rgba(120,175,235,.14);
+    --line-2:rgba(120,175,235,.26);
+    --txt:#c6d5e8;
+    --dim:#6c8098;
+    --dim2:#4e5f74;
+    --cyan:#4fd6ff;   /* 极轴 */
+    --amber:#ffb454;  /* 赤道仪轴 */
+    --rose:#ff5f7e;   /* 相机轴 */
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--txt);
+    font-family:"Inter","Segoe UI",-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    overflow:hidden;-webkit-font-smoothing:antialiased}
+  #app{display:flex;height:100%;width:100%}
+
+  /* ---------------- 取景器 ---------------- */
+  #stage{position:relative;flex:1 1 auto;min-width:0;display:grid;place-items:center;
+    background:radial-gradient(ellipse at 50% 45%,#070c15 0%,#020409 70%);overflow:hidden}
+  #frame{position:relative;overflow:hidden;background:#03050a;border-radius:14px;
+    box-shadow:0 0 0 1px rgba(120,175,235,.22),0 26px 70px rgba(0,0,0,.66)}
+  #vf{display:block;width:100%;height:100%}
+  /* 取景框角标内缩，避开圆角 */
+  #corners{position:absolute;inset:22px;pointer-events:none}
+  #corners i{position:absolute;width:15px;height:15px;border:1px solid rgba(130,190,255,.28)}
+  #corners i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0}
+  #corners i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0}
+  #corners i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0}
+  #corners i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0}
+
+  /* 三个中心标记 */
+  .mk{position:absolute;pointer-events:none;transform:translate(-50%,-50%)}
+  .mk .dot{display:block;border-radius:50%;box-shadow:0 0 10px currentColor}
+  .mk .lbl{position:absolute;font-size:10px;font-family:var(--mono);letter-spacing:.04em;
+    white-space:nowrap;text-shadow:0 0 5px #000,0 0 9px #000}
+  #mkCam .cross{display:block;width:24px;height:24px;position:relative}
+  #mkCam .cross::before,#mkCam .cross::after{content:'';position:absolute;background:rgba(232,246,255,.9);
+    box-shadow:0 0 6px rgba(180,225,255,.9)}
+  #mkCam .cross::before{left:50%;top:0;bottom:0;width:1px}
+  #mkCam .cross::after{top:50%;left:0;right:0;height:1px}
+  #mkPole .dot{width:10px;height:10px;border:1.5px solid var(--cyan);background:rgba(79,214,255,.22)}
+  #mkMount .dot{width:10px;height:10px;border:1.5px solid var(--amber);background:rgba(255,180,84,.22)}
+  /* 标签分置三侧，避免三者重合时互相遮挡 */
+  #mkCam .lbl{left:50%;top:100%;transform:translateX(-50%);margin-top:5px;color:#dceeff}
+  #mkMount .lbl{left:50%;bottom:100%;transform:translateX(-50%);margin-bottom:5px;color:#ffd39a}
+  #mkPole .lbl{right:100%;top:50%;transform:translateY(-50%);margin-right:6px;color:#9fe4ff}
+
+  /* 3D 小窗 */
+  /* 3D 轴系视图：面板顶部通栏，不再是舞台上的浮层 */
+  #inset{position:relative;flex:0 0 auto;width:100%;aspect-ratio:2/1;margin-bottom:10px;
+    border-radius:12px;overflow:hidden;border:1px solid var(--line-2);
+    background:radial-gradient(circle at 50% 44%,rgba(15,27,46,.9),rgba(4,7,12,.94))}
+  #inset canvas{display:block;width:100%;height:100%}
+  #inset .legend{position:absolute;left:11px;bottom:9px;display:flex;gap:11px;font-size:10.5px;
+    color:var(--dim);pointer-events:none;user-select:none}
+  #inset .legend span{display:flex;align-items:center;gap:4px}
+  #inset .legend i{width:13px;height:2px;border-radius:1px;display:block}
+
+  /* ---------------- 右侧面板 ---------------- */
+  #panel{width:404px;flex:0 0 404px;height:100%;overflow-y:auto;overscroll-behavior:contain;
+    background:var(--panel-bg);border-left:1px solid var(--line);
+    padding:10px 12px 10px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    display:flex;flex-direction:column}
+  /* 轴系卡高度由内容决定（不能 flex:1 —— 否则卡片高度依赖圆盘尺寸、
+     圆盘尺寸又依赖卡片高度，测量不收敛）。多余高度由 sizeDials 并入分组间距 */
+  #dialsCard{flex:0 0 auto}
+    #slidersCard{flex:0 0 auto}
+  #panel::-webkit-scrollbar{width:9px}
+  #panel::-webkit-scrollbar-thumb{background:rgba(120,175,235,.16);border-radius:9px;
+    border:2px solid transparent;background-clip:content-box}
+
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:11px 12px 11px;margin-bottom:10px}
+  .dot{width:7px;height:7px;border-radius:50%;display:block;flex:none}
+  .dot.cyan{background:var(--cyan);box-shadow:0 0 9px var(--cyan)}
+  .dot.amber{background:var(--amber);box-shadow:0 0 9px var(--amber)}
+  .dot.rose{background:var(--rose);box-shadow:0 0 9px var(--rose)}
+
+  /* 三环同处一框，尺寸由 JS 按实际可用高度算（见 sizeDials） */
+  .dc-row{height:var(--rowh,auto)}
+  .dc-row + .dc-row{margin-top:8px}
+  #dialsCard .dc-row:first-child{margin-top:12px}    /* 卡片顶部留白 */
+    /* 用 grid 定列：列宽由 JS 的 --dial 精确指定，剩余 1fr 归读数栏。
+     必须 dense —— 默认的稀疏放置会把游标推过第 1 列，使 rev 行的读数栏
+     被挤到第二行（表现为被下一行的圆盘盖住） */
+  .dc-body{display:grid;grid-template-columns:var(--dial) 1fr;gap:12px;
+    align-items:center;height:100%;grid-auto-flow:dense}
+  .dc-body .dial-wrap{grid-column:1}
+  .dc-body .dc-ros{grid-column:2}
+  .dc-body.rev{grid-template-columns:1fr var(--dial)}
+  .dc-body.rev .dial-wrap{grid-column:2}
+  .dc-body.rev .dc-ros{grid-column:1}
+  /* 圆盘是「方圆」：圆内接于方框，四角是空的。负边距把这层内缩补掉，
+     使圆的边缘正好落在列边界上，与读数框的边对齐（内缩率 =(158-140)/316） */
+  .dial-wrap{width:var(--dial,150px);height:var(--dial,150px);max-height:100%;
+    align-self:center;margin:0 calc(var(--dial,150px) * -0.057)}
+  .dial{width:100%;height:100%;touch-action:none;user-select:none;display:block}
+  /* 读数栏撑满圆盘高度：标签在上、数值在下，纵向填满，横向收紧 */
+  .dc-ros{display:flex;flex-direction:column;justify-content:center;gap:8px;min-width:0}
+  .dc-ros .ro{flex:0 0 auto}   /* 自然高度，不再被撑高 */
+  .dc-cap{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;
+    color:#b8cfe4;letter-spacing:.04em}
+  .dc-cap .dot{width:6px;height:6px}
+  .dial .tick{stroke:rgba(120,175,235,.30);stroke-width:1}
+  .dial .tick.major{stroke:rgba(120,175,235,.55);stroke-width:1.5}
+  .dial .hnd{cursor:grab}
+  .dial .hnd:active{cursor:grabbing}
+
+  .ro{background:#080d16;border:1px solid var(--line);border-radius:9px;
+    padding:8px 10px;display:flex;align-items:center;justify-content:space-between;
+    gap:8px;min-width:0;overflow:hidden}
+  .ro label{font-size:12px;color:#7d93a8;letter-spacing:.02em;white-space:nowrap}
+  .ro b{font-family:var(--mono);font-size:19px;font-weight:600;color:#e6f2ff;
+    line-height:1.1;white-space:nowrap}
+  .ro b.cy{color:var(--cyan)} .ro b.am{color:var(--amber)} .ro b.rs{color:var(--rose)}
+
+  /* 滑块 */
+  /* 标题 / 标尺 / 参数 / 滑块 集成在同一行 */
+  .sl{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .sl:last-child{margin-bottom:0}
+  .sl-lab{flex:0 0 auto;display:flex;align-items:baseline;gap:6px;line-height:1.2;min-width:0}
+  .sl-lab span{flex:0 0 64px;min-width:0;font-size:12.5px;color:#a8bfd4;white-space:nowrap}
+  .sl-lab em{flex:0 0 66px;min-width:0;font-style:normal;font-family:var(--mono);font-size:10.5px;
+    color:var(--dim2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sl b{flex:0 0 76px;min-width:0;overflow:hidden;text-overflow:ellipsis;
+    text-align:right;font-family:var(--mono);font-size:13px;font-weight:600;
+    color:#e6f2ff;background:rgba(120,175,235,.09);
+    padding:3px 7px;border-radius:5px;white-space:nowrap}
+  input[type=range]{-webkit-appearance:none;appearance:none;height:4px;border-radius:3px;
+    outline:none;background:linear-gradient(90deg,var(--accent,var(--cyan)) 0%,
+      var(--accent,var(--cyan)) var(--p,50%),rgba(255,255,255,.075) var(--p,50%),rgba(255,255,255,.075) 100%)}
+  .sl input[type=range]{flex:1 1 56px;min-width:56px;width:auto}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+    background:#eef7ff;border:2px solid var(--accent,var(--cyan));cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:11px;height:11px;border-radius:50%;background:#eef7ff;
+    border:2px solid var(--accent,var(--cyan));cursor:pointer}
+
+  #err{position:fixed;inset:0;display:none;place-items:center;background:#05070c;z-index:99;padding:40px}
+  #err div{max-width:540px;font-size:13px;line-height:1.9;color:#ffb454;font-family:var(--mono)}
+
+  @media (max-width:1180px){
+    #panel{width:352px;flex-basis:352px}
+    #inset{width:190px}
+  }
+  /* 矮窗口下进一步压缩，尽量不让右侧出现滚动条 */
+  @media (max-height:880px){
+    .card{padding:8px 10px 9px;margin-bottom:6px}
+    .sl{margin-bottom:7px}
+    .ro{padding:3px 8px}
+    .dc-row + .dc-row{margin-top:6px}
+    .dc-ros{gap:6px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div id="frame">
+      <canvas id="vf"></canvas>
+      <div id="mkPole"  class="mk"><i class="dot"></i><span class="lbl">极轴中心</span></div>
+      <div id="mkMount" class="mk"><i class="dot"></i><span class="lbl">赤道仪中心</span></div>
+      <div id="mkCam"   class="mk"><i class="cross"></i><span class="lbl">相机中心</span></div>
+      <div id="corners"><i></i><i></i><i></i><i></i></div>
+    </div>
+  </div>
+
+  <aside id="panel">
+    <div id="inset">
+      <canvas id="insetCv"></canvas>
+      <div class="legend">
+        <span><i style="background:#4fd6ff"></i>极轴</span>
+        <span><i style="background:#ffb454"></i>赤道仪轴</span>
+        <span><i style="background:#ff5f7e"></i>相机轴</span>
+      </div>
+    </div>
+
+    <section class="card" id="dialsCard">
+      <div class="dc-row">
+        <div class="dc-body">
+          <div class="dial-wrap" id="dialPole"></div>
+          <div class="dc-ros">
+            <div class="dc-cap"><span class="dot cyan"></span>极轴方位俯仰角</div>
+            <div class="ro"><label>方位角</label><b class="cy" id="roAz">—</b></div>
+            <div class="ro"><label>俯仰角</label><b class="cy" id="roAlt">—</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dc-row">
+        <div class="dc-body rev">
+          <div class="dial-wrap" id="dialMount"></div>
+          <div class="dc-ros">
+            <div class="dc-cap"><span class="dot amber"></span>赤道仪偏离极轴</div>
+            <div class="ro"><label>偏差角 ε</label><b class="am" id="roEpsM">—</b></div>
+            <div class="ro"><label>方向 φ</label><b id="roDirM">—</b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dc-row">
+        <div class="dc-body">
+          <div class="dial-wrap" id="dialCam"></div>
+          <div class="dc-ros">
+            <div class="dc-cap"><span class="dot rose"></span>相机偏离赤道仪</div>
+            <div class="ro"><label>偏差角 ε</label><b class="rs" id="roEpsC">—</b></div>
+            <div class="ro"><label>方向 φ</label><b id="roDirC">—</b></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="slidersCard">
+      <div class="sl">
+        <div class="sl-lab"><span>等效焦距</span><em id="subFov">—</em></div>
+        <input type="range" id="sFocal" min="0" max="1" step="0.001" style="--accent:#5fe0a8">
+        <b id="vFocal">—</b>
+      </div>
+
+      <div class="sl">
+        <div class="sl-lab"><span>旋转速度</span><em id="subSpeed">—</em></div>
+        <input type="range" id="sSpeed" min="0" max="1" step="0.001" style="--accent:#4fd6ff">
+        <b id="vSpeed">—</b>
+      </div>
+
+      <div class="sl">
+        <div class="sl-lab"><span>曝光时长</span><em>1 s – 6 h</em></div>
+        <input type="range" id="sExp" min="0" max="1" step="0.001" style="--accent:#ff5f7e">
+        <b id="vExp">—</b>
+      </div>
+
+      <div class="sl">
+        <div class="sl-lab"><span>星点密度</span><em>20 – 500 颗</em></div>
+        <input type="range" id="sDen" min="20" max="500" step="1" style="--accent:#ffb454">
+        <b id="vDen">—</b>
+      </div>
+    </section>
+  </aside>
+</div>
+
+<div id="err"><div id="errMsg"></div></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+/* ==========================================================================
+   极轴校对 · 星点漂移模拟
+   --------------------------------------------------------------------------
+   三级坐标层级（地平 → 极轴 → 赤道仪 → 相机）
+     真极轴 P    由方位角 az、俯仰角 alt 在地平坐标系中确定（世界 +Y 为天顶）
+     赤道仪轴 M  = P 偏转 ε_m（方向 φ_m），赤道仪绕 M 以恒星时 ω 旋转
+     相机轴 C    = M 在赤道仪本体坐标系内再偏转 ε_c（方向 φ_c）
+     天球绕 P 以同一 ω 旋转 —— 赤道仪与天球转速严格一致
+
+   姿态
+     R_sky(t) = R(P, ωt)
+     R_m0     = 最短弧 (0,1,0) → M
+     R_cam(t) = R(M, ωt) · R_m0 · R_camBody
+   星点方向  d(t) = R_cam(t)⁻¹ · R_sky(t) · s
+   推论：R_rel = R_camBody⁻¹·R_m0⁻¹·[R(M,−ωt)·R(P,ωt)]，方括号只含 ε_m
+     → 漂移完全由 ε_m 决定；ε_c 只改变取景天区，本身不产生漂移。
+   漂移速率（极轴处）= ω·sin(ε_m)，即每角分极轴偏差约 0.2625 ″/min。
+
+   地平线
+     世界 +Y = 天顶，y = 0 为地平面。星点是否在地平之上只需比较
+     相机系方向与 uZenith = R_cam⁻¹·(0,1,0) 的点积符号。
+     拖线公式 d(τ) = R_cam(t)⁻¹·R(P,ωτ)·s = qRel·R(P,ω(τ−t))·s，两者等价。
+   ========================================================================== */
+
+let THREE, OrbitControls;
+try {
+  THREE = await import('three');
+  ({ OrbitControls } = await import('three/addons/controls/OrbitControls.js'));
+} catch (e) {
+  document.getElementById('errMsg').innerHTML =
+    '无法加载 three.js —— 本页需要联网访问 cdn.jsdelivr.net。<br><br>' + String(e);
+  document.getElementById('err').style.display = 'grid';
+  throw e;
+}
+
+/* ------------------------------ 常量 ------------------------------ */
+const TAU = Math.PI * 2;
+const D2R = Math.PI / 180;
+const R2D = 180 / Math.PI;
+const SIDEREAL = 7.2921150e-5;                 // rad/s，恒星时
+const ZENITH = new THREE.Vector3(0, 1, 0);     // 天顶（世界 +Y）
+const UP = new THREE.Vector3(0, 1, 0);
+const SENSOR_W = 36, SENSOR_H = 24;            // 全画幅 3:2
+const R_SPHERE = 10;
+const R_GROUND = 9.8;                          // 地平面略在星点球之内
+const DEV_MAX = 30;                            // 偏差角上限 30°
+const TRAIL_K_MAX = 40, TRAIL_MAX = 600;
+
+/* ------------------------------ 状态 ------------------------------ */
+const P = {
+  az: 0, alt: 30,          // 极轴方位角 / 俯仰角（度）
+  epsM: 0.5, dirM: 30,     // 赤道仪偏离极轴
+  epsC: 0, dirC: 0,        // 相机偏离赤道仪
+  focal: 200,              // 等效全画幅焦距 mm
+  density: 150,            // 视场内星点数
+  speed: 600,
+  expMin: 20,
+  simTime: 0
+};
+const fovVof = f => 2 * Math.atan((SENSOR_H / 2) / f);
+const fovHof = f => 2 * Math.atan((SENSOR_W / 2) / f);
+
+/* ============================ 取景器 ============================ */
+const vfRenderer = new THREE.WebGLRenderer({
+  canvas: document.getElementById('vf'), antialias: true, alpha: false
+});
+vfRenderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+vfRenderer.setClearColor(0x03050a, 1);
+
+const vfScene = new THREE.Scene();
+const vfCam = new THREE.PerspectiveCamera(50, SENSOR_W / SENSOR_H, 0.1, 100);
+vfScene.add(vfCam);
+
+/* --- 地平面：下半球穹顶（相机位于球心，故正好覆盖地平线以下） --- */
+{
+  const g = new THREE.SphereGeometry(R_GROUND, 64, 20, 0, TAU, Math.PI / 2, Math.PI / 2);
+  const pos = g.attributes.position;
+  const col = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const t = Math.min(1, Math.max(0, -pos.getY(i) / R_GROUND));   // 0 地平 → 1 天底
+    const k = Math.pow(1 - t, 3.0);                                // 仅地平附近微亮
+    col[i * 3]     = 0.0018 + 0.0072 * k;
+    col[i * 3 + 1] = 0.0026 + 0.0096 * k;
+    col[i * 3 + 2] = 0.0044 + 0.0140 * k;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const dome = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    vertexColors: true, side: THREE.BackSide, depthTest: false, depthWrite: false
+  }));
+  dome.renderOrder = -2;
+  dome.frustumCulled = false;
+  vfScene.add(dome);
+
+  // 地平线：位于 y=0 平面且过相机中心，投影为一条直线
+  const pts = [];
+  for (let i = 0; i <= 256; i++) {
+    const a = i / 256 * TAU;
+    pts.push(new THREE.Vector3(Math.cos(a) * R_GROUND, 0, Math.sin(a) * R_GROUND));
+  }
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: 0x18242e, transparent: true, opacity: .22,
+      depthTest: false, depthWrite: false, blending: THREE.AdditiveBlending }));
+  line.renderOrder = -1;
+  line.frustumCulled = false;
+  vfScene.add(line);
+}
+
+const STAR_VS = `
+  uniform float uScale;
+  uniform vec3 uZenith;            // 天顶在相机系中的方向
+  attribute float aBright;
+  attribute vec3 aColor;
+  varying vec3 vColor;
+  varying float vB;
+  void main(){
+    vColor = aColor; vB = aBright;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    if (dot(mv.xyz, uZenith) < 0.0) {          // 地平线以下：裁掉
+      gl_PointSize = 0.0;
+      gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+      return;
+    }
+    // 下限取 2px：拖影很短时画面里几乎只剩星点本身，再小就看不清了
+    float px = (1.0 + 3.0 * pow(aBright, 1.8)) * uScale;
+    gl_PointSize = clamp(px, 2.2, 26.0);
+    gl_Position = projectionMatrix * mv;
+  }`;
+const STAR_FS = `
+  varying vec3 vColor;
+  varying float vB;
+  void main(){
+    vec2 c = gl_PointCoord - 0.5;
+    float d = length(c) * 2.0;
+    if (d > 1.0) discard;
+    float core = exp(-d*d*11.0);
+    float halo = exp(-d*d*2.6) * 0.32;
+    gl_FragColor = vec4(vColor, core + halo * (0.45 + 0.55 * vB));
+  }`;
+const starMatVF = new THREE.ShaderMaterial({
+  uniforms: { uScale: { value: 1.0 }, uZenith: { value: new THREE.Vector3(0, 1, 0) } },
+  vertexShader: STAR_VS, fragmentShader: STAR_FS,
+  transparent: true, depthTest: false, depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+const starsVF = new THREE.Points(new THREE.BufferGeometry(), starMatVF);
+starsVF.frustumCulled = false;
+starsVF.scale.setScalar(R_SPHERE);
+starsVF.renderOrder = 1;
+vfCam.add(starsVF);
+
+/* 拖线 */
+const trailPos = new Float32Array(TRAIL_MAX * TRAIL_K_MAX * 2 * 3);
+const trailCol = new Float32Array(TRAIL_MAX * TRAIL_K_MAX * 2 * 3);
+const trailAlp = new Float32Array(TRAIL_MAX * TRAIL_K_MAX * 2);
+const trailGeo = new THREE.BufferGeometry();
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3).setUsage(THREE.DynamicDrawUsage));
+trailGeo.setAttribute('aColor', new THREE.BufferAttribute(trailCol, 3).setUsage(THREE.DynamicDrawUsage));
+trailGeo.setAttribute('aAlpha', new THREE.BufferAttribute(trailAlp, 1).setUsage(THREE.DynamicDrawUsage));
+trailGeo.setDrawRange(0, 0);
+const trailMat = new THREE.ShaderMaterial({
+  uniforms: { uZenith: { value: new THREE.Vector3(0, 1, 0) } },
+  /* 与星点用同一套地平线裁切：position 是相机系方向×R_SPHERE，
+     uZenith 是天顶在相机系中的方向，点积即世界 y 的符号。
+     逐顶点裁切比按采样点裁剪更可靠（不会在段内留下越界的部分）。 */
+  vertexShader: `
+    uniform vec3 uZenith;
+    attribute float aAlpha; attribute vec3 aColor;
+    varying float vA; varying vec3 vC;
+    void main(){
+      if (dot(position, uZenith) < 0.0) {
+        gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+        return;
+      }
+      vA = aAlpha; vC = aColor;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `
+    varying float vA; varying vec3 vC;
+    void main(){ gl_FragColor = vec4(vC, vA); }`,
+  transparent: true, depthTest: false, depthWrite: false,
+  blending: THREE.AdditiveBlending
+});
+const trailObj = new THREE.LineSegments(trailGeo, trailMat);
+trailObj.frustumCulled = false;
+trailObj.renderOrder = 1;
+vfCam.add(trailObj);
+
+/* ============================ 3D 小窗 ============================ */
+const insetCv = document.getElementById('insetCv');
+const r3d = new THREE.WebGLRenderer({ canvas: insetCv, antialias: true, alpha: true });
+r3d.setPixelRatio(Math.min(devicePixelRatio, 2));
+r3d.setClearColor(0x000000, 0);
+
+const s3 = new THREE.Scene();
+const cam3 = new THREE.PerspectiveCamera(38, 1, 0.05, 60);
+cam3.position.set(2.0, 1.35, 2.35);
+
+const controls = new OrbitControls(cam3, insetCv);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.rotateSpeed = 0.75;
+controls.zoomSpeed = 0.7;
+controls.enablePan = false;
+controls.minDistance = 1.5;
+controls.maxDistance = 8;
+
+/* 半球天穹网格（只上半球） */
+{
+  const hemi = new THREE.LineSegments(
+    new THREE.WireframeGeometry(new THREE.SphereGeometry(1, 32, 8, 0, TAU, 0, Math.PI / 2)),
+    new THREE.LineBasicMaterial({ color: 0x2f6f9f, transparent: true, opacity: .14 }));
+  s3.add(hemi);
+}
+/* 圆形地面 */
+{
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(1, 96),
+    new THREE.MeshBasicMaterial({ color: 0x0a121d, transparent: true, opacity: .92,
+      side: THREE.DoubleSide }));
+  disc.rotation.x = -Math.PI / 2;
+  s3.add(disc);
+  const pts = [];
+  for (let i = 0; i <= 128; i++) {
+    const a = i / 128 * TAU;
+    pts.push(new THREE.Vector3(Math.cos(a), 0, Math.sin(a)));
+  }
+  s3.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({ color: 0x4f86b8, transparent: true, opacity: .55 })));
+}
+/* 天球背景暗星：整球生成，由着色器按「世界 y>0」裁掉地平线以下。
+   不能在生成时就只取上半球 —— 星空绕倾斜的极轴旋转，一转就转到地平以下了。 */
+const skyGroup3 = new THREE.Group(); s3.add(skyGroup3);
+{
+  const N = 1800, pos = new Float32Array(N * 3);
+  let s = 1234567;
+  const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+  for (let i = 0; i < N; i++) {
+    const u = rnd() * 2 - 1, a = rnd() * TAU, r = Math.sqrt(Math.max(0, 1 - u * u));
+    pos[i * 3] = r * Math.cos(a); pos[i * 3 + 1] = u; pos[i * 3 + 2] = r * Math.sin(a);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const bg = new THREE.Points(g, new THREE.ShaderMaterial({
+    uniforms: {
+      uSize: { value: 1.5 }, uColor: { value: new THREE.Color(0x9fc0e0) }, uOpacity: { value: .42 }
+    },
+    vertexShader: `
+      uniform float uSize;
+      void main(){
+        vec4 wp = modelMatrix * vec4(position, 1.0);      // 天球旋转后的世界方向
+        if (wp.y < 0.0) {                                 // 地平线以下：裁掉
+          gl_PointSize = 0.0;
+          gl_Position = vec4(0.0, 0.0, 2.0, 1.0);
+          return;
+        }
+        gl_PointSize = uSize;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }`,
+    fragmentShader: `
+      uniform vec3 uColor; uniform float uOpacity;
+      void main(){
+        vec2 c = gl_PointCoord - 0.5;
+        float d = length(c) * 2.0;
+        if (d > 1.0) discard;
+        gl_FragColor = vec4(uColor, (1.0 - d * 0.8) * uOpacity);
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+  }));
+  bg.frustumCulled = false;
+  skyGroup3.add(bg);
+}
+/* 轴：细圆柱 + 锥头，自原点朝 +Y 单向伸出（不贯穿） */
+function makeAxis(color, len, rad) {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color });
+  const cyl = new THREE.Mesh(new THREE.CylinderGeometry(rad, rad, len, 8), mat);
+  cyl.position.y = len / 2; g.add(cyl);
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(rad * 3.4, rad * 12, 12), mat);
+  tip.position.y = len; g.add(tip);
+  g.frustumCulled = false;
+  return g;
+}
+const axisPole = makeAxis(0x4fd6ff, 1.0, 0.006); s3.add(axisPole);            // 固定（由 az/alt 决定）
+const axisMount = makeAxis(0xffb454, 0.94, 0.0062); s3.add(axisMount);        // 固定方向
+const mountGroup3 = new THREE.Group(); s3.add(mountGroup3);
+const axisCam = makeAxis(0xff5f7e, 0.88, 0.0062); mountGroup3.add(axisCam);   // 随赤道仪转
+
+/* ============================ 星表 ============================ */
+let poolPos = null, poolBright = null, poolColor = null, poolN = 0, drawN = 0, ratio = 1;
+
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+const COLOR_STOPS = [
+  [0.00, 1.00, 0.68, 0.48], [0.28, 1.00, 0.86, 0.70], [0.52, 1.00, 0.97, 0.93],
+  [0.76, 0.90, 0.94, 1.00], [1.00, 0.70, 0.81, 1.00]
+];
+function starColor(t, out, i) {
+  let a = COLOR_STOPS[0], b = COLOR_STOPS[COLOR_STOPS.length - 1];
+  for (let k = 0; k < COLOR_STOPS.length - 1; k++) {
+    if (t >= COLOR_STOPS[k][0] && t <= COLOR_STOPS[k + 1][0]) { a = COLOR_STOPS[k]; b = COLOR_STOPS[k + 1]; break; }
+  }
+  const f = (t - a[0]) / Math.max(1e-6, b[0] - a[0]);
+  out[i * 3]     = a[1] + (b[1] - a[1]) * f;
+  out[i * 3 + 1] = a[2] + (b[2] - a[2]) * f;
+  out[i * 3 + 2] = a[3] + (b[3] - a[3]) * f;
+}
+
+function buildPool() {
+  const fv = fovVof(P.focal), fh = fovHof(P.focal);
+  const halfDiag = Math.atan(Math.hypot(Math.tan(fv / 2), Math.tan(fh / 2)));
+
+  /* 极轴方向（星表坐标系即 t=0 世界系） */
+  const altR = P.alt * D2R, azR = P.az * D2R, ca = Math.cos(altR);
+  let Px = ca * Math.sin(azR), Py = Math.sin(altR), Pz = ca * Math.cos(azR);
+  const pl = Math.hypot(Px, Py, Pz) || 1; Px /= pl; Py /= pl; Pz /= pl;
+
+  /* 球冠必须绕「极轴」生成，而不是世界 +Y：
+     取景器采样的是 P 附近的天区。星点在星表系中的可见范围 = 以 P 为心、
+     半径 (ε_m+ε_c)（画幅中心随时间的活动半径）+ 画幅半对角 + 拖线弧长。
+     绕 +Y 生成时，一旦俯仰角偏离 90°，P 就离开球冠；焦距越长球冠越小，
+     所以长焦下整片画幅都取不到星。
+     覆盖此范围后，预筛用的「以 s_center 为心、半径 半对角+弧长」的小球
+     必被球冠包含，故预筛不会漏掉任何可见星。 */
+  const eM = P.epsM * D2R;
+  const thExp = SIDEREAL * P.expMin * 60;
+  const thetaRel = 4 * Math.asin(Math.min(1, Math.sin(eM / 2) * Math.sin(thExp / 2)));
+  const offRad = (P.epsM + P.epsC) * D2R;
+  const capRad = Math.min(offRad + halfDiag * 1.2 + thetaRel + 0.8 * D2R, 88 * D2R);
+
+  const omFrame = 4 * Math.asin(Math.min(1, Math.sin(fv / 2) * Math.sin(fh / 2)));
+  const omCap = TAU * (1 - Math.cos(capRad));
+  ratio = omCap / Math.max(1e-12, omFrame);
+
+  poolN = Math.max(1500, Math.min(120000, Math.round(500 * ratio * 1.06) + 64));
+
+  /* 垂直于 P 的正交基 (a, b) */
+  let ax, ay, az;
+  if (Math.abs(Px) < 0.9) { ax = 1; ay = 0; az = 0; } else { ax = 0; ay = 1; az = 0; }
+  const dp = Px * ax + Py * ay + Pz * az;
+  ax -= Px * dp; ay -= Py * dp; az -= Pz * dp;
+  const al = Math.hypot(ax, ay, az) || 1; ax /= al; ay /= al; az /= al;
+  const bx = Py * az - Pz * ay, by = Pz * ax - Px * az, bz = Px * ay - Py * ax;
+
+  const rnd = mulberry32(20240914);
+  const pos = new Float32Array(poolN * 3);
+  const bri = new Float32Array(poolN);
+  const col = new Float32Array(poolN * 3);
+  const cosCap = Math.cos(capRad);
+  for (let i = 0; i < poolN; i++) {
+    const ct = cosCap + rnd() * (1 - cosCap);      // 与 P 的夹角余弦
+    const stt = Math.sqrt(Math.max(0, 1 - ct * ct));
+    const ph = rnd() * TAU;
+    const u = Math.cos(ph) * stt, w = Math.sin(ph) * stt;
+    pos[i * 3]     = Px * ct + ax * u + bx * w;
+    pos[i * 3 + 1] = Py * ct + ay * u + by * w;
+    pos[i * 3 + 2] = Pz * ct + az * u + bz * w;
+    bri[i] = Math.pow(rnd(), 3.0);
+    starColor((rnd() + rnd() + rnd()) / 3, col, i);
+  }
+  poolPos = pos; poolBright = bri; poolColor = col;
+
+  const geo = starsVF.geometry;
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+  geo.setAttribute('aBright', new THREE.BufferAttribute(bri, 1));
+  geo.setDrawRange(0, 0);
+  syncDensity();
+  poolSig = poolSignature();
+  poolPending = null;
+}
+function syncDensity() {
+  drawN = Math.max(0, Math.min(poolN, Math.round(P.density * ratio)));
+  starsVF.geometry.setDrawRange(0, drawN);
+}
+/* 球冠的位置与半径取决于极轴、偏差角与曝光弧长，这些量一变就必须重建。
+   焦距/曝光跨数量级，用对数量化；写成 round(v/(k·v)) 会恒等于 1/k，等于没进签名。 */
+function poolSignature() {
+  const q = (v, s) => Math.round(v / s);
+  const lg = (v, n) => Math.round(Math.log(v) * n);
+  return [lg(P.focal, 25), q(P.az, 0.25), q(P.alt, 0.25),
+          q(P.epsM, 0.25), q(P.epsC, 0.25), lg(P.expMin, 25)].join(',');
+}
+let poolSig = null;      // 已建成的星表签名
+let poolPending = null;  // 已排队待建的签名（防止每帧重置防抖定时器而永不触发）
+
+/* ============================ 姿态解算 ============================ */
+const qSky = new THREE.Quaternion();
+const qM0 = new THREE.Quaternion();
+const qCamBody = new THREE.Quaternion();
+const qCamBase = new THREE.Quaternion();
+const qCamW = new THREE.Quaternion();
+const qCamInv = new THREE.Quaternion();
+const qRel = new THREE.Quaternion();
+const qMountRot = new THREE.Quaternion();
+const e1 = new THREE.Vector3(), e2 = new THREE.Vector3();   // ⊥P 的正交基
+const Pvec = new THREE.Vector3();          // 极轴方向
+const Mvec = new THREE.Vector3();          // 赤道仪轴方向
+const cBody = new THREE.Vector3();
+const zCam = new THREE.Vector3();          // 天顶在相机系中的方向
+const _v = new THREE.Vector3();
+const _upRef = new THREE.Vector3();
+let theta = 0, trailK = 20;
+
+const _bm = new THREE.Matrix4();
+const _bx = new THREE.Vector3(), _by = new THREE.Vector3(), _bz = new THREE.Vector3();
+function basisQuat(forward, upRef, out) {
+  const zx = -forward.x, zy = -forward.y, zz = -forward.z;
+  let xx = upRef.y * zz - upRef.z * zy,
+      xy = upRef.z * zx - upRef.x * zz,
+      xz = upRef.x * zy - upRef.y * zx;
+  let xl = Math.hypot(xx, xy, xz);
+  if (xl < 1e-8) { xx = -zz; xy = 0; xz = zx; xl = Math.hypot(xx, xy, xz) || 1; }
+  xx /= xl; xy /= xl; xz /= xl;
+  const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+  _bx.set(xx, xy, xz); _by.set(yx, yy, yz); _bz.set(zx, zy, zz);
+  return out.setFromRotationMatrix(_bm.makeBasis(_bx, _by, _bz));
+}
+
+function updateSim() {
+  const altR = P.alt * D2R, azR = P.az * D2R;
+  const epsM = P.epsM * D2R, epsC = P.epsC * D2R;
+  const phiM = P.dirM * D2R, phiC = P.dirC * D2R;
+
+  /* 极轴：地平坐标系中，俯仰 alt、方位 az（自 +Z 起算，+Y 为天顶） */
+  const ca = Math.cos(altR), sa = Math.sin(altR);
+  Pvec.set(ca * Math.sin(azR), sa, ca * Math.cos(azR)).normalize();
+
+  /* 赤道仪轴 M = P 偏转 ε_m（方向 φ_m）
+     必须在「垂直于 P 的正交基」内偏转，否则夹角不等于 ε_m：
+     t̂=(sinφ,0,cosφ) 只在 P 竖直时才与 P 垂直。
+     e1 = 天顶在 ⊥P 平面内的投影（即"抬高俯仰"方向），e2 = P × e1 */
+  e1.copy(ZENITH).addScaledVector(Pvec, -ZENITH.dot(Pvec));
+  if (e1.lengthSq() < 1e-12) e1.set(Math.sin(azR), 0, Math.cos(azR));  // P 竖直时的退路
+  e1.normalize();
+  e2.crossVectors(Pvec, e1);
+  Mvec.copy(Pvec).multiplyScalar(Math.cos(epsM))
+      .addScaledVector(e1, Math.cos(phiM) * Math.sin(epsM))
+      .addScaledVector(e2, Math.sin(phiM) * Math.sin(epsM))
+      .normalize();
+  qM0.setFromUnitVectors(UP, Mvec);
+
+  /* 相机轴在赤道仪本体坐标系内的方向 */
+  const se = Math.sin(epsC), ce = Math.cos(epsC);
+  cBody.set(se * Math.sin(phiC), ce, se * Math.cos(phiC)).normalize();
+  _upRef.set(0, 0, 1);
+  if (Math.abs(cBody.dot(_upRef)) > 0.999) _upRef.set(1, 0, 0);
+  basisQuat(cBody, _upRef, qCamBody);
+  qCamBase.copy(qM0).multiply(qCamBody);
+
+  /* 天球与赤道仪同步旋转（同一 θ） */
+  theta = SIDEREAL * P.simTime;
+  qSky.setFromAxisAngle(Pvec, theta);
+  qMountRot.setFromAxisAngle(Mvec, theta);
+  qCamW.copy(qMountRot).multiply(qCamBase);
+  qCamInv.copy(qCamW).invert();
+  qRel.copy(qCamInv).multiply(qSky);
+
+  /* ---- 取景器 ---- */
+  vfCam.quaternion.copy(qCamW);
+  starsVF.quaternion.copy(qRel);
+  starsVF.updateMatrix();
+  zCam.copy(ZENITH).applyQuaternion(qCamInv);
+  starMatVF.uniforms.uZenith.value.copy(zCam);
+  trailMat.uniforms.uZenith.value.copy(zCam);
+
+  updateMarkers();
+
+  const expDeg = SIDEREAL * P.expMin * 60 * R2D;
+  trailK = Math.max(8, Math.min(TRAIL_K_MAX, Math.round(expDeg / 2)));
+  updateTrails();
+
+  /* ---- 3D 小窗 ---- */
+  skyGroup3.quaternion.copy(qSky);
+  mountGroup3.quaternion.copy(qMountRot);
+  axisPole.quaternion.setFromUnitVectors(UP, Pvec);
+  axisMount.quaternion.setFromUnitVectors(UP, Mvec);
+  _v.set(0, 0, -1).applyQuaternion(qCamBase);
+  axisCam.quaternion.setFromUnitVectors(UP, _v);
+}
+
+/* 极轴 / 赤道仪 / 相机中心在画面中的位置 */
+const mkPole = document.getElementById('mkPole');
+const mkMount = document.getElementById('mkMount');
+const mkCam = document.getElementById('mkCam');
+let frameW = 1, frameH = 1;
+
+function placeMarker(el, dirCam) {
+  if (dirCam.z >= -1e-6) { el.style.display = 'none'; return; }
+  const tanV = (SENSOR_H / 2) / P.focal, tanH = (SENSOR_W / 2) / P.focal;
+  let xn = (dirCam.x / -dirCam.z) / tanH;
+  let yn = (dirCam.y / -dirCam.z) / tanV;
+  const m = Math.max(Math.abs(xn), Math.abs(yn));
+  const outside = m > 1;
+  if (outside) { xn /= m; yn /= m; }
+  el.style.display = '';
+  el.style.left = ((xn * 0.5 + 0.5) * frameW) + 'px';
+  el.style.top = ((-yn * 0.5 + 0.5) * frameH) + 'px';
+  el.style.opacity = outside ? '0.45' : '1';
+}
+function updateMarkers() {
+  _v.copy(Pvec).applyQuaternion(qCamInv);
+  placeMarker(mkPole, _v);
+  _v.copy(Mvec).applyQuaternion(qCamInv);
+  placeMarker(mkMount, _v);
+  mkCam.style.left = (frameW / 2) + 'px';
+  mkCam.style.top = (frameH / 2) + 'px';
+}
+
+/* 拖线：d(τ) = R_cam(τ)⁻¹ · R_sky(τ) · s = R_rel(τ) · s，τ ∈ [t−Texp, t]
+   ------------------------------------------------------------------------
+   相机与天球同步旋转，两项都必须随 τ 变化。
+   把 R_cam 冻结在 t 时刻（旧写法）等于"赤道仪不跟踪"，
+   画出来的是整条周日弧 —— ε_m=0 时也会满屏拖影，与设计目标相反。
+   现在 ε_m=0 ⟹ R_rel(τ) ≡ R_camBase⁻¹ 恒定 ⟹ 拖线退化为一个点。 */
+const relK = [], zenK = [];
+for (let k = 0; k <= TRAIL_K_MAX; k++) {
+  relK.push(new THREE.Quaternion()); zenK.push(new THREE.Vector3());
+}
+const qCamBaseInv = new THREE.Quaternion();
+const _qA = new THREE.Quaternion(), _qB = new THREE.Quaternion(), _qC = new THREE.Quaternion();
+const sCenter = new THREE.Vector3();
+
+function updateTrails() {
+  const K = trailK;
+  const Tex = P.expMin * 60;
+  const tanV = (SENSOR_H / 2) / P.focal, tanH = (SENSOR_W / 2) / P.focal;
+  const halfDiag = Math.atan(Math.hypot(tanV, tanH));
+
+  /* 逐采样点预计算 R_rel(τ_k) 与「地平线判据向量」R(P,−ωτ_k)·Z */
+  qCamBaseInv.copy(qCamBase).invert();
+  for (let k = 0; k <= K; k++) {
+    const th = SIDEREAL * (P.simTime - Tex * (1 - k / K));
+    _qA.setFromAxisAngle(Mvec, -th);
+    _qB.setFromAxisAngle(Pvec, th);
+    _qC.setFromAxisAngle(Pvec, -th);
+    relK[k].copy(qCamBaseInv).multiply(_qA).multiply(_qB);
+    zenK[k].copy(ZENITH).applyQuaternion(_qC);
+  }
+  /* 曝光内星场的总转角（= 单颗星拖线的弧长） */
+  const thetaRel = 2 * Math.acos(Math.min(1, Math.abs(relK[K].dot(relK[0]))));
+  if (thetaRel < 1e-7) { trailGeo.setDrawRange(0, 0); return; }   // 完全对准：无拖影
+
+  /* 预筛：星点当前相机系方向 d₀ = R_rel(t)·s 与光轴的夹角
+     不超过「画幅半对角 + 拖线弧长」——用一个点积即可，无需任何极轴几何 */
+  _qA.copy(qRel).invert();
+  sCenter.set(0, 0, -1).applyQuaternion(_qA);
+  const cosLim = Math.cos(Math.min(Math.PI, halfDiag * 1.15 + thetaRel + 0.02));
+  const scx = sCenter.x, scy = sCenter.y, scz = sCenter.z;
+
+  /* 线段判据用乘法形式（|x| < tanH·(−z) 等价于 |x/(−z)| < tanH），
+     避免每段 4 次除法；画幅矩形按「一段的最大角长」外扩，
+     使「两端都在画幅外、中间穿过」的段也不会被漏掉 */
+  const segAng = thetaRel / K;
+  const stretch = (1 + tanH * tanH + tanV * tanV) * 1.25;
+  const mH = tanH * 1.02 + segAng * stretch;
+  const mV = tanV * 1.02 + segAng * stretch;
+
+  const pos = poolPos, bri = poolBright, col = poolColor;
+  const N = Math.min(drawN, poolN);
+  let vi = 0, used = 0;
+
+  for (let i = 0; i < N && used < TRAIL_MAX; i++) {
+    const sx = pos[i * 3], sy = pos[i * 3 + 1], sz = pos[i * 3 + 2];
+    if (sx * scx + sy * scy + sz * scz < cosLim) continue;
+
+    const b = bri[i];
+    const r = col[i * 3], g = col[i * 3 + 1], bl = col[i * 3 + 2];
+    const head = Math.min(1, 0.30 + 0.85 * Math.pow(b, 0.55));
+    let px = 0, py = 0, pz = 0, hPrev = 1, ok = false, segs = 0;
+
+    for (let k = 0; k <= K; k++) {
+      const q = relK[k], qx = q.x, qy = q.y, qz = q.z, qw = q.w;
+      const ux = 2 * (qy * sz - qz * sy);
+      const uy = 2 * (qz * sx - qx * sz);
+      const uz = 2 * (qx * sy - qy * sx);
+      const ex = sx + qw * ux + (qy * uz - qz * uy);
+      const ey = sy + qw * uy + (qz * ux - qx * uz);
+      const ez = sz + qw * uz + (qx * uy - qy * ux);
+      // 星点世界方向 = R_sky(τ)·s，在地平上 ⟺ (R(P,−ωτ)·Z)·s > 0
+      const zk = zenK[k];
+      const hNow = sx * zk.x + sy * zk.y + sz * zk.z;
+
+      if (k > 0 && ok && (hNow > 0 || hPrev > 0)) {
+        /* 一端沉入地平线时裁到地平线上，否则整段丢弃会在日出/日落处留缺口 */
+        let ax = px, ay = py, az = pz, bx = ex, by = ey, bz = ez;
+        if ((hNow > 0) !== (hPrev > 0)) {
+          const t = hPrev / (hPrev - hNow);
+          const cx = px + (ex - px) * t, cy = py + (ey - py) * t, cz = pz + (ez - pz) * t;
+          if (hPrev > 0) { bx = cx; by = cy; bz = cz; } else { ax = cx; ay = cy; az = cz; }
+        }
+        /* 线段与画幅求交：任一端点落入外扩后的画幅即发出（多余部分由 GPU 裁掉） */
+        if (az < -1e-6 && bz < -1e-6) {
+          if ((Math.abs(ax) < mH * -az && Math.abs(ay) < mV * -az) ||
+              (Math.abs(bx) < mH * -bz && Math.abs(by) < mV * -bz)) {
+            const a0 = head * (0.05 + 0.95 * Math.pow((k - 1) / K, 1.7));
+            const a1 = head * (0.05 + 0.95 * Math.pow(k / K, 1.7));
+            trailPos[vi * 3] = ax * R_SPHERE; trailPos[vi * 3 + 1] = ay * R_SPHERE; trailPos[vi * 3 + 2] = az * R_SPHERE;
+            trailCol[vi * 3] = r; trailCol[vi * 3 + 1] = g; trailCol[vi * 3 + 2] = bl;
+            trailAlp[vi] = a0; vi++;
+            trailPos[vi * 3] = bx * R_SPHERE; trailPos[vi * 3 + 1] = by * R_SPHERE; trailPos[vi * 3 + 2] = bz * R_SPHERE;
+            trailCol[vi * 3] = r; trailCol[vi * 3 + 1] = g; trailCol[vi * 3 + 2] = bl;
+            trailAlp[vi] = a1; vi++;
+            segs++;
+          }
+        }
+      }
+      px = ex; py = ey; pz = ez; hPrev = hNow; ok = true;
+    }
+    if (segs) used++;
+  }
+  trailGeo.setDrawRange(0, vi);
+  trailGeo.attributes.position.needsUpdate = true;
+  trailGeo.attributes.aColor.needsUpdate = true;
+  trailGeo.attributes.aAlpha.needsUpdate = true;
+}
+
+/* ============================ 尺寸 ============================ */
+function applyStarScale() {
+  // 星点像素尺寸：随视场弱变化（长焦略大），并保住下限
+  const fvDeg = fovVof(P.focal) * R2D;
+  const k = Math.min(1.35, Math.max(1.0, Math.pow(3 / fvDeg, 0.22)));
+  starMatVF.uniforms.uScale.value = 2.3 * k;
+}
+/* 轴系卡由 flex 撑满剩余高度（见 #dialsCard），这里只需读出它真正分到的高度，
+   再受宽度约束取小值即可 —— 高度方向多出来的部分由 space-between 并入行间距 */
+const DIAL_MIN = 96, ROS_W = 158;
+/* 圆盘尺寸 = min(行高, 宽度余额)。ROS_W=158 是「偏差角 ε + 0.00°」在本字号下
+   nowrap 的实测自然宽，不可压缩，故先从宽度里扣除。
+   只依赖内容稳定的元素（3D 视图、滑条卡、内边距），圆盘与行高不参与，避免循环依赖。 */
+function sizeDials() {
+  const panel = document.getElementById('panel');
+  const dc = document.getElementById('dialsCard');
+  const sc = document.getElementById('slidersCard');
+  const inset = document.getElementById('inset');
+  if (!panel.clientHeight || !sc.offsetHeight) return;
+  const px = (el, p) => parseFloat(getComputedStyle(el)[p]) || 0;
+  const n = dc.querySelectorAll('.dc-row').length;
+  const base = px(panel, 'paddingTop') + px(panel, 'paddingBottom')
+    + inset.offsetHeight + px(inset, 'marginBottom')
+    + sc.offsetHeight + px(sc, 'marginBottom')
+    + px(dc, 'paddingTop') + px(dc, 'paddingBottom') + px(dc, 'marginBottom')
+    + (n - 1) * 8 + 12;                    /* 分组间距 + 首行 margin-top */
+  const rh = (panel.clientHeight - base) / n;
+  const byW = dc.clientWidth - px(dc, 'paddingLeft') - px(dc, 'paddingRight')
+            - 12 /* grid gap */ - ROS_W;
+  dc.style.setProperty('--rowh', Math.floor(rh) + 'px');
+  dc.style.setProperty('--dial', Math.floor(Math.max(DIAL_MIN, Math.min(rh, byW))) + 'px');
+}
+
+function resize() {
+  const st = document.getElementById('stage');
+  const el = document.getElementById('frame');
+  const availW = Math.max(2, st.clientWidth - 48);
+  const availH = Math.max(2, st.clientHeight - 48);
+  const A = SENSOR_W / SENSOR_H;
+  let fw = availW, fh = fw / A;
+  if (fh > availH) { fh = availH; fw = fh * A; }
+  frameW = fw; frameH = fh;
+  el.style.width = fw + 'px';
+  el.style.height = fh + 'px';
+  vfRenderer.setSize(fw, fh, false);
+  vfCam.aspect = A;
+  vfCam.fov = fovVof(P.focal) * R2D;
+  vfCam.updateProjectionMatrix();
+  applyStarScale();
+  updateMarkers();
+
+  const iw = insetCv.clientWidth || 284, ih = insetCv.clientHeight || 284;
+  r3d.setSize(iw, ih, false);
+  cam3.aspect = iw / ih;
+  cam3.updateProjectionMatrix();
+  sizeDials();
+  scheduleRebuild();
+}
+let rebuildTimer = 0;
+function scheduleRebuild() {
+  poolPending = poolSignature();
+  clearTimeout(rebuildTimer);
+  rebuildTimer = setTimeout(() => { buildPool(); refreshUI(); }, 130);
+}
+
+/* ============================ 圆形控制面板 ============================ */
+const SVGNS = 'http://www.w3.org/2000/svg';
+const R_RING = 140, R_SCALE = 118, HIT_R = 30;
+let dialSeq = 0;
+
+function createDial(root, opt) {
+  const uid = 'dl' + (++dialSeq);
+  const mk = (n) => document.createElementNS(SVGNS, n);
+  const svg = mk('svg');
+  svg.setAttribute('viewBox', '-158 -158 316 316');   // 紧贴刻度外缘，减少圆与方框的空隙
+  svg.setAttribute('class', 'dial');
+  svg.innerHTML =
+    `<defs>
+       <radialGradient id="${uid}g" cx="50%" cy="40%" r="66%">
+         <stop offset="0%" stop-color="#152238"/><stop offset="72%" stop-color="#0a1120"/>
+         <stop offset="100%" stop-color="#060a12"/>
+       </radialGradient>
+       <filter id="${uid}f" x="-140%" y="-140%" width="380%" height="380%">
+         <feGaussianBlur stdDeviation="4.5" result="b"/>
+         <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+       </filter>
+     </defs>
+     <circle r="140" fill="url(#${uid}g)" stroke="rgba(120,180,240,.15)" stroke-width="1"/>
+     <g class="ticks"></g><g class="labels"></g>
+     <circle r="140" fill="none" stroke="rgba(120,180,240,.30)" stroke-width="1.2"/>
+     <circle r="118" fill="none" stroke="rgba(120,180,240,.13)" stroke-width="1" stroke-dasharray="2 7"/>
+     <path class="arc" fill="none" stroke="${opt.handle}" stroke-width="2.4"
+           stroke-linecap="round" opacity=".5"/>
+     <line class="vec" x1="0" y1="0" x2="0" y2="0" stroke="${opt.handle}"
+           stroke-width="1.6" stroke-dasharray="5 5" opacity=".8"/>
+     <circle class="cdot" r="4" fill="${opt.center}" filter="url(#${uid}f)"/>
+     <circle class="rhnd hnd" r="10" fill="#eef7ff" stroke="${opt.handle}" stroke-width="2.6"
+             filter="url(#${uid}f)"/>
+     <circle class="dhnd hnd" r="11" fill="${opt.handle}" stroke="#0a1018" stroke-width="2.2"
+             filter="url(#${uid}f)"/>`;
+  root.appendChild(svg);
+
+  const gT = svg.querySelector('.ticks'), gL = svg.querySelector('.labels');
+  for (let a = 0; a < 360; a += 5) {
+    const major = a % 30 === 0;
+    const t = a * D2R, r1 = R_RING + 5, r2 = R_RING + (major ? 14 : 9);
+    const ln = mk('line');
+    ln.setAttribute('x1', Math.sin(t) * r1); ln.setAttribute('y1', -Math.cos(t) * r1);
+    ln.setAttribute('x2', Math.sin(t) * r2); ln.setAttribute('y2', -Math.cos(t) * r2);
+    ln.setAttribute('class', major ? 'tick major' : 'tick');
+    gT.appendChild(ln);
+  }
+  // 圆环缩小后外圈度数已不可辨，刻度即可，精确值看右侧读数
+  const tri = mk('path');
+  tri.setAttribute('d', `M 0 ${-R_RING - 3} l -5 -8 l 10 0 z`);
+  tri.setAttribute('fill', opt.handle);
+  gL.appendChild(tri);
+
+  const elArc = svg.querySelector('.arc'), elVec = svg.querySelector('.vec');
+  const elR = svg.querySelector('.rhnd'), elD = svg.querySelector('.dhnd');
+  const pt = (deg, r) => [Math.sin(deg * D2R) * r, -Math.cos(deg * D2R) * r];
+
+  function render() {
+    const val = Math.max(0, Math.min(opt.max, opt.getVal()));
+    const dir = ((opt.getDir() % 360) + 360) % 360;
+    const rd = (val / opt.max) * R_SCALE;
+    const [dx, dy] = pt(dir, R_RING);
+    const [rx, ry] = pt(dir, rd);
+    elD.setAttribute('cx', dx); elD.setAttribute('cy', dy);
+    elR.setAttribute('cx', rx); elR.setAttribute('cy', ry);
+    elVec.setAttribute('x2', rx); elVec.setAttribute('y2', ry);
+    elArc.setAttribute('d', dir < 0.4 ? '' :
+      `M 0 ${-R_RING} A ${R_RING} ${R_RING} 0 ${dir > 180 ? 1 : 0} 1 ${dx} ${dy}`);
+  }
+
+  const svgPt = (ev) => {
+    const r = svg.getBoundingClientRect();
+    const s = 316 / r.width;                 // 与 viewBox 尺寸一致
+    return [(ev.clientX - r.left - r.width / 2) * s, (ev.clientY - r.top - r.height / 2) * s];
+  };
+  const setDir = (p) => {
+    let a = Math.atan2(p[0], -p[1]) * R2D;
+    if (a < 0) a += 360;
+    if (a >= 360) a -= 360;
+    opt.setDir(a);
+  };
+  const setVal = (p) => {
+    const t = opt.getDir() * D2R;
+    const proj = p[0] * Math.sin(t) + p[1] * (-Math.cos(t));
+    opt.setVal((Math.max(0, Math.min(R_SCALE, proj)) / R_SCALE) * opt.max);
+  };
+
+  let drag = null;
+  svg.addEventListener('pointerdown', e => {
+    const p = svgPt(e);
+    const t = opt.getDir() * D2R;
+    const ux = Math.sin(t), uy = -Math.cos(t);
+    const rd = (Math.min(opt.getVal(), opt.max) / opt.max) * R_SCALE;
+    const dDir = Math.hypot(p[0] - ux * R_RING, p[1] - uy * R_RING);
+    const dRad = Math.hypot(p[0] - ux * rd, p[1] - uy * rd);
+    if (dDir < HIT_R && dDir <= dRad) drag = 'dir';
+    else if (dRad < HIT_R) drag = 'rad';
+    else { drag = 'free'; setDir(p); setVal(p); }
+    try { svg.setPointerCapture(e.pointerId); } catch (_) {}
+    e.preventDefault();
+    refreshUI();
+  });
+  svg.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const p = svgPt(e);
+    if (drag === 'dir') setDir(p);
+    else if (drag === 'rad') setVal(p);
+    else { setDir(p); setVal(p); }
+    refreshUI();
+  });
+  const stop = () => { drag = null; };
+  svg.addEventListener('pointerup', stop);
+  svg.addEventListener('pointercancel', stop);
+  svg.addEventListener('wheel', e => {
+    e.preventDefault();
+    const step = opt.max / 60;
+    opt.setVal(Math.max(0, Math.min(opt.max, opt.getVal() + (e.deltaY > 0 ? -step : step))));
+    refreshUI();
+  }, { passive: false });
+
+  return { render };
+}
+
+const dialPole = createDial(document.getElementById('dialPole'), {
+  max: 90, handle: '#4fd6ff', center: '#5b6b7e',          // 天顶(中性) → 极轴(青)
+  getVal: () => P.alt, setVal: v => P.alt = v,
+  getDir: () => P.az,  setDir: v => P.az = v
+});
+const dialMount = createDial(document.getElementById('dialMount'), {
+  max: DEV_MAX, handle: '#ffb454', center: '#4fd6ff',     // 极轴(青) → 赤道仪轴(琥珀)
+  getVal: () => P.epsM, setVal: v => P.epsM = v,
+  getDir: () => P.dirM, setDir: v => P.dirM = v
+});
+const dialCam = createDial(document.getElementById('dialCam'), {
+  max: DEV_MAX, handle: '#ff5f7e', center: '#ffb454',     // 赤道仪轴(琥珀) → 相机轴(玫红)
+  getVal: () => P.epsC, setVal: v => P.epsC = v,
+  getDir: () => P.dirC, setDir: v => P.dirC = v
+});
+
+/* ============================ 滑块 ============================ */
+const logMap = (t, a, b) => a * Math.pow(b / a, t);
+const logInv = (v, a, b) => Math.log(v / a) / Math.log(b / a);
+const sliders = {};
+function bindSlider(id, toSlider, fromSlider) {
+  const el = document.getElementById(id);
+  const paint = () => {
+    const t = (el.value - el.min) / (el.max - el.min);
+    el.style.setProperty('--p', (t * 100).toFixed(1) + '%');
+  };
+  el.addEventListener('input', () => { fromSlider(parseFloat(el.value)); paint(); refreshUI(); });
+  el._sync = () => { el.value = toSlider(); paint(); };
+  el._sync();
+  sliders[id] = el;
+}
+const F_MIN = 10, F_MAX = 2000, EXP_MAX_MIN = 360;     // 曝光上限 6 小时
+bindSlider('sFocal', () => logInv(P.focal, F_MIN, F_MAX), v => {
+  P.focal = logMap(v, F_MIN, F_MAX);
+  vfCam.fov = fovVof(P.focal) * R2D;
+  vfCam.updateProjectionMatrix();
+  applyStarScale(); updateMarkers(); scheduleRebuild();
+});
+bindSlider('sSpeed', () => logInv(P.speed, 1, 2000), v => { P.speed = logMap(v, 1, 2000); });
+bindSlider('sExp', () => logInv(P.expMin, 1 / 60, EXP_MAX_MIN), v => { P.expMin = logMap(v, 1 / 60, EXP_MAX_MIN); });
+bindSlider('sDen', () => P.density, v => { P.density = Math.round(v); syncDensity(); });
+
+function setFocal(f) {
+  P.focal = Math.max(F_MIN, Math.min(F_MAX, f));
+  sliders.sFocal._sync();
+  vfCam.fov = fovVof(P.focal) * R2D;
+  vfCam.updateProjectionMatrix();
+  applyStarScale(); updateMarkers(); scheduleRebuild(); refreshUI();
+}
+document.getElementById('frame').addEventListener('wheel', e => {
+  e.preventDefault();
+  setFocal(P.focal * Math.exp(-e.deltaY * 0.0012));
+}, { passive: false });
+
+/* ============================ UI 刷新 ============================ */
+const $ = id => document.getElementById(id);
+function fmtExp() {
+  // 紧凑格式：徽标宽度固定，过长会撑破并挤窄滑条
+  if (P.expMin >= 60) {
+    const h = Math.floor(P.expMin / 60), m = P.expMin - h * 60;
+    return h + 'h' + (m >= 0.5 ? m.toFixed(0) + 'm' : '');
+  }
+  return P.expMin >= 1 ? P.expMin.toFixed(1) + 'min' : (P.expMin * 60).toFixed(0) + 's';
+}
+function refreshUI() {
+  dialPole.render(); dialMount.render(); dialCam.render();
+
+  $('roAz').textContent = P.az.toFixed(1) + '°';
+  $('roAlt').textContent = P.alt.toFixed(1) + '°';
+
+  $('roEpsM').textContent = P.epsM.toFixed(2) + '°';
+  $('roDirM').textContent = P.dirM.toFixed(1) + '°';
+
+  $('roEpsC').textContent = P.epsC.toFixed(2) + '°';
+  $('roDirC').textContent = P.dirC.toFixed(1) + '°';
+
+  $('vFocal').textContent = (P.focal >= 100 ? Math.round(P.focal) : P.focal.toFixed(1)) + ' mm';
+  $('subFov').textContent = (fovVof(P.focal) * R2D).toFixed(2) + '° × ' + (fovHof(P.focal) * R2D).toFixed(2) + '°';
+  $('vSpeed').textContent = P.speed >= 100 ? Math.round(P.speed) + '×' : P.speed.toFixed(1) + '×';
+  $('subSpeed').textContent = (SIDEREAL * P.speed * R2D * 60).toFixed(1) + ' °/min';
+  $('vExp').textContent = fmtExp();
+  $('vDen').textContent = P.density + ' 颗';
+}
+
+/* ============================ 主循环 ============================ */
+let last = performance.now();
+function loop(now) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((now - last) / 1000, 0.06);
+  last = now;
+  P.simTime += dt * P.speed;
+
+  /* 参数变化 → 重建星表。
+     必须与 poolPending 比较：若只比 poolSig，同一签名会在每帧重复排队，
+     每帧都 clearTimeout，防抖定时器永远等不到 130ms。 */
+  const sig = poolSignature();
+  if (sig !== poolSig && sig !== poolPending) scheduleRebuild();
+
+  updateSim();
+  refreshUI();
+
+  vfRenderer.render(vfScene, vfCam);
+  controls.update();
+  r3d.render(s3, cam3);
+}
+
+/* ============================ 启动 ============================ */
+new ResizeObserver(resize).observe(document.getElementById('stage'));
+window.addEventListener('resize', resize);
+resize();
+buildPool();
+refreshUI();
+requestAnimationFrame(loop);
+// 字体加载会改变文字尺寸进而改变读数栏高度，sizeDials 依赖它，
+// 故在字体就绪及之后两个时间点各重算一次，确保 δ 收敛到正确值
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(sizeDials);
+</script>
+</body>
+</html>

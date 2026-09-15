@@ -21,7 +21,15 @@
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Consolas,"Liberation Mono",monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{-webkit-text-size-adjust:100%}
+html{
+  -webkit-text-size-adjust:100%;
+  /* 搜索过滤后页面变短、滚动条消失会让整页横向跳一下：滚动条槽位常驻 */
+  scrollbar-gutter:stable;
+}
+/* 不支持 scrollbar-gutter 的旧版浏览器回退：滚动条一直显示 */
+@supports not (scrollbar-gutter:stable){
+  html{overflow-y:scroll}
+}
 body{
   min-height:100vh;
   background:var(--bg);
@@ -255,6 +263,50 @@ footer a:hover{color:var(--fg);border-bottom-color:rgba(124,152,196,.65)}
           <p class="desc">面向 GDUE 26 级学前教育专业学生的第一学期课表，按周次查看课程安排，支持深色模式。</p>
         </div>
         <div class="tags"><span>按周次查看</span><span>深浅色切换</span></div>
+      </a>
+
+      <a class="card" href="./PolarAxis/" style="--a:#4fd6ff;--a-rgb:79,214,255"
+         data-keywords="极轴 极轴校对 对极轴 星点 拖线 漂移 拉线 赤道仪 相机 天文 摄影 深空 焦距 曝光 polar axis alignment star trail drift mount 模拟">
+        <div class="card-top">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="8.2" stroke-dasharray="2.6 2.8"/>
+              <circle cx="12" cy="12" r="1.5"/>
+              <path d="M12 3.4v2.3M12 18.3v2.3M3.4 12h2.3M18.3 12h2.3"/>
+            </svg>
+          </span>
+          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 17L17 7M9 7h8v8"/>
+          </svg>
+        </div>
+        <div>
+          <h2>极轴校对</h2>
+          <span class="path">/PolarAxis</span>
+          <p class="desc">三维星点漂移模拟：用表盘设定极轴指向，以及赤道仪、相机轴相对前者的偏差，直观看出星点拖线的方向与长度，并可调等效焦距、旋转速度、曝光时长与星点密度。</p>
+        </div>
+        <div class="tags"><span>星点漂移模拟</span><span>表盘拖动调参</span><span>需联网加载 three.js</span></div>
+      </a>
+
+      <a class="card" href="./PriceClock/" style="--a:#ff6a3d;--a-rgb:255,106,61"
+         data-keywords="价格 时钟 价格时钟 高峰 空闲 峰谷 计费 倒计时 北京时间 flash pro price clock peak off-peak 模型 价格表 tokens">
+        <div class="card-top">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="8.5"/>
+              <path d="M12 6.8V12l3.4 2.1"/>
+              <path d="M12 3.5v1.4M12 19.1v1.4"/>
+            </svg>
+          </span>
+          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 17L17 7M9 7h8v8"/>
+          </svg>
+        </div>
+        <div>
+          <h2>价格时钟</h2>
+          <span class="path">/PriceClock</span>
+          <p class="desc">实时显示当前处于高峰还是空闲时段，倒计时到下一次切换，并对照 flash / pro 两档模型在各时段的价格，附北京时间与全天时间轴。</p>
+        </div>
+        <div class="tags"><span>峰谷时段实时判定</span><span>切换倒计时</span><span>价格对照表</span></div>
       </a>
 
     </section>

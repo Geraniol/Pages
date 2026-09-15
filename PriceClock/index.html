@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>价格时钟</title>
+<style>
+  :root{
+    --bg:#08090c; --card:#12141a; --line:#232733; --fg:#e9ebf1; --mut:#787f95;
+    --peak:#ff6a3d; --off:#2fd39a;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; padding:24px;
+    background:radial-gradient(120% 120% at 50% 0%, #15181f 0%, #08090c 62%) fixed;
+    color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:ui-monospace,SFMono-Regular,"JetBrains Mono",Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+
+  .card{
+    width:min(540px,100%); background:var(--card); border:1px solid var(--line);
+    border-radius:20px; padding:26px 26px 22px;
+    box-shadow:0 26px 60px -24px rgba(0,0,0,.9);
+    transition:border-color .35s, box-shadow .35s;
+  }
+  .card.peak{border-color:rgba(255,106,61,.45); box-shadow:0 26px 70px -24px rgba(255,106,61,.30)}
+  .card.off {border-color:rgba(47,211,154,.30)}
+
+  /* 时钟 */
+  .top{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap}
+  #localTime{font-size:clamp(42px,13vw,58px); font-weight:600; letter-spacing:-.02em; line-height:1}
+  .badge{
+    display:inline-flex; align-items:center; gap:8px; white-space:nowrap;
+    padding:8px 15px; border-radius:999px; font-size:15px; font-weight:600;
+    border:1px solid currentColor; background:rgba(255,255,255,.06);
+    background:color-mix(in srgb, currentColor 12%, transparent);
+  }
+  .badge .dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.7s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  .peak-c{color:var(--peak)} .off-c{color:var(--off)}
+
+  .meta{display:flex; align-items:center; gap:8px; color:var(--mut); font-size:13px; margin-top:10px}
+  .meta .sep{opacity:.5}
+
+  /* 倒计时 */
+  .cd{
+    display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+    margin-top:18px; padding:13px 16px; border-radius:13px;
+    background:#0d0f15; border:1px solid var(--line);
+  }
+  .cd .lab{font-size:13px; color:var(--mut)}
+  #cdValue{font-size:24px; font-weight:600; letter-spacing:.01em}
+
+  /* 北京时间 */
+  .bj{display:flex; align-items:baseline; gap:10px; margin-top:12px; font-size:13px; color:var(--mut)}
+  #bjTime{font-size:16px; color:var(--fg); font-weight:500}
+
+  /* 时间轴 */
+  .tl{margin-top:20px}
+  .tl-track{position:relative; display:flex; gap:2px; height:24px}
+  .tl-seg{flex:1; border-radius:3px; background:#1b1f29}
+  .tl-seg.pk{background:#8a4429; background:color-mix(in srgb, var(--peak) 62%, #1b1f29)}
+  .tl-seg.now{outline:1.5px solid #fff; outline-offset:-1px}
+  .tl-now{position:absolute; top:-5px; bottom:-5px; width:2px; background:#fff; border-radius:2px;
+    box-shadow:0 0 10px rgba(255,255,255,.85); transform:translateX(-1px); transition:left .4s linear}
+  .tl-axis{display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:#565d70;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+  /* 价格 */
+  table{width:100%; border-collapse:collapse; margin-top:22px; font-size:14px}
+  th,td{padding:11px 4px; text-align:right; border-bottom:1px solid var(--line)}
+  th:first-child,td:first-child{text-align:left; color:var(--mut); font-size:13px}
+  thead th{color:var(--fg); font-size:14px; font-weight:700; padding-bottom:9px; letter-spacing:.02em}
+  thead th:first-child{color:var(--mut); font-weight:400}
+  tbody tr:last-child td{border-bottom:none}
+  .main{font-size:16px; font-weight:600}
+  .unit{font-size:11px; font-weight:400; margin-left:2px; opacity:.75}
+  .alt{display:block; font-size:11px; margin-top:3px; color:#5c6376}
+  .alt b{font-weight:500}
+  .tier-peak{color:var(--peak)} .tier-off{color:var(--off)}
+  .alt.tier-peak{color:#8a4a35} .alt.tier-off{color:#2b6d57}
+</style>
+</head>
+<body>
+<main class="card" id="card">
+  <div class="top">
+    <div class="mono" id="localTime">--:--:--</div>
+    <div class="badge" id="badge"><span class="dot"></span><span id="badgeText">—</span></div>
+  </div>
+  <div class="meta">
+    <span id="localDate">—</span>
+    <span class="sep">·</span>
+    <span id="localZone">—</span>
+  </div>
+
+  <div class="cd">
+    <span class="lab" id="cdLabel">—</span>
+    <span class="mono" id="cdValue">--:--:--</span>
+  </div>
+
+  <div class="bj">
+    <span>北京</span>
+    <span class="mono" id="bjTime">--:--:--</span>
+    <span id="bjDate"></span>
+  </div>
+
+  <div class="tl">
+    <div class="tl-track" id="tlTrack"><div class="tl-now" id="tlNow" style="left:0"></div></div>
+    <div class="tl-axis"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
+  </div>
+
+  <table>
+    <thead><tr><th>元 / 百万 tokens</th><th>flash</th><th>pro</th></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var BJ = 'Asia/Shanghai';
+  var DAY = 86400000, MIN = 60000;
+
+  // 价格表: [空闲, 高峰]
+  var ROWS = [
+    { key: 'hit',  name: '缓存命中输入',
+      flash: [0.02, 0.04], pro: [0.15, 0.30] },
+    { key: 'miss', name: '缓存未命中输入',
+      flash: [1, 2],        pro: [4.5, 9.0] },
+    { key: 'out',  name: '输出',
+      flash: [4, 8],        pro: [13.5, 27.0] }
+  ];
+
+  // ---------- 北京时间 ----------
+  var bjFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: BJ, hourCycle: 'h23',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', weekday: 'short'
+  });
+
+  // 把"北京墙上时间"映射成 UTC 毫秒的虚拟时间轴，便于比较与取整
+  function bjMs(date) {
+    var p = {};
+    bjFmt.formatToParts(date).forEach(function (x) { p[x.type] = x.value; });
+    return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+  }
+
+  // 高峰：周一至周五 9:00-12:00、14:00-18:00（北京时间）
+  function isPeak(v) {
+    var d = new Date(v), day = d.getUTCDay(), h = d.getUTCHours();
+    if (day === 0 || day === 6) return false;
+    return (h >= 9 && h < 12) || (h >= 14 && h < 18);
+  }
+
+  function nextSwitch(v) {
+    var cur = isPeak(v);
+    var t = Math.floor(v / MIN) * MIN + MIN;
+    for (var i = 0; i < 8 * 24 * 60; i++, t += MIN) {
+      if (isPeak(t) !== cur) return t;
+    }
+    return null;
+  }
+
+  // ---------- 本地时间 ----------
+  var LOCAL_ZONE = (function () {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local'; }
+    catch (e) { return 'Local'; }
+  })();
+  var localFmt = new Intl.DateTimeFormat('zh-CN', {
+    hourCycle: 'h23', hour: '2-digit', minute: '2-digit', second: '2-digit'
+  });
+  var localDateFmt = new Intl.DateTimeFormat('zh-CN', {
+    month: 'long', day: 'numeric', weekday: 'short'
+  });
+
+  function gmtLabel() {
+    var off = -new Date().getTimezoneOffset(), s = off < 0 ? '-' : '+';
+    off = Math.abs(off);
+    var h = Math.floor(off / 60), m = off % 60;
+    return 'GMT' + s + h + (m ? ':' + String(m).padStart(2, '0') : '');
+  }
+  document.getElementById('localZone').textContent = LOCAL_ZONE + ' · ' + gmtLabel();
+
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function hms(ms) {
+    var s = Math.max(0, Math.floor(ms / 1000));
+    return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor(s / 60) % 60) + ':' + pad(s % 60);
+  }
+  function money(n) {
+    return String(Number(n.toFixed(2)));
+  }
+
+  // ---------- 表格骨架 ----------
+  var tbody = document.getElementById('tbody');
+  var cells = {};
+  ROWS.forEach(function (row) {
+    var tr = document.createElement('tr');
+    var th = document.createElement('td');
+    th.textContent = row.name;
+    tr.appendChild(th);
+
+    ['flash', 'pro'].forEach(function (model) {
+      var td = document.createElement('td');
+      var main = document.createElement('span');
+      main.className = 'main mono';
+      var unit = document.createElement('span');
+      unit.className = 'unit';
+      unit.textContent = '元';
+      var alt = document.createElement('span');
+      alt.className = 'alt mono';
+      td.appendChild(main); td.appendChild(unit); td.appendChild(alt);
+      tr.appendChild(td);
+      cells[row.key + ':' + model] = { main: main, alt: alt, prices: row[model] };
+    });
+    tbody.appendChild(tr);
+  });
+
+  // ---------- 时间轴 ----------
+  var track = document.getElementById('tlTrack');
+  var tlNow = document.getElementById('tlNow');
+  var segs = [];
+  for (var i = 0; i < 24; i++) {
+    var seg = document.createElement('div');
+    seg.className = 'tl-seg';
+    track.insertBefore(seg, tlNow);
+    segs.push(seg);
+  }
+
+  // ---------- 渲染 ----------
+  var card = document.getElementById('card');
+  var el = {
+    localTime: document.getElementById('localTime'),
+    localDate: document.getElementById('localDate'),
+    badge: document.getElementById('badge'),
+    badgeText: document.getElementById('badgeText'),
+    cdLabel: document.getElementById('cdLabel'),
+    cdValue: document.getElementById('cdValue'),
+    bjTime: document.getElementById('bjTime'),
+    bjDate: document.getElementById('bjDate')
+  };
+
+  function render() {
+    var now = new Date();
+    var v = bjMs(now);
+    var bd = new Date(v);
+    var peak = isPeak(v);
+
+    // 本地时钟
+    el.localTime.textContent = localFmt.format(now).replace(/\//g, ':');
+    el.localDate.textContent = localDateFmt.format(now);
+
+    // 北京时间
+    el.bjTime.textContent = pad(bd.getUTCHours()) + ':' + pad(bd.getUTCMinutes()) + ':' + pad(bd.getUTCSeconds());
+    el.bjDate.textContent = (bd.getUTCMonth() + 1) + '月' + bd.getUTCDate() + '日 ' +
+      ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][bd.getUTCDay()];
+
+    // 时段状态
+    el.badgeText.textContent = peak ? '高峰时段' : '空闲时段';
+    el.badge.className = 'badge ' + (peak ? 'peak-c' : 'off-c');
+    card.className = 'card ' + (peak ? 'peak' : 'off');
+
+    // 倒计时
+    var nx = nextSwitch(v);
+    el.cdLabel.textContent = '距' + (peak ? '空闲' : '高峰') + '时段';
+    el.cdValue.textContent = nx === null ? '--:--:--' : hms(nx - v);
+    el.cdValue.className = 'mono ' + (peak ? 'off-c' : 'peak-c');
+
+    // 时间轴
+    var idx = bd.getUTCHours();
+    for (var i = 0; i < 24; i++) {
+      var pk = isPeak(Date.UTC(bd.getUTCFullYear(), bd.getUTCMonth(), bd.getUTCDate(), i, 0, 0));
+      segs[i].className = 'tl-seg' + (pk ? ' pk' : '') + (i === idx ? ' now' : '');
+    }
+    var frac = (idx * 3600 + bd.getUTCMinutes() * 60 + bd.getUTCSeconds()) / 86400;
+    tlNow.style.left = (frac * 100) + '%';
+
+    // 价格
+    var cur = peak ? 1 : 0, other = peak ? 0 : 1;
+    Object.keys(cells).forEach(function (k) {
+      var c = cells[k];
+      c.main.textContent = money(c.prices[cur]);
+      c.main.className = 'main mono ' + (peak ? 'tier-peak' : 'tier-off');
+      c.alt.textContent = (peak ? '闲 ' : '峰 ') + money(c.prices[other]);
+      c.alt.className = 'alt mono ' + (peak ? 'tier-off' : 'tier-peak');
+    });
+  }
+
+  render();
+  setInterval(render, 250);
+})();
+</script>
+</body>
+</html>
