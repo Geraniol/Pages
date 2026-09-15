@@ -11,6 +11,7 @@
     zh: {
       'app.title':        'AI Discussion',
 
+      'menu.topics':      '话题列表',
       'topic.new':        '新建话题',
       'topic.defaultName':'新话题',
       'topic.copySuffix': '（副本）',
@@ -99,6 +100,7 @@
     en: {
       'app.title':        'AI Discussion',
 
+      'menu.topics':      'Topics',
       'topic.new':        'New topic',
       'topic.defaultName':'New Topic',
       'topic.copySuffix': ' (copy)',

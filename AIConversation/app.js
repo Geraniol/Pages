@@ -734,7 +734,10 @@ function makeTopicItem(tp) {
 
   var name = document.createElement('span');
   name.className = 'topic-name';
-  name.textContent = tp.name || t('topic.defaultName');
+  var nameText = document.createElement('span');
+  nameText.className = 'topic-name-text';
+  nameText.textContent = tp.name || t('topic.defaultName');
+  name.appendChild(nameText);
   el.appendChild(name);
 
   var actions = document.createElement('div');
@@ -763,6 +766,51 @@ function renderSidebar() {
   if (!list) return;
   list.innerHTML = '';
   sortedTopics().forEach(function (tp) { list.appendChild(makeTopicItem(tp)); });
+  refreshMarquees();
+}
+
+/* Marquee tuning. The outward leg runs at a fixed px/s, so a long name simply takes
+   proportionally longer — the speed never varies with length. The holds are absolute
+   seconds, which is why this uses the Web Animations API: CSS keyframe offsets are
+   fixed percentages and could not give every item its own timing. */
+var MQ_SPEED      = 42;    // px per second, outward leg
+var MQ_HOLD_START = 1.0;   // s resting at the start
+var MQ_HOLD_END   = 1.4;   // s resting at the far end
+var MQ_BACK_RATIO = 0.4;   // return leg takes 40% of the outward leg, so it snaps back
+
+function prefersStill() {
+  return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+/** Give a too-long name a there-and-back pan. Re-measure whenever the slot width changes. */
+function refreshMarquees() {
+  var still = prefersStill();
+  $$('.topic-item').forEach(function (item) {
+    var box = item.querySelector('.topic-name');
+    var txt = item.querySelector('.topic-name-text');
+    if (!box || !txt) return;
+
+    /* offsetWidth/clientWidth are layout values, so a running transform cannot skew them */
+    var dist = txt.offsetWidth - box.clientWidth;
+    if (box._mq) { box._mq.cancel(); box._mq = null; }
+
+    if (still || dist <= 4) { box.classList.remove('marquee'); return; }
+
+    var out = dist / MQ_SPEED;
+    var back = out * MQ_BACK_RATIO;
+    var total = MQ_HOLD_START + out + MQ_HOLD_END + back;
+    var at = function (sec) { return sec / total; };
+    var stop = 'translateX(' + (-dist) + 'px)';
+
+    box.classList.add('marquee');
+    box._mq = txt.animate([
+      { transform: 'translateX(0)', offset: 0, easing: 'linear' },
+      { transform: 'translateX(0)', offset: at(MQ_HOLD_START), easing: 'ease-in-out' },
+      { transform: stop, offset: at(MQ_HOLD_START + out), easing: 'linear' },
+      { transform: stop, offset: at(MQ_HOLD_START + out + MQ_HOLD_END), easing: 'ease-out' },
+      { transform: 'translateX(0)', offset: 1 }
+    ], { duration: Math.round(total * 1000), iterations: Infinity });
+  });
 }
 
 function syncTopicItem(id) {
@@ -970,6 +1018,7 @@ function renderAll() { renderSidebar(); renderMain(); }
 
 /* ═══════════ topic actions ═══════════ */
 function selectTopic(id) {
+  closeDrawer();
   if (state.ui.activeTopicId === id) return;
   state.ui.activeTopicId = id;
   save();
@@ -993,8 +1042,12 @@ function createTopic() {
   state.topics.push(tp);   // note: no updatedAt — topics are ordered by createdAt
   state.ui.activeTopicId = tp.id;
   save();
+  closeDrawer();
   renderAll();
-  setTimeout(function () { var ta = $('#system-prompt'); if (ta) ta.focus(); }, 0);
+  setTimeout(function () {
+    var ta = $('#system-prompt');
+    if (ta && !isMobile()) ta.focus();   // don't pop the keyboard on a phone
+  }, 0);
 }
 
 function handleTopicAction(act, id) {
@@ -1297,6 +1350,25 @@ async function testModel(which) {
   }
 }
 
+/* ═══════════ mobile nav drawer ═══════════ */
+var MOBILE_Q = '(max-width: 900px)';
+function isMobile() { return !!(window.matchMedia && matchMedia(MOBILE_Q).matches); }
+function drawerOpen() { var s = $('.sidebar'); return !!(s && s.classList.contains('open')); }
+function openDrawer() {
+  var s = $('.sidebar');
+  if (s) s.classList.add('open');
+  var b = $('#sidebar-backdrop');
+  if (b) b.classList.add('show');
+}
+/* Safe to call on desktop too — neither class has any styling above the breakpoint. */
+function closeDrawer() {
+  var s = $('.sidebar');
+  if (s) s.classList.remove('open');
+  var b = $('#sidebar-backdrop');
+  if (b) b.classList.remove('show');
+}
+function toggleDrawer() { if (drawerOpen()) closeDrawer(); else openDrawer(); }
+
 /* ═══════════ theme / width / language ═══════════ */
 function applyTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
@@ -1342,6 +1414,15 @@ function wire() {
   $('#btn-run').addEventListener('click', function () {
     var tp = activeTopic();
     if (tp) toggleTopicRun(tp.id);
+  });
+
+  $('#btn-menu').addEventListener('click', toggleDrawer);
+  $('#sidebar-backdrop').addEventListener('click', closeDrawer);
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    if (!isMobile()) closeDrawer();
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(refreshMarquees, 150);   // slot widths changed
   });
 
   $('#btn-theme').addEventListener('click', function () {
@@ -1473,7 +1554,8 @@ function wire() {
     if (e.key !== 'Escape') return;
     if (!$('#confirm-modal').hidden) { closeConfirm(false); return; }
     if (!$('#export-modal').hidden) { $('#export-modal').hidden = true; return; }
-    if (!$('#settings-modal').hidden) closeSettings();
+    if (!$('#settings-modal').hidden) { closeSettings(); return; }
+    if (drawerOpen()) closeDrawer();
   });
 
   window.addEventListener('beforeunload', save);
