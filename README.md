@@ -10,8 +10,8 @@ A static web app that lets two OpenAI-compatible models take turns in one conver
 ### [CUHKSZPASSPORT](CUHKSZPASSPORT)
 A static, offline-ready web app that simulates the CUHKSZ Passport, installable on mobile devices and supporting customizable information display.
 
-### [GitGuide](GitGuide)
-Chapter 1 of an interactive Git course for beginners, where every idea is revealed only after the reader has worked for it (English content).
+### [GitAdventure](GitAdventure)
+A static, interactive Git course for beginners: each step unlocks only after the previous one is finished, and an AI tutor answers questions about whatever is on screen (English content).
 
 ### [ImgDiff](ImgDiff)
 A web app that allows users to compare two images and highlight the differences.

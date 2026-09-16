@@ -61,7 +61,10 @@ window.CHAPTER_CONTENT = {
 
   /* ------------------------------------------------------------ chrome ---- */
   ui: {
-    brand: 'Git for Beginners',
+    /* The project name. It appears in the rail, in the document title and in
+       the tutor's system prompt — all three read it from here, so a rename
+       is a one-line edit. */
+    brand: 'Git Adventure',
     theme: {
       toDark: 'Switch to night mode',
       toLight: 'Switch to daylight mode'
@@ -73,12 +76,120 @@ window.CHAPTER_CONTENT = {
     },
     minutes: 'min',
     confirm: 'Continue',
+    nextChapter: 'Chapter 2 is not available yet.',
+    /* The button that closes a step names the step it opens, so "finish and
+       move on" never reads like "carry on in here". The name is filled in
+       from the next step, so renaming a step cannot leave it stale.
+       Beat-level `confirm` labels are ignored on a step's final beat. */
+    nextStep: 'Next: {name}',
     answer: {
       yes: 'True',
       no: 'False',
       correct: 'Correct',
       wrong: 'Not quite',
       score: 'Score'
+    },
+
+    /* Locked steps: a step opens once the one before it is finished. */
+    lock: {
+      title: 'Finish the step before this one to unlock it',
+      toast: 'Finish the step before this one first.',
+      unlocked: 'Unlocked: {name}'
+    },
+
+    /* The practice-mode entry point sits beside the theme switch. It is a
+       placeholder for now — the chapter does not gate it yet. */
+    practice: {
+      label: 'Practice mode',
+      locked: 'Practice mode is not unlocked yet.'
+    },
+
+    /* The tutor panel, opened from the button in the bottom-right corner. */
+    chat: {
+      open: 'Ask AI',
+      title: 'Ask AI',
+      close: 'Close Ask AI',
+      reading: 'Reading',
+      placeholder: 'Ask about what is on screen…',
+      send: 'Send',
+      thinking: 'Thinking…',
+      empty: 'Stuck? Ask about the step you are on.',
+      clear: 'Clear this conversation',
+      cleared: 'Conversation cleared.',
+
+      /* The transcript is kept in localStorage, so clearing it throws away
+         saved material — worth a second look, like the settings clears. */
+      clearTitle: 'Clear this conversation?',
+      clearBody: 'The whole transcript goes, including the copy saved in this browser.',
+      clearGo: 'Clear conversation',
+      needSetup: 'Add an endpoint and a model in Settings first.',
+      unreachable: 'Could not reach the model.',
+      noAnswer: 'The model returned nothing.',
+
+      /* Two canned questions, one tap away. `text` is both the chip and what
+         gets sent, so the label can never drift from the question. */
+      presetsLabel: 'Try asking',
+      presets: [
+        { icon: 'circle-help', text: 'What should I do now' },
+        { icon: 'book-open', text: 'Explain this' }
+      ],
+
+      /* The system prompt. The tutor is handed a description of the page the
+         learner is looking at, so it can answer about it.
+         {brand} is filled from ui.brand, so the course name lives in one
+         place and a rename cannot leave the prompt stale. */
+      promptIntro: 'You are a patient tutor inside "{brand}", an interactive course. The learner is reading a lesson right now. Answer only about what they can see, in two or three short sentences or one small code block. If the material on screen does not contain the answer, say so plainly instead of inventing Git behaviour.',
+      promptChapter: 'Chapter',
+      promptStep: 'Current step',
+      promptMoment: 'Moment within that step',
+      promptFinished: 'Steps already finished',
+      promptOnScreen: 'Exactly what is on the learner’s screen right now',
+      promptAsk: 'Answer the question they ask about the above.'
+    },
+
+    settings: {
+      open: 'Settings',
+      title: 'Settings',
+      close: 'Close settings',
+      endpoint: 'Endpoint URL',
+      endpointHint: 'Base URL of an OpenAI-compatible service',
+      endpointPlaceholder: 'http://127.0.0.1:23333/v1/',
+      key: 'API Key',
+      keyShow: 'Show key',
+      keyHide: 'Hide key',
+      model: 'Model Name',
+      test: 'Test',
+      testing: 'Testing',
+      ok: 'Connected',
+      fail: 'Failed',
+      needEndpoint: 'enter an endpoint URL first',
+      latency: '{ms} ms',
+      timedOut: 'no reply within {seconds}s',
+      unreachable: 'could not reach the endpoint (offline, or blocked by CORS)',
+      httpError: 'the endpoint replied {status}',
+      record: 'Learning record',
+      recordNote: 'Clears finished steps, unlock states and this page’s progress.',
+      clear: 'Clear learning record',
+      cleared: 'Learning record cleared.',
+      clearAll: 'Clear all data',
+      clearAllLabel: 'All data',
+      clearAllNote: 'Removes the learning record, the saved theme, the API settings and the AI conversation.',
+      clearAllDone: 'All local data cleared.',
+
+      /* A second look before either destructive button acts. There is no
+         undo behind this sheet, so the click that erases the chapter should
+         not be the first one. `{count}` is filled with how many steps are
+         actually finished, so the cost is concrete rather than abstract. */
+      confirm: {
+        cancel: 'Cancel',
+        recordTitle: 'Clear the learning record?',
+        recordBody: 'This removes {count} finished steps, and every step those unlocks opened.',
+        recordBodyNone: 'No steps are finished yet, so only the progress saved on this page is lost.',
+        recordGo: 'Clear record',
+        allTitle: 'Clear all data?',
+        allBody: 'This removes the learning record, the saved theme, the endpoint, key and model, and the whole AI conversation.',
+        allGo: 'Clear everything'
+      }
     }
   },
 
@@ -151,8 +262,7 @@ window.CHAPTER_CONTENT = {
             icon: 'triangle-alert',
             headline: 'Four ways to guess. Four different files.',
             text: 'A file name, a timestamp and a file size are not a history. None of them can say what changed, or why.'
-          },
-          confirm: 'Next step'
+          }
         }
       ]
     },
@@ -219,7 +329,6 @@ window.CHAPTER_CONTENT = {
           },
           foundLabel: 'problems found',
           waitHint: 'Find all five',
-          confirm: 'Next step',
           pains: [
             {
               id: 'tedious', icon: 'refresh-cw',
@@ -293,8 +402,7 @@ window.CHAPTER_CONTENT = {
             icon: 'lightbulb',
             headline: 'Git is a Version Control System.',
             text: 'You edit files. It remembers the story — every change, in order, with a reason attached.'
-          },
-          confirm: 'Next step'
+          }
         }
       ]
     },
@@ -317,7 +425,6 @@ window.CHAPTER_CONTENT = {
           flipHint: 'Tap a card',
           backHint: 'Tap to flip back',
           waitHint: 'Flip all six cards',
-          confirm: 'Next step',
           cards: [
             {
               id: 'record', icon: 'git-commit-horizontal', label: 'Record history',
@@ -368,7 +475,6 @@ window.CHAPTER_CONTENT = {
             text: 'Sort each card into the right column.'
           },
           waitHint: 'Place all eight cards',
-          confirm: 'Next step',
           buckets: [
             { id: 'git',      title: 'Git',             subtitle: 'A tool on your computer',        icon: 'laptop' },
             { id: 'platform', title: 'GitHub / GitLab', subtitle: 'Websites that host repositories', icon: 'cloud' }
@@ -447,7 +553,7 @@ window.CHAPTER_CONTENT = {
             { icon: 'history',               label: 'History grows' }
           ],
           next: 'Next: what exactly does Git manage?',
-          confirm: 'Restart chapter'
+          confirm: 'Next chapter'
         }
       ]
     }

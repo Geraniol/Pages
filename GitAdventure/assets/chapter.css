@@ -21,6 +21,15 @@
  *  14  finishPanel    beat renderer
  *  15  footnav
  *  16  responsive + print
+ *  17  locking (rail) + the settings entry
+ *  18  settings sheet
+ *  19  toasts
+ *  20  Ask AI launcher + panel
+ *  21  the shared hover standard
+ *  22  the Ask AI open/close morph
+ *  23  the confirm layer
+ *  24  the preset questions
+ *  25  the saved transcript
  * =========================================================================== */
 
 /* ============================================================ 1. shell === */
@@ -41,7 +50,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-4);
-  padding: var(--sp-5) var(--sp-4);
+  padding: var(--gutter);
   background: color-mix(in srgb, var(--surface) 72%, transparent);
   backdrop-filter: blur(14px);
   border-right: 1px solid var(--border);
@@ -59,7 +68,10 @@
   box-shadow: var(--shadow-2);
 }
 
-.rail__brandtitle { font-size: var(--fs-sm); font-weight: 650; letter-spacing: 0.01em; }
+/* The brand is the one piece of type in the rail that is an identity rather
+   than a label, so it does not sit on the label scale — at --fs-sm it read
+   as one more row of chrome. */
+.rail__brandtitle { font-size: 1.125rem; font-weight: 650; letter-spacing: 0.01em; }
 
 .rail__chapter {
   padding: var(--sp-3);
@@ -100,6 +112,13 @@
 
 .step__dot {
   position: relative;
+  /* The connector below hangs past this row and into the next one, which
+     means it passes under the next row's button. A row that is hovered or
+     active paints a background there, and because that button is a later
+     sibling it painted over the line, chopping the spine wherever the
+     pointer went. Lifting the dot into its own layer puts the whole
+     connector back on top of every row background. */
+  z-index: 1;
   width: 30px; height: 30px;
   flex: none;
   display: grid; place-items: center;
@@ -110,16 +129,18 @@
 }
 .step__dot svg { width: 15px; height: 15px; }
 
-/* the spine connecting one step dot to the next */
+/* The spine between one step dot and the next. It has to span the whole
+   gap exactly — dot bottom to next dot top = row padding-bottom + list gap
+   + row padding-top — or it reads as a broken dashed line. */
 .step:not(:last-child) .step__dot::after {
   content: "";
   position: absolute;
-  top: calc(100% + 2px);
+  top: 100%;
   left: 50%;
   width: 2px;
-  height: 12px;
+  height: calc(var(--sp-2) * 2 + 2px);
   transform: translateX(-50%);
-  background: var(--border);
+  background: var(--border-firm);
   border-radius: 2px;
 }
 
@@ -175,7 +196,7 @@
   z-index: 15;
   height: var(--topbar-h);
   display: flex; align-items: center; gap: var(--sp-3);
-  padding: 0 var(--sp-5);
+  padding: 0 var(--gutter);
   background: color-mix(in srgb, var(--bg) 82%, transparent);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
@@ -219,8 +240,24 @@
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: var(--sp-6) var(--sp-5) var(--sp-7);
+  padding: var(--gutter);
   overflow-x: hidden;
+}
+
+/* The router moves focus here on every page change, so a screen reader lands
+   on the new content; `tabindex="-1"` is what makes that possible. It is not
+   reachable by Tab, so a focus ring on it tells nobody anything. But the
+   global :focus-visible rule was matching it — Chrome counts a programmatic
+   focus as a keyboard one — and that rule carries a border-radius as well as
+   an outline. Since the stage is `overflow: hidden`, the radius turned it
+   into a rounded clipping box: for as long as it held focus the lesson was
+   clipped at its corners, and the moment the reader clicked anywhere outside
+   the lesson the clip moved back to square. Both halves are wrong for a
+   landmark, so neither is applied. */
+.stage:focus,
+.stage:focus-visible {
+  outline: none;
+  border-radius: 0;
 }
 
 /* `margin: auto` rather than justify-content: it centres the page in the
@@ -691,22 +728,6 @@
 }
 .pipe__rail.is-flowing { animation: dash-flow 700ms linear infinite; }
 
-.pipe__spark {
-  position: absolute;
-  top: 58px;
-  left: 12%;
-  width: 12px; height: 12px;
-  margin-left: -6px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 20%, transparent),
-              0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
-  z-index: 2;
-  transition: left var(--dur-slow) var(--ease), opacity var(--dur) var(--ease);
-  opacity: 0;
-}
-.pipe__spark.is-visible { opacity: 1; }
-
 .pipe__stage {
   position: relative;
   z-index: 1;
@@ -890,6 +911,11 @@
   user-select: none;
 }
 .chip svg { width: 16px; height: 16px; color: var(--muted); }
+/* Dragging is run on pointer events, so the chip needs no native drag
+   affordances — just the cursor cue, and touch-action so a touch drag is
+   not swallowed by scrolling. */
+.chip { cursor: grab; touch-action: none; }
+.chip:active { cursor: grabbing; }
 .chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-2); border-color: var(--border-firm); }
 .chip.is-picked {
   border-color: var(--accent);
@@ -897,8 +923,18 @@
   transform: translateY(-2px) scale(1.03);
 }
 .chip.is-picked svg { color: var(--accent); }
+/* Must win over is-picked: nothing may animate or shift on the drag source
+   while the browser is holding a drag on it. */
+.chip.is-dragging {
+  opacity: 0.6;
+  cursor: grabbing;
+  z-index: 5;
+  position: relative;
+  /* the transform that follows the pointer must not lag behind it */
+  transition: none;
+}
 .chip.is-locked { cursor: default; pointer-events: none; }
-.chip[disabled] { cursor: default; }
+.chip[aria-disabled="true"] { cursor: default; }
 .chip.is-right {
   border-color: color-mix(in srgb, var(--good) 55%, var(--border));
   background: var(--good-soft);
@@ -919,6 +955,15 @@
   transition: all var(--dur) var(--ease);
 }
 .bucket.is-target { border-color: var(--accent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent); }
+.bucket { cursor: pointer; }
+/* the pointer is actually over this bucket mid-drag */
+.bucket.is-over {
+  border-color: var(--accent);
+  border-style: solid;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent), var(--shadow-2);
+}
+.bucket.is-over .bucket__body { background: color-mix(in srgb, var(--accent) 7%, transparent); }
+.bucket.is-over .bucket__head { background: var(--accent-soft); }
 .bucket.is-good { border-color: color-mix(in srgb, var(--good) 50%, var(--border)); }
 .bucket.is-bad { animation: shake-x 420ms var(--ease); border-color: var(--bad); }
 
@@ -1094,7 +1139,7 @@
 .footnav {
   position: sticky; bottom: 0;
   display: flex; align-items: center; gap: var(--sp-3);
-  padding: var(--sp-3) var(--sp-5);
+  padding: var(--sp-3) var(--gutter);
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--border);
@@ -1126,9 +1171,9 @@
   .rail__chapter { display: none; }
 
   .pipe__track { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: var(--sp-4); }
-  .pipe__rail, .pipe__spark { display: none; }
+  .pipe__rail { display: none; }
   .sortgame__buckets { grid-template-columns: minmax(0, 1fr); }
-  .stage { padding: var(--sp-5) var(--sp-4) var(--sp-6); }
+  .stage { padding: var(--gutter); }
   .quiz-card__text { font-size: var(--fs-lg); }
   .scene, .answer { flex-direction: column; gap: var(--sp-4); padding: var(--sp-5); }
   .scene__text { font-size: var(--fs-lg); }
@@ -1169,3 +1214,553 @@
   .cap__inner { transform: none !important; }
   .cap__face { position: static; backface-visibility: visible; }
 }
+
+/* ================================================ 17. locking + chrome == */
+
+/* a step whose predecessor is not finished yet */
+.step.is-locked .step__btn { cursor: not-allowed; }
+.step.is-locked .step__btn:hover { background: transparent; color: var(--faint); }
+.step.is-locked .step__dot {
+  border-style: dashed;
+  border-color: var(--border-firm);
+  color: var(--faint);
+}
+.step.is-locked .step__label { color: var(--faint); }
+.step.is-locked .step__num { opacity: 0.5; }
+
+/* the settings entry, pinned to the foot of the rail — same icon-button
+   shape as the cluster in the top-right corner */
+.rail__tools { display: flex; align-items: center; gap: var(--sp-2); }
+
+/* ================================================= 18. settings sheet == */
+.sheet {
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-items: center;      /* centres the panel */
+  padding: var(--gutter);
+}
+.sheet[hidden] { display: none; }
+
+.sheet__backdrop {
+  position: absolute; inset: 0;
+  background: var(--scrim);
+  backdrop-filter: blur(2px);
+  animation: fade-in var(--dur) var(--ease) both;
+}
+
+/* `position: relative` keeps the panel above the absolutely-placed backdrop,
+   and leaves the fade-rise transform free to animate without fighting a
+   translate(-50%, -50%) centring trick. */
+.sheet__panel {
+  position: relative;
+  width: min(420px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  animation: fade-rise var(--dur) var(--ease) both;
+}
+
+.sheet__head {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+.sheet__headicon { display: grid; place-items: center; color: var(--accent); }
+.sheet__title { flex: 1; font-size: var(--fs-md); font-weight: 680; }
+
+.sheet__body {
+  display: flex; flex-direction: column; gap: var(--sp-4);
+  padding: var(--sp-4);
+}
+.sheet__rule { height: 1px; background: var(--border); }
+
+.field { display: flex; flex-direction: column; gap: var(--sp-2); }
+.field__row { display: flex; align-items: center; gap: var(--sp-2); }
+.field__row .input { flex: 1; min-width: 0; }
+.field__row .btn { flex: none; }
+
+.field__label {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: var(--fs-xs);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.field__label svg { width: 14px; height: 14px; }
+
+.field__note { font-size: var(--fs-xs); color: var(--faint); margin-top: calc(-1 * var(--sp-2)); }
+
+.input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  transition: all var(--dur-fast) var(--ease);
+}
+.input::placeholder { color: var(--faint); }
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.field__status {
+  display: none;
+  align-items: flex-start; gap: 7px;
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+}
+.field__status.is-ok, .field__status.is-bad { display: flex; }
+.field__status.is-ok { color: var(--good); }
+.field__status.is-bad { color: var(--bad); }
+.field__status svg { flex: none; margin-top: 1px; }
+
+.btn--danger {
+  justify-content: center;
+  border-color: color-mix(in srgb, var(--bad) 35%, var(--border));
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.btn--danger:hover { border-color: var(--bad); background: var(--bad-soft); }
+
+.is-spinning { animation: spin-slow 900ms linear infinite; }
+
+/* ========================================================= 19. toasts == */
+/* Notices belong over the lesson, not down by the footer: "step unlocked"
+   and "finish the step before this one" are about the material the reader is
+   looking at, and at the bottom they arrive outside the eye's path. The
+   stack spans the lesson column — the rail is a column on the left, so a
+   plain 50% would centre it on the wrong thing. */
+.toasts {
+  position: fixed;
+  left: var(--rail-w);
+  right: 0;
+  top: calc(var(--topbar-h) + var(--sp-3));
+  z-index: 70;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  pointer-events: none;
+}
+.toast {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: 10px 16px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  box-shadow: var(--shadow-3);
+  animation: fade-rise var(--dur) var(--ease) both;
+}
+.toast svg { width: 16px; height: 16px; color: var(--accent); }
+.toast.is-out { opacity: 0; transform: translateY(6px); transition: all var(--dur) var(--ease); }
+
+@media (max-width: 860px) {
+  /* the rail is no longer a column, so the lesson spans the full width */
+  .toasts { left: 0; }
+}
+
+/* ========================================================= 20. tutor === */
+
+/* the entry point, bottom-right, sitting clear of the footer bar */
+.chatfab {
+  position: fixed;
+  right: var(--sp-5);
+  bottom: calc(var(--footnav-h) + var(--sp-4));
+  z-index: 40;
+  width: 54px; height: 54px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--accent-line);
+  background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 70%, var(--violet)));
+  color: #fff;
+  cursor: pointer;
+  box-shadow: var(--shadow-3);
+  transition: transform var(--dur) var(--ease-out-back), box-shadow var(--dur) var(--ease);
+}
+.chatfab:hover { transform: translateY(-3px) scale(1.04); }
+.chatfab:active { transform: translateY(0) scale(0.97); }
+
+/* the panel, anchored to the same corner */
+.chat {
+  position: fixed;
+  right: var(--sp-5);
+  bottom: calc(var(--footnav-h) + var(--sp-4));
+  z-index: 45;
+  width: min(400px, calc(100vw - 2 * var(--sp-4)));
+  height: min(560px, calc(100vh - var(--topbar-h) - var(--sp-7) - var(--sp-6)));
+  display: flex; flex-direction: column;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  overflow: hidden;
+  animation: fade-rise var(--dur) var(--ease) both;
+}
+.chat[hidden] { display: none; }
+
+/* Same horizontal inset as the transcript, the preset row and the composer
+   below, so the buttons in this row line up with the field they sit above. */
+.chat__head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+}
+.chat__avatar {
+  width: 30px; height: 30px; flex: none;
+  display: grid; place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.chat__who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.chat__title { font-size: var(--fs-sm); font-weight: 680; }
+.chat__model {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--accent);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.chat__head .icon-btn { width: 30px; height: 30px; }
+.chat__head .icon-btn svg { width: 15px; height: 15px; }
+
+/* the strip that shows what the tutor can see */
+.chat__context {
+  display: flex; align-items: center; gap: 6px;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--surface-sunk);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap; overflow: hidden;
+}
+.chat__context svg { width: 13px; height: 13px; flex: none; color: var(--accent); }
+.chat__context b { color: var(--text); font-weight: 650; }
+.chat__dim { color: var(--faint); }
+
+.chat__log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-4);
+  display: flex; flex-direction: column; gap: var(--sp-3);
+}
+
+.chat__empty {
+  margin: auto;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
+  color: var(--faint);
+  font-size: var(--fs-sm);
+  text-align: center;
+  max-width: 24ch;
+}
+.chat__empty svg { width: 20px; height: 20px; }
+
+.msg { display: flex; }
+.msg--user { justify-content: flex-end; }
+.msg__body {
+  max-width: 85%;
+  padding: 9px 13px;
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  animation: fade-rise var(--dur) var(--ease) both;
+}
+.msg--user .msg__body {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-bottom-right-radius: 4px;
+}
+.msg--assistant .msg__body {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 4px;
+}
+.msg--error .msg__body {
+  background: var(--bad-soft);
+  border: 1px solid color-mix(in srgb, var(--bad) 30%, var(--border));
+  color: color-mix(in srgb, var(--bad) 75%, var(--text));
+  font-size: var(--fs-xs);
+}
+.msg__body code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--text) 9%, transparent);
+}
+.msg__code {
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}
+.msg__code:first-child { margin-top: 0; }
+
+.msg.is-thinking .msg__body { color: var(--muted); animation: glow-pulse 1.4s var(--ease) infinite; }
+
+.chat__compose {
+  display: flex; align-items: flex-end; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+/* One row at rest, and that row is exactly as tall as the send button beside
+   it: 20px line box + 9px padding twice + the 1px border twice = 40px. It
+   still grows with what is typed, up to max-height. */
+.chat__input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  max-height: 120px;
+  padding: 9px 12px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  line-height: 20px;
+}
+.chat__input::placeholder { color: var(--faint); }
+.chat__input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
+}
+.chat__send { flex: none; width: 40px; height: 40px; padding: 0; justify-content: center; }
+.chat__send[disabled] { opacity: 0.45; pointer-events: none; }
+
+@media (max-width: 560px) {
+  .chat {
+    right: var(--sp-3); left: var(--sp-3);
+    width: auto;
+    height: min(70vh, 520px);
+    bottom: calc(var(--footnav-h) + var(--sp-3));
+  }
+  .chatfab { right: var(--sp-4); width: 48px; height: 48px; }
+}
+
+/* ================================================== 21. hover, unified == */
+
+/* One standard for every clickable surface: the same properties, the same
+   duration and easing, the same lift, the same shadow. Individual rules
+   above still own their colours; this block owns the motion.
+   `.step__btn` is the single exception — it is a full-width row in a
+   scrolling list, so it tints rather than lifts, which would drag the row
+   above it and pull the connector spine out of line. */
+.btn,
+.icon-btn,
+.chip,
+.file-card,
+.tf-btn,
+.pain,
+.cap__face--front,
+.pipe__stage,
+.chatfab,
+.step__btn {
+  transition:
+    transform var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.btn:hover,
+.icon-btn:hover,
+.chip:hover,
+.file-card:hover,
+.tf-btn:hover,
+.pain:hover,
+.cap__face--front:hover,
+.pipe__stage:hover,
+.chatfab:hover {
+  transform: translateY(var(--lift));
+  box-shadow: var(--shadow-2);
+}
+
+.btn:active,
+.icon-btn:active,
+.chip:active,
+.tf-btn:active,
+.chatfab:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-1);
+}
+
+/* respects the reduced-motion block in theme.css, and keeps the press state */
+@media (prefers-reduced-motion: reduce) {
+  .btn:hover, .icon-btn:hover, .chip:hover, .file-card:hover, .tf-btn:hover,
+  .pain:hover, .cap__face--front:hover, .pipe__stage:hover, .chatfab:hover {
+    transform: none;
+  }
+}
+
+/* while a chip is in hand: no text selection anywhere, and the whole page
+   shows the grabbing cursor so the gesture reads as one thing */
+body.is-dragging-chip { user-select: none; cursor: grabbing; }
+body.is-dragging-chip .bucket { cursor: grabbing; }
+
+/* ------------------------------------------------ 22. the Ask AI panel --- */
+/* The panel grows out of the button instead of appearing beside it. It is
+   anchored to the same bottom-right corner as the launcher, so scaling from
+   that corner reads as the button itself opening up; the button fades out on
+   the same beat, so the two are never on screen as separate objects. */
+.chat {
+  transform-origin: 100% 100%;
+  opacity: 0;
+  transform: scale(0.28) translateY(18px);
+  transition: opacity var(--dur) var(--ease),
+              transform var(--dur) var(--ease-out-back);
+  animation: none;              /* the transition above replaces fade-rise */
+}
+.chat.is-open { opacity: 1; transform: none; }
+
+.chatfab {
+  transition: opacity var(--dur) var(--ease),
+              transform var(--dur) var(--ease-out-back),
+              box-shadow var(--dur) var(--ease);
+}
+.chatfab.is-gone {
+  opacity: 0;
+  transform: scale(0.3);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------- 23. confirm layer --- */
+/* A second look before an irreversible clear. Built inside the settings
+   sheet, so it fills the same viewport box and paints above the panel by
+   DOM order alone — no z-index arithmetic, and it disappears with the sheet
+   rather than being able to outlive it. */
+.confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-4);
+}
+.confirm[hidden] { display: none; }
+
+.confirm__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+}
+
+.confirm__panel {
+  position: relative;
+  width: min(400px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  text-align: center;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  transform-origin: 50% 50%;
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity var(--dur) var(--ease),
+              transform var(--dur) var(--ease-out-back);
+}
+.confirm.is-open .confirm__panel { opacity: 1; transform: none; }
+
+.confirm__icon {
+  display: grid; place-items: center;
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.confirm__title { font-size: var(--fs-md); font-weight: 680; }
+.confirm__body { color: var(--muted); font-size: var(--fs-sm); max-width: 34ch; }
+
+.confirm__actions {
+  display: flex;
+  gap: var(--sp-2);
+  width: 100%;
+  margin-top: var(--sp-1);
+}
+.confirm__actions .btn { flex: 1; justify-content: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .confirm__panel { opacity: 1; transform: none; }
+}
+
+/* ------------------------------------------------- 24. preset questions -- */
+/* Two questions the learner can ask without typing. They sit above the
+   composer, styled as a lighter weight of control than the send button so
+   the box still reads as the main way in. */
+.chat__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  /* No top padding: the transcript above already ends in --sp-4 of its own.
+     The bottom one is ours to give — without it the chips sat directly on
+     the composer's divider. The sides match the transcript's so the chips,
+     the field and the messages all start on the same line. */
+  padding: 0 var(--sp-4) var(--sp-4);
+}
+
+.chat__preset {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 11px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-soft);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease),
+              box-shadow var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease),
+              background-color var(--dur-fast) var(--ease),
+              color var(--dur-fast) var(--ease);
+}
+.chat__preset svg { width: 14px; height: 14px; flex: none; color: var(--accent); }
+
+.chat__preset:hover {
+  transform: translateY(var(--lift));
+  box-shadow: var(--shadow-2);
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.chat__preset:active { transform: translateY(0); box-shadow: var(--shadow-1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .chat__preset:hover { transform: none; }
+}
+
+/* ------------------------------------------------ 25. chat transcript --- */
+/* Nothing to clear means nothing to offer. */
+.chat__head .icon-btn[disabled] { opacity: 0.4; pointer-events: none; }
+
+/* The confirm lives inside whichever panel raised it, so inside the chat it
+   covers the panel rather than the viewport. */
+.chat .confirm { padding: var(--sp-4); }
