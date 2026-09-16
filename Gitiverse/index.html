@@ -1,0 +1,800 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Gitiverse — a guided, interactive Git course, and a sandbox to practise in.">
+  <!-- The umbrella name is still provisional ("Gitiverse"). It appears in three
+       places on this page — this title, the meta description and the top bar.
+       The two destinations keep their own names: Git Adventure (the tutorial,
+       chapter_1.html) and Git Playground (the sandbox, practice/). -->
+  <title>Gitiverse · Learn Git by doing</title>
+
+  <!-- ---------------------------------------------------------------------
+    Theme bootstrap. Runs before first paint so the page never flashes the
+    wrong palette. Same key and same fallback order as chapter_1.html.
+
+    Two keys live in this prototype: chapter_1.html reads 'gitcourse.theme'
+    (assets/app.js), practice/index.html reads 'vge.theme' (its core/theme.js).
+    This page is the entry point for both, so it reads whichever is set — and,
+    in the handler at the bottom of this file, writes BOTH. Without that the
+    reader picks night mode here and lands in a daylight chapter.
+  --------------------------------------------------------------------- -->
+  <script>
+    (function () {
+      var mode = null;
+      try {
+        mode = localStorage.getItem('gitcourse.theme') || localStorage.getItem('vge.theme');
+      } catch (e) { mode = null; }
+      if (mode !== 'light' && mode !== 'dark') {
+        mode = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', mode);
+    })();
+  </script>
+
+  <!-- The shared token sheet, not a copy of it: identical greys, identical Git
+       orange, identical shadows and easing curves as both destinations. -->
+  <link rel="stylesheet" href="assets/theme.css">
+
+  <!-- =====================================================================
+    This page's own styles. Three parts:
+
+    1. CHROME — .topbar / .icon-btn / .theme-toggle / .logo are chapter.css's
+       rules with the values untouched, so all three pages share one top bar.
+       Only the height and the brand size are dialled up here (see below).
+
+    2. THE BOARD — the flow diagram. It is drawn on a fixed coordinate system
+       (a 1716 x 640 viewBox) and scaled as one piece by the container, so the
+       pills and the wires connecting them can never drift apart.
+
+       WHY A FIXED COORDINATE SYSTEM. The wires must meet the pill edges
+       exactly. If the pills were laid out by flex/grid and the wires drawn
+       separately, the two would only agree at one viewport width. Instead
+       every box is placed in PERCENTAGES of the board, and the SVG underneath
+       shares the same viewBox — so one scale factor moves both. The board
+       keeps a fixed aspect-ratio to guarantee that scale is uniform in both
+       axes (otherwise height percentages and the SVG's y-axis would diverge
+       and the wires would slide out of the pills).
+
+       Text is sized in `cqw` (percent of the board's width), which is what
+       makes it scale with the diagram rather than with the window. `cqw` has
+       the same browser support as the `color-mix()` this project already
+       leans on throughout, so it costs nothing new. Every such declaration
+       is written twice — a px fallback first, the cqw value second — so a
+       browser without container queries still gets a sane static board.
+
+       THE TYPE IS CLAMPED; THE DRAWING IS NOT. Percentages and `cqw` both key
+       off the board's width, so simply making the board bigger would scale
+       every label up with it. The pills, wires, stroke weights and bloom are
+       meant to grow — they are the drawing. The type is not: each font-size
+       carries a px ceiling equal to the size it was at on the old 1060px
+       board, so widening the board enlarges the diagram and leaves the words
+       exactly as they were. The caption boxes get the same treatment through
+       a px `max-width`, which is also what keeps the intro from widening
+       again — the thing that was just asked to stop.
+
+    3. THE EFFECTS — a masked grid, an ambient bloom, an entrance sequence and
+       a travelling pulse. Two rules govern all of them:
+
+       · EVERY ANIMATED PROPERTY'S BASE VALUE IS ITS FINAL VALUE. The entrance
+         animations use `animation-fill-mode: backwards`, never `forwards`. A
+         filling animation keeps ownership of the properties it animates, and
+         `.node--dest` animates `transform` — the same property its hover lift
+         uses. Holding it with `forwards` would leave the pills permanently
+         unable to lift. `backwards` holds the from-state during the delay and
+         then hands the properties straight back, so hover works the instant
+         the pill has landed.
+
+       · NOTHING DEPENDS ON AN ANIMATION TO BE VISIBLE. If the animations never
+         ran — reduced motion, an old browser, a paused tab — the wires would
+         still be solid, the pills still opaque and the pulse simply absent.
+         The one exception is the pulse, which is decorative and defaults to
+         opacity 0.
+  ===================================================================== -->
+  <style>
+    body { display: flex; flex-direction: column; min-height: 100dvh; }
+
+    /* ------------------------------------------------------ background --- */
+    /* A masked graph-paper grid: the token for it (--grid-line) already exists
+       in theme.css and nothing on this page was using it. Squares fading out
+       toward the edges read as a canvas to draw a diagram on, rather than as a
+       table the content happens to be sitting in. */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+      background-size: 34px 34px;
+      -webkit-mask-image: radial-gradient(ellipse 85% 78% at 50% 44%, #000 22%, transparent 100%);
+              mask-image: radial-gradient(ellipse 85% 78% at 50% 44%, #000 22%, transparent 100%);
+    }
+
+    /* A soft accent bloom that follows the pointer. A real element rather than
+       a second pseudo-element, because JS has to move it and pseudo-elements
+       are not scriptable. It is moved with `transform` alone — a compositor
+       property — so tracking the cursor never repaints the gradient itself. */
+    .glow {
+      position: fixed;
+      top: 0; left: 0;
+      width: 760px; height: 760px;
+      margin: -380px 0 0 -380px;      /* centred on its own origin */
+      z-index: 0;
+      pointer-events: none;
+      border-radius: 50%;
+      opacity: 0;
+      background: radial-gradient(closest-side,
+                  color-mix(in srgb, var(--accent) 11%, transparent),
+                  transparent 72%);
+      transition: opacity 700ms var(--ease);
+      will-change: transform;
+    }
+    .glow.is-on { opacity: 1; }
+
+    /* The second halo carries the inverted colour. `invert()` works on the
+       layer's own pixels, so the accent flips to its complement — orange to
+       cyan — without a second colour ever being written down. Spelling out a
+       cyan here would be wrong in whichever theme does not use the accent it
+       was derived from, and both themes here have their own accent. */
+    .glow--mirror { filter: invert(1); }
+
+    /* ---------------------------------------------------------- chrome --- */
+    /* Taller than chapter_1's 62px bar on purpose: the reference composition
+       gives the brand a full-size wordmark rather than a nav-sized label. */
+    .topbar {
+      position: sticky; top: 0;
+      z-index: 15;
+      height: 84px;
+      display: flex; align-items: center; gap: var(--sp-3);
+      padding: 0 var(--gutter);
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      width: 44px; height: 44px;
+      display: grid; place-items: center;
+      flex: none;
+      border-radius: var(--r-md);
+      background: linear-gradient(145deg, var(--accent), color-mix(in srgb, var(--accent) 62%, var(--violet)));
+      color: #fff;
+      box-shadow: var(--shadow-2);
+      transition: transform var(--dur) var(--ease-out-back);
+    }
+    .logo:hover { transform: rotate(-8deg) scale(1.06); }
+    .brand { font-size: var(--fs-xl); font-weight: 650; letter-spacing: -0.01em; }
+    .spacer { flex: 1; }
+
+    /* The repository mark, with no plate behind it. --text draws the octocat
+       near-black in daylight and white at night, so it reads as an inline mark
+       beside the wordmark rather than as a second filled square competing with
+       the logo. The box is still 40px for a comfortable hit target. */
+    .gh {
+      width: 40px; height: 40px;
+      display: grid; place-items: center;
+      flex: none;
+      border-radius: var(--r-md);
+      color: var(--text);
+      transition: color var(--dur-fast) var(--ease),
+                  transform var(--dur-fast) var(--ease);
+    }
+    .gh:hover { color: var(--accent); transform: translateY(var(--lift)); }
+    .gh:active { transform: translateY(0) scale(0.96); }
+    .gh svg { width: 24px; height: 24px; fill: currentColor; }
+
+    .icon-btn {
+      width: 38px; height: 38px;
+      display: grid; place-items: center;
+      flex: none;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-soft);
+      cursor: pointer;
+      box-shadow: var(--shadow-1);
+      transition: all var(--dur-fast) var(--ease);
+    }
+    .icon-btn:hover { color: var(--accent); border-color: var(--accent-line); transform: translateY(-1px); }
+    .icon-btn:active { transform: translateY(0) scale(0.96); }
+    .icon-btn svg { width: 18px; height: 18px; }
+
+    /* The button shows the mode you would switch *to*, matching its tooltip. */
+    .theme-toggle .icon-sun { display: none; }
+    [data-theme="dark"] .theme-toggle .icon-moon { display: none; }
+    [data-theme="dark"] .theme-toggle .icon-sun { display: block; }
+    .theme-toggle:hover svg { transform: rotate(18deg); }
+    .theme-toggle svg { transition: transform var(--dur) var(--ease-out-back); }
+
+    /* ----------------------------------------------------------- board --- */
+    .board {
+      position: relative;
+      z-index: 1;               /* above the fixed grid layer */
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      padding: var(--sp-5) var(--gutter);
+    }
+    /* `margin: auto` centres the board in the free space, and — the important
+       part — an auto cross-axis margin also cancels the flex default
+       `align-items: stretch`. Stretch would hand the stage a definite height,
+       which wins over its aspect-ratio and silently inflates the board to the
+       full viewport, every pill and wire stretched with it. Auto margins also
+       degrade safely: with no free space (narrow screens) they resolve to 0 and
+       the content starts at the top and scrolls, instead of being centred into
+       an unreachable overflow. */
+    .stage {
+      position: relative;
+      width: 100%;
+      /* Wider than --page-max (1060px), which is chapter_1's READING column.
+         This is a drawing, not prose, so it is allowed to fill more of the
+         window: 1280px is about a fifth larger than the board the type sizes
+         were tuned against. Narrow windows still win — `width: 100%` above
+         means this is only ever a ceiling. */
+      max-width: 1280px;
+      margin: auto;
+      aspect-ratio: 1716 / 640;
+      container-type: size;
+    }
+
+    /* A soft accent bloom sitting behind the hub, so the graph's root reads as
+       the light source of the drawing. Deliberately centred on the hub and
+       symmetrical: theme.css records that an off-centre background wash was
+       tried and removed for reading as uneven lighting. Sized as a square via
+       aspect-ratio and re-centred on its own middle, which keeps it valid at
+       every board width without a second set of magic numbers. */
+    .stage::before {
+      content: '';
+      position: absolute;
+      z-index: -1;
+      left: 50.52%; top: 18.76%;
+      width: 46%;
+      aspect-ratio: 1;
+      pointer-events: none;
+      border-radius: 50%;
+      /* Wide and weak on purpose: at a tighter radius this read as a peach
+         smudge sitting on the board rather than as light coming from behind
+         the hub. */
+      background: radial-gradient(closest-side,
+                  color-mix(in srgb, var(--accent) 12%, transparent),
+                  transparent 72%);
+      animation: bloom 13s var(--ease) infinite alternate;
+    }
+    @keyframes bloom {
+      from { transform: translate(-50%, -50%) scale(1);    opacity: 0.5; }
+      to   { transform: translate(-50%, -50%) scale(1.14); opacity: 0.85; }
+    }
+
+    /* The wires. Sized in viewBox units, so the 5-unit stroke lands at ~3px on
+       a 1060px board — the same weight relative to the pills as the reference.
+       `pathLength="1"` on each path (see the markup) normalises every length to
+       1, which is what lets one keyframe set draw all of them at the same rate
+       regardless of how long they actually are. */
+    .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .wire {
+      fill: none;
+      stroke: var(--faint);
+      stroke-width: 5;
+      stroke-linecap: round;
+      stroke-dasharray: 1;
+      transition: stroke var(--dur) var(--ease);
+      animation: draw-wire 480ms var(--ease) 240ms backwards;
+    }
+    @keyframes draw-wire { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
+    /* The travelling pulse — a short accent segment sweeping each wire in its
+       direction of travel, built in JS by cloning the wire geometry (see the
+       bottom of this file; repeating the `d` strings here would let the two
+       copies drift apart the next time the diagram is redrawn).
+
+       Dash maths: the pattern is 26 on / 940 off, and the offset runs the full
+       966-unit period, so the segment crosses each path exactly once per cycle
+       and the loop is seamless. Because the dash pattern is in USER UNITS and
+       not normalised, the segment is the same absolute size and travels at the
+       same absolute speed on all three wires — on a `pathLength`-normalised
+       dash it would crawl on the short wires and race on the long one. */
+    .flow {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 5.5;
+      stroke-linecap: round;
+      stroke-dasharray: 26 940;
+      opacity: 0;
+      animation: march 3.4s linear infinite,
+                 flow-in 600ms var(--ease) 1300ms both;
+    }
+    @keyframes march { from { stroke-dashoffset: 966; } to { stroke-dashoffset: 0; } }
+    @keyframes flow-in { from { opacity: 0; } to { opacity: 0.85; } }
+
+    /* Hovering a destination lights the wires that carry the reader to and from
+       it — the class is toggled in JS, which is also what pairs the pills with
+       their paths. */
+    .wire.is-hot { stroke: var(--accent); }
+    .head.is-hot { fill: var(--accent); }
+
+    .head {
+      fill: var(--faint);
+      transition: fill var(--dur) var(--ease);
+      animation: fade-in 260ms var(--ease) 1180ms backwards;
+    }
+
+    /* ----------------------------------------------------------- nodes --- */
+    /* Each node is a stadium outline in the brand orange. .unit is a plain
+       static wrapper so that on a narrow screen the node and its caption can
+       become ordinary stacked blocks — see the media query at the end. */
+    .node {
+      position: absolute;
+      display: grid; place-items: center;
+      text-align: center;
+      margin: 0;
+      background: var(--surface);
+      border: 3px solid var(--accent);
+      /* Proportional in intent, stepped in practice: browsers quantise border
+         widths to whole device pixels, so this measures 3.07px on the 1060px
+         board and 3.71px on the 1280px one and paints as a crisp 3px hairline
+         either way. It only crosses to 4px past a ~1380px board. Left as a
+         ratio rather than a hard 3px so that very wide boards do thicken. */
+      border-width: 0.29cqw;
+      border-radius: var(--r-pill);
+      color: var(--text);
+      box-shadow: var(--shadow-1);
+      white-space: nowrap;
+      animation: pop-in 440ms var(--ease) backwards;
+    }
+    .node--hub {
+      left: 35.66%; top: 3.13%;
+      width: 29.72%; height: 31.25%;
+      font-size: 40px; font-size: clamp(26px, 3.85cqw, 41px);
+      font-weight: 650;
+      letter-spacing: -0.015em;
+    }
+    .node--dest {
+      left: 20.10%; top: 58.13%;
+      width: 24.01%; height: 17.81%;
+      font-size: 27px; font-size: clamp(17px, 2.62cqw, 28px);
+      font-weight: 600;
+      transition: transform var(--dur) var(--ease),
+                  box-shadow var(--dur) var(--ease),
+                  border-color var(--dur) var(--ease);
+    }
+    .node--adv  { left: 20.10%; }
+    .node--play { left: 56.12%; width: 24.13%; }
+
+    /* The halo is a second shadow rather than an outline so it can sit outside
+       the pill without changing its size — an outline would resize the box and
+       shift the wire's entry point. */
+    .node--dest:hover,
+    .node--dest:focus-within {
+      transform: translateY(var(--lift));
+      box-shadow: var(--shadow-2),
+                  0 0 0 7px color-mix(in srgb, var(--accent) 13%, transparent);
+    }
+    .node--dest:focus-within { outline: 2px solid var(--accent); outline-offset: 4px; }
+    /* The link fills the pill, so the whole shape is the click target rather
+       than just the words inside it. */
+    .node--dest a {
+      display: grid; place-items: center;
+      width: 100%; height: 100%;
+      border-radius: inherit;
+      color: inherit;
+      text-decoration: none;
+    }
+    .node--dest a:focus-visible { outline: none; }
+
+    /* -------------------------------------------------------- captions --- */
+    /* Positioned, not flowed, so they stay centred under their pill at every
+       width. Deliberately narrower than the pill they sit under and set two
+       steps below the node type: these are captions, not body copy, and at
+       their old size they read as a paragraph and crowded the node above.
+
+       Each is placed by its own MIDPOINT — `left` is the pill's centre and the
+       transform pulls the box back by half its width — rather than by a left
+       edge. That is what lets the px ceiling below shorten a caption without
+       dragging it off-centre from the pill it belongs to. */
+    /* Centring and the entrance animation both want `transform`, and an
+       animation owns every property it touches until it ends. The shared
+       `fade-rise` finishes on `transform: none`, which would cancel the
+       translateX(-50%) for the whole fade-in — the caption would sit
+       half-a-box to the right, then snap into place the moment the animation
+       released it. So the captions get their own rise, one that carries the
+       centring through both ends of the movement. */
+    @keyframes cap-rise {
+      from { opacity: 0; transform: translate(-50%, 10px); }
+      to   { opacity: 1; transform: translate(-50%, 0); }
+    }
+    .cap {
+      position: absolute;
+      transform: translateX(-50%);
+      margin: 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 15px; font-size: clamp(12px, 1.4cqw, 15px);
+      line-height: 1.45;
+      text-wrap: balance;   /* evens the two lines instead of orphaning a word */
+      animation: cap-rise 420ms var(--ease) backwards;
+    }
+    /* The percentage keeps captions proportional on a small board; the px
+       ceiling holds their measure at what it was on the 1060px board, so a
+       bigger diagram does not quietly mean a wide intro again. */
+    .cap--hub  { left: 50.52%; top: 38.13%; width: 32%; max-width: 340px; }
+    .cap--adv  { left: 32.11%; top: 79.69%; width: 26%; max-width: 280px; }
+    .cap--play { left: 68.19%; top: 79.69%; width: 26%; max-width: 280px; }
+
+    /* =====================================================================
+      RUNNING-LIGHT BORDERS. A light travels around the border of all three
+      pills — hub included.
+
+      The sweep is a conic gradient whose start angle is animated. A plain
+      custom property cannot be tweened: the browser has nothing to
+      interpolate, so `@keyframes` has no effect on it. `@property` registers
+      `--beam` as a real <angle> first, and that registration is the whole
+      reason the animation works. Without `@property` support the gradient's
+      `var()` is invalid, the background computes to nothing, and the pill
+      just keeps its ordinary border — a clean failure rather than a
+      half-drawn ring.
+
+      The ring is a masked pseudo-element: two full-size gradients composited
+      with `exclude` cancel everywhere except the outer `--ring` band, so the
+      light sits exactly where the border is drawn instead of over the label.
+    ===================================================================== */
+    @property --beam {
+      syntax: '<angle>';
+      initial-value: 0deg;
+      inherits: false;
+    }
+    @keyframes beam-spin { to { --beam: 360deg; } }
+
+    /* All three pills, hub included. The hub is not a link — this is the one
+       border on the page whose light means nothing beyond the drawing being
+       alive, which is exactly why it belongs on all three rather than marking
+       two of them as the clickable ones. */
+    .node::after {
+      content: '';
+      position: absolute;
+      /* NEGATIVE, and it has to be. An absolutely positioned box is laid out
+         against its containing block's PADDING box, so `inset: 0` would start
+         the ring inside the border and paint a sheen just within the pill
+         instead of lighting the border itself. Pulling the outer edge out by
+         the border's width is what puts the band exactly where the border is
+         drawn. */
+      inset: -3px;
+      border-radius: inherit;
+      padding: 3px;
+      background: conic-gradient(from var(--beam),
+                  transparent 0deg,
+                  transparent 250deg,
+                  var(--beam-ink) 330deg,
+                  transparent 360deg);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+              mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      pointer-events: none;
+      opacity: 0.85;
+      transition: opacity var(--dur) var(--ease);
+      animation: beam-spin 3.6s linear infinite;
+    }
+    /* A quarter-turn of white, no more. Near-white read as a blown-out
+       highlight on the orange; keeping the accent in the mix makes the light
+       look like the border heating up rather than a white mark sliding over
+       it. */
+    .node::after { --beam-ink: color-mix(in srgb, var(--accent) 50%, #fff); }
+
+    .node--dest:hover::after,
+    .node--dest:focus-within::after { opacity: 1; }
+
+    /* Negative delays start each light part-way through its cycle, so the
+       three are never in step. Three borders sweeping in unison reads as a
+       marquee; evenly spaced, it reads as circuitry. */
+    .node--adv::after  { animation-delay: -1.2s; }
+    .node--play::after { animation-delay: -2.4s; }
+
+    /* =====================================================================
+      ENTRANCE ORDER. Read top to bottom, the diagram assembles itself the way
+      it is meant to be read: the hub lands, the sweep draws out of it, the
+      course pill pops where the sweep arrives, and so on down the route. Each
+      delay is the previous step's start plus roughly half its duration, so the
+      next thing begins while the last is still settling.
+    ===================================================================== */
+    .node--hub      { animation-delay: 0ms; }
+    .node--adv      { animation-delay: 560ms; }
+    .node--play     { animation-delay: 800ms; }
+    .cap--hub       { animation-delay: 980ms; }
+    .cap--adv       { animation-delay: 1100ms; }
+    .cap--play      { animation-delay: 1220ms; }
+    /* The second and third wires need their own delays; the first uses the
+       base rule's 240ms. */
+    .wire:nth-of-type(2) { animation-delay: 680ms; animation-duration: 300ms; }
+    .wire:nth-of-type(3) { animation-delay: 920ms; animation-duration: 320ms; }
+
+    /* =====================================================================
+      Narrow screens. The board's aspect-ratio is 2.68:1, so scaling it down
+      whole would leave 12px type inside a 100px-tall strip — technically
+      legible, useless in practice. Below 880px the diagram is therefore
+      rebuilt as the same three nodes in a vertical run, with the wires
+      replaced by plain down-arrows. Same reading order, same hierarchy.
+    ===================================================================== */
+    @media (max-width: 880px) {
+      .topbar { height: 64px; gap: var(--sp-2); }
+      .logo { width: 36px; height: 36px; }
+      .logo svg { width: 18px; height: 18px; }
+      .brand { font-size: var(--fs-lg); }
+      .gh { width: 34px; height: 34px; }
+      .gh svg { width: 20px; height: 20px; }
+      .icon-btn { width: 34px; height: 34px; }
+      .icon-btn svg { width: 17px; height: 17px; }
+
+      .board { padding-top: var(--sp-5); }
+      .stage { aspect-ratio: auto; container-type: normal; }
+      .wires { display: none; }        /* takes the pulse layer with it */
+
+      /* The bloom keeps working here without a second set of numbers: it is
+         already positioned as a fraction of the stage and centred on itself. */
+      .stage::before { left: 50%; top: 14%; width: 78%; }
+      @keyframes bloom {
+        from { transform: translate(-50%, -50%) scale(1);    opacity: 0.45; }
+        to   { transform: translate(-50%, -50%) scale(1.1);  opacity: 0.75; }
+      }
+
+      .unit { display: flex; flex-direction: column; align-items: center; }
+
+      /* One arrow, drawn as a single clipped shape (shaft + head), used twice:
+         by ::before on every unit that follows another, and by ::after on the
+         last one as the bare exit arrow. Selecting with `.unit + .unit` rather
+         than `:not(:first-child)` matters — the wires <svg> is .stage's first
+         child, so `:not(:first-child)` would match every unit and sprout a
+         phantom arrow above the hub. */
+      .unit + .unit::before,
+      .unit:last-child::after {
+        content: '';
+        display: block;
+        width: 14px; height: 42px;
+        background: var(--faint);
+        clip-path: polygon(6px 0, 8px 0, 8px 28px, 14px 28px, 7px 42px, 0 28px, 6px 28px);
+      }
+      .unit + .unit::before { margin: 18px auto 16px; }
+      .unit:last-child::after { margin: 18px auto 0; }
+
+      /* The vertical run keeps the same entrance order as the desktop board. */
+      .unit + .unit::before,
+      .unit:last-child::after { animation: fade-rise 420ms var(--ease) backwards; }
+      .unit:nth-of-type(2)::before { animation-delay: 560ms; }
+      .unit:nth-of-type(3)::before { animation-delay: 800ms; }
+      .unit:last-child::after      { animation-delay: 1220ms; }
+
+      .node {
+        position: static;
+        width: 100%; max-width: 26rem;
+        height: auto;
+        white-space: normal;
+        border-width: 3px;
+      }
+      .node--hub  { font-size: var(--fs-xl); padding: var(--sp-4) var(--sp-5); }
+      .node--dest { font-size: var(--fs-lg); padding: var(--sp-3) var(--sp-5); }
+      .node--dest a { width: auto; height: auto; }
+
+      .cap {
+        position: static;
+        transform: none;              /* the midpoint transform is desktop-only */
+        /* ...and so is the keyframe that carries it. With no translateX in the
+           resting state, cap-rise would re-introduce one mid-flight and the
+           caption would slide as it appeared; the plain rise is correct here. */
+        animation-name: fade-rise;
+        width: 100%; max-width: 24rem;
+        margin-top: var(--sp-3);
+        font-size: var(--fs-sm);
+      }
+    }
+
+    /* =====================================================================
+      Reduced motion. theme.css already shrinks every animation to nothing,
+      but "nothing" is not the same as "correct": a zero-length animation still
+      has to be the right shape to leave the page in a sane state. These rules
+      state the finished board outright instead of relying on that, and drop
+      the pulse, which exists only to move.
+    ===================================================================== */
+    @media (prefers-reduced-motion: reduce) {
+      .wire, .head, .node, .cap,
+      .unit + .unit::before,
+      .unit:last-child::after { animation: none; }
+      .wire { stroke-dashoffset: 0; }
+      .flow { display: none; }
+      .stage::before { animation: none; opacity: 0.7; }
+      /* Both additions exist only to move: a light that tracks the pointer and
+         a light that laps a border. Neither carries meaning, so neither is
+         worth keeping for someone who asked for less movement. */
+      .glow { display: none; }        /* both halos share the class */
+      .node::after { display: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Cursor halos. Decorative and inert; hidden on touch-only devices, which
+       have no hovering pointer to follow. The second is the point reflection
+       of the first through the centre of the viewport, in the inverted colour,
+       so the pair always sits diametrically opposite about the middle. -->
+  <div class="glow" aria-hidden="true"></div>
+  <div class="glow glow--mirror" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <span class="logo" aria-hidden="true"><i data-icon="git-branch" data-size="24"></i></span>
+    <span class="brand">Gitiverse</span>
+    <!-- Octicon `mark-github-16`, the official mark, inlined from
+         primer/octicons (ISC). Neither sprite in this prototype carries it:
+         both are Lucide-derived, and Lucide has no brand icons. -->
+    <a class="gh" href="https://github.com/Studio3Build-2026s2/team-24-bugs-help-bugs"
+       target="_blank" rel="noopener noreferrer" aria-label="Team repository on GitHub">
+      <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6.766 11.328c-2.063-.25-3.516-1.734-3.516-3.656 0-.781.281-1.625.75-2.188-.203-.515-.172-1.609.063-2.062.625-.078 1.468.25 1.968.703.594-.187 1.219-.281 1.985-.281.765 0 1.39.094 1.953.265.484-.437 1.344-.765 1.969-.687.218.422.25 1.515.046 2.047.5.593.766 1.39.766 2.203 0 1.922-1.453 3.375-3.547 3.64.531.344.89 1.094.89 1.954v1.625c0 .468.391.734.86.547C13.781 14.359 16 11.53 16 8.03 16 3.61 12.406 0 7.984 0 3.563 0 0 3.61 0 8.031a7.88 7.88 0 0 0 5.172 7.422c.422.156.828-.125.828-.547v-1.25c-.219.094-.5.156-.75.156-1.031 0-1.64-.562-2.078-1.609-.172-.422-.36-.672-.719-.719-.187-.015-.25-.093-.25-.187 0-.188.313-.328.625-.328.453 0 .844.281 1.25.86.313.452.64.655 1.031.655s.641-.14 1-.5c.266-.265.47-.5.657-.656"/></svg>
+    </a>
+    <span class="spacer"></span>
+    <button class="icon-btn theme-toggle" id="themeBtn" type="button"
+            title="Switch to night mode" aria-label="Switch to night mode">
+      <i data-icon="moon" data-size="18" data-class="icon-moon"></i>
+      <i data-icon="sun" data-size="18" data-class="icon-sun"></i>
+    </button>
+  </header>
+
+  <main class="board">
+    <div class="stage">
+      <!-- Connectors: hub → adventure (the sweep), adventure → playground,
+           playground → out. Each end is tucked ~8 units inside its pill, so a
+           sub-pixel rounding difference can never leave a visible gap.
+           Decorative: the nodes carry all the meaning.
+
+           The turn is one true 180° arc, not two rounded corners. Two 90°
+           arcs of r=154.5 with no straight between them are tangent at
+           (294.5, 274.5), so SVG draws them as a single semicircular sweep —
+           the wire leaves the hub, curves around and comes back into the
+           course pill. A quadratic corner (`Q`) is a parabola, not an arc, and
+           at any radius that fits reads as a rounded rectangle.
+
+           `pathLength="1"` tells SVG to treat each path as one unit long, so a
+           single `stroke-dasharray: 1` draws all three at the same rate.
+
+           `data-wire` is what pairs a path with the pill that should light it
+           up on hover; the pulse layer is cloned from these nodes at runtime. -->
+      <svg class="wires" viewBox="0 0 1716 640" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+        <path class="wire" data-wire="adv" pathLength="1"
+              d="M620 120 H294.5 A154.5 154.5 0 0 0 140 274.5 A154.5 154.5 0 0 0 294.5 429 H353" />
+        <path class="wire" data-wire="play" pathLength="1" d="M749 429 H971" />
+        <path class="wire" data-wire="out"  pathLength="1" d="M1369 429 H1636" />
+        <path class="head" data-wire="out"  d="M1636 407 L1680 429 L1636 451 Z" />
+      </svg>
+
+      <!-- The project itself. Not a link — this is the page you are on. -->
+      <div class="unit">
+        <h1 class="node node--hub">Gitiverse</h1>
+        <p class="cap cap--hub">A guided Git course, and a sandbox to try it in.</p>
+      </div>
+
+      <!-- The tutorial as a whole, not one chapter — chapter 1 is simply where
+           it currently opens. -->
+      <div class="unit">
+        <h2 class="node node--dest node--adv" data-wire="adv">
+          <a href="chapter_1.html">Git Adventure</a>
+        </h2>
+        <p class="cap cap--adv">The full guided course — Chapter 1: Why we need Git.</p>
+      </div>
+
+      <div class="unit">
+        <h2 class="node node--dest node--play" data-wire="play out">
+          <a href="practice/">Git Playground</a>
+        </h2>
+        <p class="cap cap--play">Real git commands on a simulated repository.</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="assets/icons.js"></script>
+  <script>
+    (function () {
+      var I = window.GitIcons;
+      if (I) I.hydrate(document);
+
+      /* ---------------------------------------------------- flow layer ---
+         Built by cloning the wire geometry rather than by repeating the `d`
+         strings in the markup. The route has already been redrawn once (the
+         corner became a true arc); with two copies of the geometry in the file
+         the second one would have been left behind, and the pulse would have
+         kept sweeping a path nobody could see. One source of truth. */
+      var svg = document.querySelector('.wires');
+      var head = svg && svg.querySelector('.head');
+      if (svg && head && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        Array.prototype.forEach.call(svg.querySelectorAll('.wire'), function (w) {
+          var pulse = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          pulse.setAttribute('class', 'flow');
+          pulse.setAttribute('d', w.getAttribute('d'));
+          if (w.getAttribute('data-wire')) pulse.setAttribute('data-wire', w.getAttribute('data-wire'));
+          svg.insertBefore(pulse, head);
+        });
+      }
+
+      /* --------------------------------------------------- hover pairing ---
+         `data-wire` on a pill holds a space-separated list of the paths it
+         should light: the playground lights both the wire that reaches it and
+         the arrow that leaves it. Keyboard focus does the same, so tabbing
+         through the pills gets the same feedback as pointing at them. */
+      var hot = function (key, on) {
+        Array.prototype.forEach.call(
+          document.querySelectorAll('[data-wire~="' + key + '"]'), function (el) {
+            if (el.classList.contains('wire') || el.classList.contains('head')) {
+              el.classList.toggle('is-hot', on);
+            }
+          });
+      };
+      Array.prototype.forEach.call(document.querySelectorAll('.node--dest[data-wire]'), function (node) {
+        var keys = node.getAttribute('data-wire').split(/\s+/);
+        var set = function (on) { keys.forEach(function (k) { hot(k, on); }); };
+        node.addEventListener('pointerenter', function () { set(true); });
+        node.addEventListener('pointerleave', function () { set(false); });
+        node.addEventListener('focusin', function () { set(true); });
+        node.addEventListener('focusout', function () { set(false); });
+      });
+
+      /* ---------------------------------------------------- cursor glow ---
+         Tracked through requestAnimationFrame rather than written straight
+         from the event: pointermove can fire several times per displayed
+         frame, and a transform write per event would do the same work over
+         and over for one visible result. The position is only ever applied
+         once per frame, at the last position seen.
+
+         Gated on `hover: hover` so no listener is attached at all on a touch
+         device, and on pointerType so a finger dragging across the page is not
+         mistaken for a pointer hovering over it. */
+      var glow = document.querySelector('.glow');
+      var glowMirror = document.querySelector('.glow--mirror');
+      if (glow && window.matchMedia('(hover: hover)').matches) {
+        var gx = 0, gy = 0, queued = false;
+        var place = function () {
+          queued = false;
+          glow.style.transform = 'translate3d(' + gx + 'px,' + gy + 'px,0)';
+          /* The reflection is measured against the viewport, not the page:
+             the halos are `position: fixed`, so the centre they are symmetric
+             about has to be the one the reader is actually looking at. */
+          if (glowMirror) {
+            glowMirror.style.transform = 'translate3d(' +
+              (window.innerWidth - gx) + 'px,' + (window.innerHeight - gy) + 'px,0)';
+          }
+        };
+        window.addEventListener('pointermove', function (e) {
+          if (e.pointerType && e.pointerType !== 'mouse') return;
+          gx = e.clientX;
+          gy = e.clientY;
+          glow.classList.add('is-on');
+          if (glowMirror) glowMirror.classList.add('is-on');
+          if (!queued) { queued = true; requestAnimationFrame(place); }
+        }, { passive: true });
+      }
+
+      /* ------------------------------------------------------- theme ------ */
+      var btn = document.getElementById('themeBtn');
+      var root = document.documentElement;
+      var label = function (mode) {
+        return mode === 'dark' ? 'Switch to daylight mode' : 'Switch to night mode';
+      };
+      var sync = function () {
+        var text = label(root.getAttribute('data-theme'));
+        btn.title = text;
+        btn.setAttribute('aria-label', text);
+      };
+
+      sync();
+      btn.addEventListener('click', function () {
+        var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next);
+        // Both keys, on purpose — see the note in <head>. A page that only read
+        // one of them would disagree with the page next to it.
+        try {
+          localStorage.setItem('gitcourse.theme', next);
+          localStorage.setItem('vge.theme', next);
+        } catch (e) { /* private mode: the toggle still works for this page */ }
+        sync();
+      });
+    })();
+  </script>
+</body>
+</html>

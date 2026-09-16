@@ -7,11 +7,17 @@ A collection of static web pages hosted and deployed with GitHub Pages.
 ### [AIConversation](AIConversation)
 A static web app that lets two OpenAI-compatible models take turns in one conversation, with per-topic system prompts, streaming replies and Markdown / JSON export.
 
+### [Background](Background)
+A set of interactive animated wallpapers — an illustrated girl, chocolate, a silent planet and a mini planet — made to run full screen as a screensaver or inside Wallpaper Engine.
+
 ### [CUHKSZPASSPORT](CUHKSZPASSPORT)
 A static, offline-ready web app that simulates the CUHKSZ Passport, installable on mobile devices and supporting customizable information display.
 
-### [GitAdventure](GitAdventure)
-A static, interactive Git course for beginners: each step unlocks only after the previous one is finished, and an AI tutor answers questions about whatever is on screen (English content).
+### [Daydream](Daydream)
+A click-to-advance mood piece: a full-screen illustration, typewriter text and one of three music tracks, after the game of the same name.
+
+### [Gitiverse](Gitiverse)
+A two-part Git learning site: Git Adventure, a guided interactive course whose steps unlock one at a time, and Git Playground, a sandbox where real git commands drive a live commit graph.
 
 ### [ImgDiff](ImgDiff)
 A web app that allows users to compare two images and highlight the differences.

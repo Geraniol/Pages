@@ -1,0 +1,135 @@
+/* =====================================================================
+   Git Playground · 命令终端
+   ---------------------------------------------------------------------
+   ---- 为什么这个文件里还有十六进制 ----
+   终端是**恒暗**的：亮色主题下它是块黑玻璃，暗色主题下还是同一块黑玻璃
+   （见 theme.css 里 --term-* 的说明）。所以它不参与换肤，那 10 个 --term-*
+   只覆盖了"语义色"（正文/暗淡/成功/失败/链接/警示）。
+   终端内部还有一批**结构性**的深浅档（卡头渐变、行悬停、输入框底、按钮底…），
+   它们既不该进 theme.css（那里只放会随主题变的东西），也不该散在几十条规则里
+   各写各的 —— 于是在这里收成一组组件私有的 --t-* 局部变量，只在 .term 内可见。
+   改终端配色 = 只改下面这一块，与改主题互不影响。
+   ===================================================================== */
+.term{
+  /* 卡头 */
+  --t-head-1:#182029; --t-head-2:#11161e;
+  --t-head-ink:#cbd5e2; --t-head-ic:#8492a6; --t-head-hint:#77839a;
+  /* 行的悬停 / 回溯定位态 */
+  --t-hover:#141b25; --t-hover-bd:#3c4b61; --t-active:#0f2030;
+  /* 终端正文的几种语气 */
+  --t-bright:#e8eef7; --t-cmd:#f0f4fa; --t-sig:#6f7c8f;
+  --t-out:#a3b2c6; --t-out-dim:#6e7b8e; --t-out-gr:#79cb9a; --t-out-red:#e59292;
+  /* 「注意」块 */
+  --t-note:#93a6bf; --t-note-bg:#121b26; --t-note-bd:#35486a; --t-note-ic:#c9a463;
+  /* 空态提示 / 底部说明行 */
+  --t-empty:#5d6b80; --t-note2:#8d9ab0; --t-note2-b:#c6d3e4;
+  /* 行内小按钮（悬停回溯） */
+  --t-btn:#22314a; --t-btn-bd:#35486c; --t-btn-ink:#a9c6f2;
+  --t-btn-hover:#2e4269; --t-btn-hover-bd:#4a6398;
+  /* 输入行与快捷条 */
+  --t-input-bg:#080c12; --t-input-bd:#29323f; --t-input-ink:#eff4fa; --t-ph:#6d7d95;
+  --t-input-focus:#4d6ea8; --t-input-ring:rgba(77,110,168,.16);
+  --t-chips-bg:#0d131b; --t-edge:#1b2330;
+}
+/* --t-edge 是终端卡自己的描边色，比 --term-line 再深一档 */
+/* flex:1 1 0 —— 与提交图等分中栏高度（原来写的是 flex:1 1 auto + 提交图定高 318px，
+   等于"终端吃掉所有剩余"）。min-height 是终端正文能正常显示的下限，
+   两张卡都按这个值兜底，窄窗口下才不会互相把对方压没。 */
+.term{background:var(--term-bg);border-color:var(--t-edge);flex:1 1 0;min-height:296px;}
+.term .card-head{background:linear-gradient(180deg,var(--t-head-1),var(--t-head-2));border-color:var(--term-line);color:var(--t-head-ink);}
+.term .card-head>.ic{color:var(--t-head-ic);}
+.term .card-head .hint{color:var(--t-head-hint);}
+.dots{display:flex;gap:5px;margin-right:2px;}
+.dots i{width:9px;height:9px;border-radius:50%;display:block;}
+.term-out{
+  /* 顶边距与 AI 的 #chat 对齐（10px）：两格轮流显示时正文首行不跳 */
+  flex:1 1 auto;min-height:0;overflow:auto;padding:10px 0 8px;
+  font-family:var(--font-mono);font-size:var(--fs-md);line-height:1.62;
+}
+.tline{padding:4px 12px 6px;border-left:3px solid transparent;transition:background .1s;}
+.tline+.tline{margin-top:1px;}
+.tline:hover{background:var(--t-hover);border-left-color:var(--t-hover-bd);}
+.tline.active{background:var(--t-active);border-left-color:var(--term-blue);}
+.tline.past{opacity:.38;}
+.tline.past .cmdtext{text-decoration:line-through;}
+.tcmd{display:flex;align-items:center;gap:8px;color:var(--t-bright);}
+.tprompt{color:var(--term-green);font-weight:600;white-space:nowrap;flex:none;}
+.tprompt .pth{color:var(--term-blue);}
+.tprompt .br{color:var(--term-amber);}
+.tprompt .sig{color:var(--t-sig);}
+.cmdtext{color:var(--t-cmd);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cmdtext:hover{text-decoration:underline;text-underline-offset:3px;}
+.tout{color:var(--t-out);white-space:pre-wrap;}
+.tout.err{color:var(--term-red);}
+.tout.dim{color:var(--t-out-dim);}
+.tout.gr{color:var(--t-out-gr);}
+.tout.red{color:var(--t-out-red);}
+.tout.note{
+  display:flex;gap:7px;align-items:flex-start;margin-top:4px;padding:5px 9px;
+  font-family:var(--font-ui);font-size:var(--fs-sm);line-height:1.6;color:var(--t-note);
+  background:var(--t-note-bg);border-left:2px solid var(--t-note-bd);border-radius:0 6px 6px 0;
+}
+.tout.note .ic{margin-top:1px;color:var(--t-note-ic);flex:none;}
+.term-empty{
+  display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;
+  height:100%;color:var(--t-empty);font-family:var(--font-ui);font-size:var(--fs-md);text-align:center;padding:0 30px;
+}
+/* 回溯按钮：**始终占位**，只用 visibility 控制显隐。
+   原因是量出来的：这个按钮高 21px，而命令行文字只有 19.91px，
+   `.tcmd` 又没写死高度 —— 若用 display:none → inline-flex 切换，
+   鼠标划过时该行会从 49.81px 长到 50.91px（实测 +1.09px），
+   下方内容整体下移、内容高度卡在边界时还会连带闪出滚动条，就是"轻微跳动"的来源。
+   visibility 不参与布局，所以 hover 前后行高完全一致。 */
+.trewind{
+  margin-left:auto;flex:none;display:inline-flex;visibility:hidden;align-items:center;gap:5px;height:21px;padding:0 8px;
+  border-radius:5px;background:var(--t-btn);border:1px solid var(--t-btn-bd);color:var(--t-btn-ink);
+  font-family:var(--font-ui);font-size:var(--fs-sm);font-weight:650;white-space:nowrap;
+}
+.tline:hover .trewind,.tline.active .trewind{visibility:visible;}
+.trewind:hover{background:var(--t-btn-hover);border-color:var(--t-btn-hover-bd);color:var(--accent-ink);}
+.term-note{padding:5px 12px;font-family:var(--font-ui);font-size:var(--fs-sm);color:var(--t-note2);display:flex;align-items:center;gap:6px;}
+.term-note b{color:var(--t-note2-b);font-family:var(--font-mono);}
+
+.term-input{
+  /* 行高与内边距同 AI 的 .chat-input（见 chat.css 顶部注释）：两格切换时输入行不位移 */
+  flex:none;border-top:1px solid var(--term-line);background:var(--term-bg2);
+  padding:9px 12px;display:flex;flex-direction:column;gap:8px;
+}
+.cmd-row{display:flex;gap:8px;}
+.cmd-field{
+  /* 圆角与同一行的运行按钮/切换按钮同档（--r-md）：三个控件并排，
+     圆角不一致是最容易被一眼看出来的"没对齐"。 */
+  flex:1;min-width:0;height:var(--ctl-md-h);display:flex;align-items:center;gap:9px;
+  background:var(--t-input-bg);border:1px solid var(--t-input-bd);border-radius:var(--r-md);padding:0 11px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.cmd-field:focus-within{border-color:var(--t-input-focus);box-shadow:0 0 0 3px var(--t-input-ring);}
+.cmd-field .ps{color:var(--term-green);font-family:var(--font-mono);font-weight:700;flex:none;}
+.cmd-field input{
+  flex:1;min-width:0;background:none;border:none;outline:none;color:var(--t-input-ink);
+  font-family:var(--font-mono);font-size:var(--fs-md);padding:0;height:100%;
+}
+.cmd-field input::placeholder{color:var(--t-ph);}
+/* 运行按钮：外观走 .btn .btn--primary（见 buttons.css），这里只加宽内边距 ——
+   它是这一行唯一的主行动，比旁边的输入框宽一点才像个"按钮"。
+   颜色不再是原来的深蓝实心：强调色按钮在深色终端与浅色卡片里是同一个橙，
+   这正是"主行动"该有的辨识度（原来每个面板各挑一个蓝，反而谁都不突出）。 */
+.run{flex:none;padding:0 18px;}
+/* 快捷命令条：位置与规格同 AI 的 .sugs（正文之下、输入行之上）
+   **单行不换行**：横着排不下就横向滚动（滚动条隐藏，滚轮/触控板仍可用）——
+   换行会让这一条从 40px 长成两行，把正文挤掉一大块。 */
+.chips{
+  flex:none;display:flex;gap:6px;flex-wrap:nowrap;align-items:center;
+  padding:8px 12px;min-height:40px;overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;-ms-overflow-style:none;
+  border-top:1px solid var(--term-line);background:var(--t-chips-bg);
+}
+.chips::-webkit-scrollbar{height:0;display:none;}
+/* 快捷命令条里的 chips：外观走 .chip 基元（见 buttons.css），
+   深色表面由 .term 那份局部变量提供 —— 所以这里只剩一件事：
+   换成等宽字体，里面装的是 git 命令，l/1、O/0 要分得清。 */
+.chip{font-family:var(--font-mono);}
+
+/* 切换按钮在深色终端里的那份深色皮肤已删除：
+   现在由 .term 重指 --ctl-* 局部变量统一解决（见 buttons.css），
+   不必再给每个控件各写一条 .term 覆盖 —— 那种写法正是"按钮各写各的"的来源。 */

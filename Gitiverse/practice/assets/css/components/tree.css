@@ -1,0 +1,50 @@
+/* =====================================================================
+   Git Playground · 文件结构（层级树 + A/M/D 标签 + 暂存点）
+   ===================================================================== */
+.tree{font-family:var(--font-mono);font-size:var(--fs-md);user-select:none;}
+.tchildren{margin-left:8px;padding-left:9px;border-left:1px solid var(--line);}
+.tchildren.hide{display:none;}
+.tnode{
+  display:flex;align-items:center;gap:6px;min-height:23px;padding:1px 5px 1px 3px;
+  border-radius:5px;white-space:nowrap;cursor:default;
+}
+.tnode.dir{cursor:pointer;}
+.tnode:hover{background:var(--panel-3);}
+.tnode .chev{width:12px;height:12px;flex:none;color:var(--muted);transition:transform .15s;}
+.tnode .chev svg{stroke-width:2.6;}
+.tnode.collapsed .chev{transform:rotate(-90deg);}
+.tnode .fic{width:14px;height:14px;flex:none;color:var(--muted);}
+.tnode.dir .fic{color:var(--stg);}
+.tnode .nm{overflow:hidden;text-overflow:ellipsis;color:var(--ink-2);}
+.tnode.dir .nm{font-weight:600;color:var(--ink);}
+.tnode.del .nm{text-decoration:line-through;color:var(--muted);}
+.tnode .cnt{font-family:var(--font-ui);font-size:var(--fs-cap);color:var(--muted);}
+
+/* 暂存指示点 */
+.sdot{width:7px;height:7px;border-radius:50%;flex:none;margin-left:auto;}
+.sdot.staged{background:var(--stg);box-shadow:0 0 0 2px var(--stg-bg);}
+.sdot.unstaged{border:1.6px solid var(--line-2);}
+
+/* 增删改标签 */
+.badge{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;
+  font-family:var(--font-ui);font-size:var(--ctl-label-fs);font-weight:800;letter-spacing:.3px;
+  height:var(--ctl-label-h);min-width:var(--ctl-label-h);padding:0 6px;
+  border-radius:var(--ctl-r-pill);border:1px solid transparent;
+}
+.badge.A{color:var(--ok);background:var(--ok-bg);border-color:var(--ok-bd);}
+.badge.M{color:var(--mod);background:var(--mod-bg);border-color:var(--mod-bd);}
+.badge.D{color:var(--del);background:var(--del-bg);border-color:var(--del-bd);}
+.badge.C{background:var(--del-bg);border-color:var(--del-bd);color:var(--del);font-weight:900;}
+.badge.dim{color:var(--muted);background:var(--panel-3);border-color:var(--line);}
+
+.tree-legend{
+  display:flex;flex-wrap:wrap;gap:9px;align-items:center;flex:none;
+  padding:7px 12px;border-top:1px solid var(--line);background:var(--panel-2);
+  font-size:var(--fs-sm);color:var(--ink-3);
+}
+.tree-legend .L{display:inline-flex;align-items:center;gap:5px;}
+
+/* 冲突节点 */
+.tnode.confl{background:var(--del-bg);box-shadow:inset 2px 0 0 var(--del);}
+.tnode.confl .nm{color:var(--del);}

@@ -1,0 +1,66 @@
+/* =====================================================================
+   Git Playground · 提交图（vis-network + 图例 + 悬停预览）
+   ===================================================================== */
+/* 提交图与下方终端**默认各占一半**。
+   原来这里是 flex:0 0 318px —— 提交图写死 318px、终端吃掉剩下的全部，
+   于是窗口一高，多出来的高度全归终端，图始终是窄窄一条。
+   改成 flex:1 1 0（基准 0，两边按同样的比例分），两张卡就是严格的 1:1；
+   中间那根行分隔线（layout.js 的 row1）仍然可以拖，拖过之后就转成
+   「第一张卡占百分之几」的自定义布局，默认值只影响没拖过的人。
+   min-height 与终端取同一个 296px：没有它，窄窗口下 flex-basis:0 会把
+   提交图压成一条缝（终端的 296 是它正文能显示的最小高度，见 terminal.css）。 */
+.graph-card{flex:1 1 0;min-height:296px;}
+.graph-wrap{
+  flex:1;position:relative;min-height:0;
+  background:radial-gradient(circle at 1px 1px,var(--line) 1px,transparent 0) 0 0/17px 17px,var(--panel);
+}
+#gnet{position:absolute;inset:0;}
+#gsvg{position:absolute;inset:0;width:100%;height:100%;}
+/* 提交图右上角两枚工具按钮（自适应 / 换排布方向）。
+   外观走 .icon-btn.sm（见 buttons.css），这里只剩它们在图上方的定位。
+   （原来的 .gbtn 自带一套白底 .94 透明 + 阴影，是"图上有底色所以按钮要半透明"
+   的思路；换成不透明卡片色之后反而更稳 —— 图上虚线不会再透过来。） */
+.g-tools{position:absolute;right:9px;top:9px;display:flex;gap:6px;z-index:6;}
+.g-badge{
+  position:absolute;left:9px;top:9px;z-index:6;display:flex;align-items:center;gap:6px;
+  background:var(--panel);border:1px solid var(--line-2);border-radius:var(--ctl-r);
+  padding:3px 9px;font-size:var(--fs-sm);color:var(--ink-3);box-shadow:var(--shadow);
+}
+.g-badge b{font-family:var(--font-mono);color:var(--ink);}
+
+/* 悬停节点 → 文件目录预览 */
+.gtip{
+  position:fixed;left:0;top:0;z-index:60;width:252px;background:var(--panel);
+  border:1px solid var(--line-2);border-radius:10px;box-shadow:var(--shadow-lg);
+  /* 浮层要可交互（里面的目录树是滚动容器），所以**不能**再是 pointer-events:none。
+     代价是它会挡住覆盖住的那块图 —— 指针移开浮层它就关，属于暂时遮挡。
+     滚轮不需要额外拦截：vis 的 wheel 只绑在自己的 canvas 元素上，而浮层是它的兄弟节点，
+     事件冒泡路径（浮层 → .graph-wrap → body）根本到不了 canvas。 */
+  opacity:0;transform:translateY(5px) scale(.98);
+  transition:opacity .13s ease,transform .13s ease;overflow:hidden;
+  display:flex;flex-direction:column;max-height:min(384px,calc(100vh - 24px));
+}
+/* 未显示时不参与命中，免得透明状态挡住底下的图 */
+.gtip:not(.on){pointer-events:none;}
+.gtip.on{opacity:1;transform:translateY(0) scale(1);}
+.gtip-h{display:flex;align-items:center;gap:7px;padding:8px 10px;background:var(--panel-2);border-bottom:1px solid var(--line);}
+.gtip-h .hh{font-family:var(--font-mono);font-size:var(--fs-sm);font-weight:700;color:var(--ink);}
+.gtip-h .bb{margin-left:auto;font-size:var(--fs-cap);font-weight:800;color:var(--accent-ink);padding:1px 7px;border-radius:var(--r-pill);letter-spacing:.2px;}
+.gtip-m{padding:6px 10px;font-size:var(--fs-sm);color:var(--ink-2);border-bottom:1px dashed var(--line);line-height:1.5;}
+.gtip-s{display:flex;gap:10px;padding:5px 10px;font-size:var(--fs-sm);color:var(--muted);border-bottom:1px solid var(--line);}
+.gtip-s span{display:inline-flex;align-items:center;gap:4px;}
+.gtip-h,.gtip-m,.gtip-s,.gtip-f{flex:none;}
+.gtip-t{padding:6px 8px 8px;flex:1 1 auto;min-height:0;overflow:auto;}
+.gtip-t .tnode{min-height:20px;font-size:var(--fs-sm);}
+.gtip-t .tnode:hover{background:none;}
+.gtip-f{padding:5px 10px;background:var(--panel-2);border-top:1px solid var(--line);font-size:var(--fs-sm);color:var(--muted);display:flex;align-items:center;gap:5px;}
+
+.legend{
+  flex:none;display:flex;align-items:center;gap:15px;flex-wrap:wrap;
+  padding:7px 12px;border-top:1px solid var(--line);background:var(--panel-2);
+  font-size:var(--fs-sm);color:var(--ink-3);
+}
+.legend .L{display:inline-flex;align-items:center;gap:6px;}
+.legend .sw{width:12px;height:12px;border-radius:50%;border:2.5px solid transparent;flex:none;}
+.legend .swb{height:16px;padding:0 7px;border-radius:4px;font-size:var(--fs-cap);font-weight:800;color:var(--accent-ink);display:inline-flex;align-items:center;font-family:var(--font-ui);}
+.legend .tipbit{margin-left:auto;display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:var(--fs-sm);}

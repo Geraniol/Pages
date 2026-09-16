@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git Playground</title>
+
+<!-- 明暗主题：这段必须跑在**任何样式表之前**，否则浏览器会先按亮色画一帧、
+     再被下面的 data-theme 改掉，暗色用户每次刷新都看到一次白闪。
+     取值规则与 assets/js/core/theme.js 的 init() 一致（先看存储、再看系统），
+     改一个记得改另一个。 -->
+<script>
+  (function () {
+    var mode;
+    try { mode = localStorage.getItem('vge.theme'); } catch (e) { mode = null; }
+    if (mode !== 'light' && mode !== 'dark') {
+      mode = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', mode);
+  })();
+</script>
+
+<!-- 样式：按职责拆分，颜色主题集中在 theme.css。
+     buttons.css 紧跟 base.css：三个按钮基元（.btn / .icon-btn / .chip）在这里定义，
+     后面的组件文件只写尺寸与位置差异、按需覆盖 —— 所以它必须排在组件之前。
+     （原来每个组件各写一套 border/background/hover，同一个界面里 14 个按钮
+     散在 5 档高度、4 档圆角、4 种主色上。这一层就是来收口的。） -->
+<link rel="stylesheet" href="assets/css/theme.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/css/components/buttons.css">
+<link rel="stylesheet" href="assets/css/layout.css">
+<link rel="stylesheet" href="assets/css/components/appbar.css">
+<link rel="stylesheet" href="assets/css/components/cards.css">
+<link rel="stylesheet" href="assets/css/components/tree.css">
+<link rel="stylesheet" href="assets/css/components/graph.css">
+<link rel="stylesheet" href="assets/css/components/terminal.css">
+<link rel="stylesheet" href="assets/css/components/chat.css">
+<link rel="stylesheet" href="assets/css/components/modal.css">
+<link rel="stylesheet" href="assets/css/responsive.css">
+</head>
+<body data-mode="teaching">
+
+<!-- =================== APPBAR =================== -->
+<header class="appbar">
+  <!-- 品牌标仿 chapter_1.html 的 .rail__logo：一枚橙→紫渐变圆角方块 + 白色 git-branch 图标，
+       右边跟品牌名。原来是一枚孤零零的 waypoints 线稿图标，颜色只有强调色一种。 -->
+  <span class="brand">
+    <span class="brand-logo"><span class="ic lg" data-ic="gitBranch"></span></span>
+    <span class="brand-name" data-i18n="app.brand">Git Playground</span>
+  </span>
+  <div class="spacer"></div>
+  <!-- 模式切换（教学模式 / 本地仓库 / 合作模式）已整条撤掉：这个原型只保留教学模式，
+       页面永远停在 data-mode="teaching"（见 app.js 的 setMode 与 main.js 的启动）。
+       原先那三个按钮由 renderModeChrome() 高亮，撤掉后那个函数只剩改标题的作用，
+       不必跟着改 —— querySelectorAll('.mode') 在空集合上遍历本来就是空操作。 -->
+  <!-- 右侧三枚控件统一为 .icon-btn（38px、纯图标、文案走 title）——
+       与 chapter_1.html 顶栏的 restartBtn / themeBtn / settingsBtn 同一路子。
+       原来「重置」是一枚带文字的胶囊（"重置"/"Reset"），是这片区域里唯一的异类，
+       现已去掉文字：图标 + title 已经说清了，而按钮文字会随语言变长变短。 -->
+  <button class="icon-btn" id="resetBtn" title="重置练习沙盒" data-i18n-title="btn.resetTitle"
+          aria-label="重置练习沙盒" data-i18n-aria="btn.resetTitle">
+    <span class="ic" data-ic="rotateCcw"></span>
+  </button>
+  <!-- 明暗切换：两枚图标都常驻，由 [data-theme] 决定显示哪一枚（见 appbar.css）。
+       按钮显示的是**点下去会切到**的状态 —— 亮色时显示月亮。 -->
+  <button class="icon-btn theme-toggle" id="themeBtn" title="切换明暗主题"
+          data-i18n-title="theme.toggle" aria-label="切换明暗主题" data-i18n-aria="theme.toggle">
+    <span class="ic ic-moon" data-ic="moon"></span>
+    <span class="ic ic-sun" data-ic="sun"></span>
+  </button>
+  <button class="icon-btn" id="aiCfgBtn" title="AI 模型配置" aria-label="AI 模型配置" data-i18n-title="cfg.title" data-i18n-aria="cfg.title">
+    <span class="ic" data-ic="settings"></span>
+  </button>
+</header>
+
+<div class="main">
+  <!-- =================== 左栏 =================== -->
+  <div class="col" id="colLeft">
+    <!-- 堆叠（半屏）模式下，整列变成一个悬浮弹层，用提交图左上角那个按钮开关。
+         桌面三栏下这个关闭按钮不显示（见 responsive.css）。 -->
+    <button class="files-close" id="filesClose" aria-label="收起文件与工作区" data-i18n-aria="files.closeAria">
+      <span class="ic sm" data-ic="x"></span>
+    </button>
+    <!-- 有 id 才能被 layout.css 的"首卡定高"规则命中：原来写的是 .card:first-child，
+         而这一列的第一个孩子是上面那个 .files-close 按钮，规则永远匹配不上（见 layout.css） -->
+    <section class="card grow" id="treeCard">
+      <div class="card-head">
+        <span class="ic" data-ic="folderTree"></span> <span data-i18n="card.tree">文件结构</span>
+        <span class="hint" id="treeHint">工作区 · main</span>
+      </div>
+      <div class="card-body tight" id="treeBox"></div>
+      <div class="tree-legend">
+        <span class="L"><span class="badge A">A</span> <span data-i18n="legend.add">新增</span></span>
+        <span class="L"><span class="badge M">M</span> <span data-i18n="legend.mod">修改</span></span>
+        <span class="L"><span class="badge D">D</span> <span data-i18n="legend.del">删除</span></span>
+        <span class="L"><span class="sdot staged" style="margin-left:0"></span> <span data-i18n="legend.staged">已暂存</span></span>
+        <span class="L"><span class="sdot unstaged" style="margin-left:0"></span> <span data-i18n="legend.unstaged">未暂存</span></span>
+      </div>
+    </section>
+
+    <section class="card" id="wsCard">
+      <div class="card-head">
+        <span class="ic" data-ic="lightbulb"></span> <span data-i18n="card.ws">工作区</span>
+        <span class="hint" data-i18n="card.wsHint">待提交</span>
+      </div>
+      <div class="card-body" id="wsBox"></div>
+    </section>
+  </div>
+
+  <!-- =================== 中栏 =================== -->
+  <div class="col" id="colMid">
+    <section class="card graph-card">
+      <div class="card-head">
+        <!-- 半屏模式下左栏被折叠，这里是它的开关。**就排在卡头这一行里**（不是绝对定位）：
+             绝对定位那版要手写 padding-left 给标题让位，窄屏下数字一旦对不上就会压住图标
+             （实测 ≤760px 压住 2px）。放进流里之后，按钮/图标/标题由 flex 依次排开，
+             任何宽度、任何语言都不可能重叠。桌面三栏下不显示。 -->
+        <button class="files-toggle btn btn--sm" id="filesToggle" aria-expanded="false" aria-controls="colLeft"
+                data-i18n-title="files.toggleTitle" data-i18n-aria="files.toggleAria">
+          <span class="ic sm" data-ic="folderTree"></span>
+          <span data-i18n="files.toggle">文件与工作区</span>
+          <span class="ic xs chev" data-ic="chevronDown"></span>
+        </button>
+        <span class="ic" data-ic="gitBranch"></span> <span data-i18n="card.graph">提交图</span>
+        <span class="hint"><span class="ic xs" data-ic="eye"></span> <span data-i18n="card.graphHint">悬停节点查看该提交的目录快照</span></span>
+      </div>
+      <div class="graph-wrap" id="graphWrap">
+        <div class="g-badge"><span class="ic xs" data-ic="gitCommit"></span> <span id="graphMeta">HEAD → main · 4 提交</span></div>
+        <div class="g-tools">
+          <button class="icon-btn sm" id="gFit" title="自适应视图" data-i18n-title="graph.fit"><span class="ic sm" data-ic="fullscreen"></span></button>
+          <!-- 方向按钮的图标表示**当前**排布（两块并排=横向 / 两块上下=纵向），点一下换另一种；
+               具体的 LR / UD 也写在图注里（见 #gEngine）。图标随状态换，见 app.js 的 setDirIcon() -->
+          <button class="icon-btn sm" id="gDir" title="切换横向 / 纵向排布" data-i18n-title="graph.dir"><span class="ic sm" data-ic="layoutArrowRight"></span></button>
+        </div>
+        <div id="gnet"></div>
+        <svg id="gsvg" style="display:none"></svg>
+      </div>
+      <div class="legend">
+        <span class="L"><span class="sw" style="background:var(--panel);border-color:#2563eb"></span> <span data-i18n="legend.commit">普通提交</span></span>
+        <span class="L"><span class="sw" style="background:var(--panel);border-color:#16a34a;border-width:3.5px"></span> <span data-i18n="legend.merge">合并提交</span></span>
+        <span class="L"><span class="sw" style="background:var(--panel);border-color:#d97706;border-width:3px;background-image:radial-gradient(circle,#d97706 0 1.9px,var(--panel) 1.9px)"></span> <span data-i18n="legend.root">根提交</span></span>
+        <span class="L" data-i18n-title="legend.headTitle"><span class="sw" style="background:var(--panel);border-color:#2563eb;box-shadow:0 0 0 3px rgba(217,118,46,.35)"></span> <span data-i18n="legend.head">HEAD</span></span>
+        <span class="L"><!-- 色块必须跟 model.js 的 BR_MAIN 一致：main 是紫的，这里写蓝就自相矛盾了 -->
+        <span class="swb" style="background:#7c3aed">main</span> <span data-i18n="legend.branch">分支引用</span></span>
+        <span class="tipbit" id="gEngine"><span class="ic xs" data-ic="info"></span> vis-network · 横向</span>
+      </div>
+    </section>
+
+    <section class="card term" id="termCard">
+      <div class="card-head">
+        <span class="dots"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></span>
+        <span class="ic" data-ic="terminal"></span> <span data-i18n="card.term">命令终端</span>
+        <!-- 提示文案随模式变：沙盒里悬停是「回溯到该步」，本地仓库 / 合作模式里
+             命令是发到后端真跑过的、无法重放，悬停只把命令填回输入框（见 render.js
+             的 renderTerminal，按 fillOnly 切 data-i18n 的键） -->
+        <span class="hint"><span class="ic xs" data-ic="cornerUpLeft"></span> <span id="termHintTxt" data-i18n="card.termHint">悬停任意一行可回溯到该步</span></span>
+      </div>
+      <div class="term-out" id="termOut"></div>
+      <!-- 行序刻意与 AI 卡片一致：正文 → 快捷条 → 输入行。
+           两个面板在行 3 里轮流显示，行序一致切换时才不会"跳"一下。 -->
+      <div class="chips" id="chips">
+        <button class="chip" data-cmd="git status">status</button>
+        <button class="chip" data-cmd="git add .">add .</button>
+        <button class="chip" data-cmd="git commit -m &quot;update&quot;">commit</button>
+        <button class="chip" data-cmd="git branch feature">branch</button>
+        <button class="chip" data-cmd="git switch main">switch</button>
+        <button class="chip" data-cmd="git merge feature">merge</button>
+        <button class="chip" data-cmd="git log">log</button>
+      </div>
+      <div class="term-input">
+        <div class="cmd-row">
+          <!-- 切换按钮就在输入框左边，规格与输入行其它控件一致（35 高、8 圆角）。
+               这张卡是终端，按钮显示"AI 助手"图标 —— 点一下去那边；
+               半屏模式下两个面板叠在同一格，所以同一时刻只看得见其中一个按钮。 -->
+          <button class="pswitch icon-btn" type="button" data-panel="ai" title="切到 AI 助手"
+                  data-i18n-title="stack.toAiAria" data-i18n-aria="stack.toAiAria">
+            <span class="ic sm" data-ic="sparkles"></span>
+          </button>
+          <div class="cmd-field">
+            <span class="ps" id="psPrefix">visual-git (main) $</span>
+            <input id="cmdInput" spellcheck="false" autocomplete="off" data-i18n-ph="term.placeholder" placeholder="输入 git 命令…">
+          </div>
+          <button class="run btn btn--primary" id="runBtn"><span class="ic sm" data-ic="play"></span> <span data-i18n="term.run">运行</span></button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- =================== 右栏 =================== -->
+  <!-- 这里原来还有一张「任务指南」卡（#guideCard：课程步骤 / 本地仓库目录 / 协作剧本
+       三种面板共用），已整体删除 —— 右栏现在只有 AI 助手一张卡，占满整列高度。
+       连带撤掉的还有它的卡头控件：进度条（#prog/#progBar/#progTxt）、
+       「当前」定位（#jumpCur）、只读/可写指示灯（#rwStatus）、以及正文容器 #tasks。
+       render.js 的 renderRight() 开头加了一道 #tasks 存在性判断，
+       面板渲染函数因此不会被调用（代码保留，只是没有容器可写）。 -->
+  <div class="col" id="colRight">
+    <section class="card" id="aiCard">
+      <div class="card-head">
+        <span class="ic" data-ic="sparkles"></span> <span data-i18n="card.ai">AI 助手</span>
+        <button class="ai-status chip" id="aiStatus" title="AI 模型配置" data-i18n-title="cfg.title"></button>
+      </div>
+      <div class="chat" id="chat"></div>
+      <div class="sugs" id="sugs"></div>
+      <div class="chat-input">
+        <button class="pswitch icon-btn" type="button" data-panel="term" title="切到命令终端"
+                data-i18n-title="stack.toTermAria" data-i18n-aria="stack.toTermAria">
+          <span class="ic sm" data-ic="terminal"></span>
+        </button>
+        <div class="f"><span class="ic sm" data-ic="help" style="color:var(--muted)"></span>
+          <input id="aiInput" data-i18n-ph="ai.placeholder" placeholder="向 AI 提问，例如：merge 和 rebase 有什么区别？"></div>
+        <button class="send btn btn--primary" id="aiSend"><span class="ic sm" data-ic="send"></span> <span data-i18n="btn.send">发送</span></button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- 提交节点悬停预览：挂在 body 上，避免被卡片的 overflow 裁切 -->
+<div class="gtip" id="gtip"></div>
+
+<!-- 切换控件的悬浮指示：也挂在 body 上（卡片是 overflow:hidden，放卡片里会被裁掉）。
+     位置由 core/stacked.js 在显示时按控件位置算，所以这里是空元素。 -->
+<span class="psw-tip" id="panelTip" role="tooltip"></span>
+
+<!-- =================== 确认弹窗（重置 / 清空） =================== -->
+<div class="mask" id="mask">
+  <div class="modal" role="dialog" aria-modal="true">
+    <h4><span class="ic" data-ic="alert" style="color:var(--del)"></span> <span id="mTitle">重置练习沙盒</span></h4>
+    <p id="mBody">将清空当前沙盒仓库的全部提交、分支与命令历史，任务进度回到第 1 步。<br>此操作只影响沙盒，不会触碰任何真实仓库。</p>
+    <div class="acts">
+      <button class="mbtn btn" id="mCancel" data-i18n="btn.cancel">取消</button>
+      <button class="mbtn btn btn--danger" id="mOk">确认重置</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== AI 模型配置（OpenAI 兼容接口） =================== -->
+<div class="mask" id="maskCfg">
+  <!-- cfg-modal：只用来挂"底部内边距"这条（页脚那排按钮删掉后末行会贴底边，见 modal.css） -->
+  <div class="modal wide cfg-modal" role="dialog" aria-modal="true" aria-labelledby="cfgTitle">
+    <h4><span class="ic" data-ic="settings" style="color:var(--indigo)"></span> <span id="cfgTitle" data-i18n="cfg.settings">设置</span></h4>
+    <div class="cfg-sec" data-i18n="cfg.aiSection">AI 设置</div>
+    <div class="cfg-intro" data-i18n="cfg.intro">填入任意 OpenAI 兼容接口。</div>
+    <div class="cfg-form">
+      <div class="cfg-row">
+        <label class="k" for="aiEndpoint" data-i18n="cfg.endpoint">接口地址</label>
+        <input id="aiEndpoint" type="url" spellcheck="false" autocomplete="off"
+               data-i18n-ph="cfg.endpointPh" placeholder="https://api.deepseek.com/chat/completions">
+      </div>
+      <div class="cfg-row">
+        <label class="k" for="aiKey" data-i18n="cfg.key">API Key</label>
+        <span class="k-wrap">
+          <input id="aiKey" type="password" spellcheck="false" autocomplete="off"
+                 data-i18n-ph="cfg.keyPh" placeholder="sk-…">
+          <button class="keyeye icon-btn ghost sm" id="aiKeyEye" type="button" aria-label="显示 / 隐藏密钥" data-i18n-aria="cfg.keyEyeAria">
+            <span class="ic sm" data-ic="eye"></span></button>
+        </span>
+      </div>
+      <div class="cfg-row">
+        <label class="k" for="aiModel" data-i18n="cfg.model">模型名称</label>
+        <input id="aiModel" spellcheck="false" autocomplete="off"
+               data-i18n-ph="cfg.modelPh" placeholder="deepseek-flash">
+        <!-- 「测试」贴在模型框右侧：它测的就是这一行填的配置；成功/失败结果紧随其下 -->
+        <button class="mbtn btn" id="aiCfgTest"><span data-i18n="cfg.test">测试</span></button>
+      </div>
+      <div class="cfg-msg" id="aiCfgMsg"></div>
+    </div>
+    <div class="cfg-sec" data-i18n="layout.title">系统</div>
+    <div class="cfg-form">
+      <!-- 三行统一规格：标签贴左、控件贴右、控件定宽（.cfg-row.end，见 modal.css）。
+           这样三行的控件右边缘连成一条竖线，扫一眼就是一组设置。
+           语言只有两种，用两段式滑块：当前在哪边一眼可见；分段按钮由 syncLangSeg() 生成。 -->
+      <div class="cfg-row end">
+        <span class="k" data-i18n="cfg.language">界面语言</span>
+        <div class="seg" id="langSeg" role="radiogroup" data-i18n-aria="cfg.language">
+          <span class="seg-pill" aria-hidden="true"></span>
+        </div>
+      </div>
+      <div class="cfg-row end">
+        <span class="k" data-i18n="layout.label">布局</span>
+        <button class="mbtn btn" id="layoutReset" data-i18n="layout.reset">重置布局</button>
+      </div>
+      <!-- 清除数据是破坏性操作：挪到「系统」分区最后一行（原来在页脚最左，跟取消/保存挤在一起），
+           红色危险样式（.mbtn.pri）保留。
+           页脚那一排按钮已经整个去掉 —— 三个输入框改成填写即自动保存（见 app.js 的
+           autoSaveAiCfg / closeAiCfg），没有"改完要点保存"这一步了。 -->
+      <div class="cfg-row end">
+        <span class="k" data-i18n="cfg.dataLabel">数据</span>
+        <button class="mbtn btn btn--danger" id="aiCfgClear" data-i18n="cfg.clear">清除数据</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- =================== 提交节点详情（点击提交图节点 / 分支标签弹出） =================== -->
+<!-- 单独弹出面板，而不是塞进 AI 对话气泡；对话框只有 344px 宽，diff 根本没法看 -->
+<div class="mask" id="maskNode">
+  <div class="modal node-modal" role="dialog" aria-modal="true" aria-labelledby="nodeTitle">
+    <h4>
+      <span class="ic" data-ic="gitCommit" style="color:var(--indigo)"></span>
+      <span id="nodeTitle" data-i18n="node.title">节点详情</span>
+      <button class="mclose icon-btn ghost sm" id="nodeClose" aria-label="关闭" data-i18n-aria="btn.closeAria">
+        <span class="ic sm" data-ic="x"></span>
+      </button>
+    </h4>
+    <div class="node-body" id="nodeBody"></div>
+  </div>
+</div>
+
+<!-- 脚本：按依赖顺序加载（vendor → data → core → main.js 入口） -->
+<script src="assets/js/vendor/lucide-icons.js"></script>
+<script src="assets/js/vendor/vis-network.min.js"></script>
+<script src="assets/js/data/lang.js"></script>
+<script src="assets/js/data/lang-extra.js"></script>
+<script src="assets/js/data/changesets.js"></script>
+<script src="assets/js/core/theme.js"></script>
+<script src="assets/js/core/model.js"></script>
+<script src="assets/js/core/render.js"></script>
+<script src="assets/js/core/ai.js"></script>
+<script src="assets/js/core/layout.js"></script>
+<script src="assets/js/core/stacked.js"></script>
+<script src="assets/js/core/app.js"></script>
+<script src="assets/js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+/* =====================================================================
+   Git Playground · AppBar
+   ---------------------------------------------------------------------
+   原来是"唯一随模式变色的区域"：三种模式各一套深色渐变（教学绿 / 本地蓝 /
+   合作橙），靠 --bar / --bar-2 / --accent / --accent-2 四个变量换肤。
+
+   模式切换已经整条删除，页面永远停在 teaching —— 绿色不再指向任何东西。
+   于是顶栏回归 chapter_1.html 的样子：**白底 + 一条底边线**，
+   强调色只在图标 hover 与品牌标上出现（--accent，Git 橙）。
+   那四个模式变量随之取消（见 theme.css）。
+
+   右侧三枚控件全部是 .icon-btn（纯图标 + title 提示）：
+   重置 / 主题切换 / 设置 —— 与 chapter_1 顶栏的 restartBtn / themeBtn /
+   settingsBtn 同一个路子。原来"重置"是一枚带文字的胶囊，是这片区域里
+   唯一的异类。
+   ===================================================================== */
+.appbar{
+  display:flex;align-items:center;gap:14px;height:56px;padding:0 16px;
+  background:var(--panel);
+  color:var(--ink);
+  border-bottom:1px solid var(--line);
+  transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease);
+}
+/* flex:none + nowrap —— 品牌名在任何窗口宽度下都要完整显示，宁可让 .spacer 收窄。
+   （原来 ≤760px 直接把它藏了，只剩一个 logo。） */
+.brand{flex:none;display:flex;align-items:center;gap:10px;white-space:nowrap;}
+
+/* 品牌标：仿 chapter_1.html 的 .rail__logo —— 38px 圆角方块，
+   橙 → 紫的对角渐变，里面一枚白色图标。
+   原来这里只有一枚线稿图标（waypoints），单色、贴着一个 14px 的品牌名，
+   在这个白底顶栏里读起来像"又一个卡片标题"。 */
+.brand-logo{
+  width:38px;height:38px;flex:none;
+  display:grid;place-items:center;
+  border-radius:var(--r-md);
+  background:linear-gradient(145deg,var(--accent),color-mix(in srgb,var(--accent) 62%,var(--indigo)));
+  /* 图标恒为白：底下是橙→紫渐变，两套主题下都是同一块色，白字始终最清楚。
+     用 --accent-ink 而不是写死 #fff —— 它就是这个语义（"强调色上的字"）。 */
+  color:var(--accent-ink);
+  box-shadow:var(--shadow-2);
+}
+.brand-logo .ic{color:var(--accent-ink);}
+
+/* 品牌名刻意**不落在字号阶梯上**（chapter_1 给 .rail__brandtitle 写过同一条注解）：
+   它是这块界面的身份，不是一个标签。按 --fs-lg 排会和下面每张卡的标题一样重，
+   一眼扫过去分不出哪个是标题。借阶梯里最大的那档（--fs-num）来用。 */
+.brand-name{font-size:var(--fs-num);font-weight:700;letter-spacing:.01em;color:var(--ink);}
+
+.spacer{flex:1;min-width:0;}
+
+/* 模式切换（.modes / .mode）已整条删除 —— 见文件开头的说明。
+   app.js 的 renderModeChrome 仍在遍历 .mode，空集合是空操作，没跟着改。 */
+
+/* 主题切换按钮（日/月）：两枚图标常驻 DOM，靠 [data-theme] 决定显示哪一枚
+   —— 和 chapter_1 的 .theme-toggle 一个做法。
+   按钮显示的是**点下去会切到**的那个状态：亮色时显示月亮（点它去暗色）。 */
+.theme-toggle .ic-sun{display:none;}
+.theme-toggle .ic-moon{display:inline-flex;}
+[data-theme="dark"] .theme-toggle .ic-sun{display:inline-flex;}
+[data-theme="dark"] .theme-toggle .ic-moon{display:none;}
+
+/* 顶栏这三枚图标按钮的间距由 .appbar 的 gap 管，这里不需要额外 margin。
+   尺寸（38px）与圆角走 .icon-btn 的默认档，不在这里覆盖。 */

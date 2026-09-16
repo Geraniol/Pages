@@ -1,0 +1,102 @@
+/* =====================================================================
+   Git Playground · 工作区提示 + 合并冲突 + 差异查看（卡片内部）
+   ===================================================================== */
+
+/* ---------- 右栏 / 左栏卡片尺寸 ---------- */
+/* 工作区那一张：高度固定，不随文件树内容伸缩。
+   内容（统计条 / 待提交预览 / 冲突面板）超出就在卡片内部滚动（.card-body 自带 overflow:auto）。
+   默认 210px ≈ 卡头 38 + 上下内边距 20 + 统计条 50 + 约四行待提交文件；
+   桌面三栏下它由 --ws-h 承载、可以拖（见 layout.js 的 row0 手柄），
+   半屏浮层里没有手柄，同一个默认值直接生效。
+   ⚠ 改动默认值只需要改这里的兜底值：JS 只在"用户拖过"时才写 --ws-h。 */
+#wsCard{flex:0 0 auto;height:var(--ws-h,210px);max-height:none;}
+#wsCard:has(.confl-hd){flex:1 1 auto;height:auto;max-height:56%;}
+/* AI 助手现在是右栏**唯一**的一张卡，所以直接吃掉整列高度
+   （原来是 flex:0 0 40%，上面还压着一张 flex:1 的任务指南卡 —— 那张卡已删除）。
+   flex:1 1 auto = 可长可缩、基准取内容高度：窗口变矮时它缩到 min-height 为止，
+   再放不下就交给卡内的 .chat 自己滚（.chat 是 flex:1 + overflow:auto）。
+   max-height 显式归零：这张卡在任何上下文里都该贴到列底边，留一条缝就等于"AI 没占满"；
+   layout.css 的 layout-custom 分支里也写着同一条，两边口径保持一致。 */
+#aiCard{flex:1 1 auto;min-height:196px;max-height:none;}
+
+/* ---------- 统计条 ---------- */
+.stat-row{display:flex;gap:6px;margin-bottom:9px;}
+.stat{flex:1;border:1px solid var(--line);border-radius:var(--ctl-r);background:var(--panel-2);padding:6px 4px;text-align:center;}
+.stat .v{font-family:var(--font-mono);font-size:var(--fs-num);font-weight:750;line-height:1.2;color:var(--ink-2);}
+.stat .k{font-size:var(--fs-cap);color:var(--muted);}
+.stat.hi{background:var(--stg-bg);border-color:var(--stg-bd);}
+.stat.hi .v{color:var(--stg);}
+
+/* ---------- 提示条 ---------- */
+.tip{display:flex;gap:8px;border-radius:8px;padding:9px 10px;font-size:var(--fs-md);line-height:1.62;border:1px solid;}
+.tip .ic{margin-top:1px;}
+/* .tip.info 已删除：没有任何地方在用（现存的提示条只有 warn / ok / stop 三种）。 */
+.tip.warn{background:var(--mod-bg);border-color:var(--mod-bd);color:var(--mod);}
+.tip.ok  {background:var(--ok-bg); border-color:var(--ok-bd); color:var(--ok);}
+.tip.stop{background:var(--del-bg);border-color:var(--del-bd);color:var(--del);}
+.tip code{font-family:var(--font-mono);background:var(--panel);border-radius:4px;padding:1px 5px;}
+.tip b{font-weight:700;}
+
+/* ---------- 待提交预览 ---------- */
+.prev-list{border:1px solid var(--line);border-radius:8px;background:var(--panel-2);padding:6px 8px;font-family:var(--font-mono);font-size:var(--fs-sm);}
+.prev-list .r{display:flex;align-items:center;gap:7px;padding:2px 0;color:var(--ink-2);}
+.prev-empty{font-family:var(--font-ui);font-size:var(--fs-sm);color:var(--muted);padding:4px 2px;}
+
+/* ---------- 合并冲突 ---------- */
+.confl-hd{display:flex;align-items:center;gap:6px;font-size:var(--fs-md);font-weight:800;color:var(--del);margin-bottom:3px;}
+.confl-hd .n{margin-left:auto;font-family:var(--font-mono);font-size:var(--fs-sm);color:color-mix(in srgb,var(--del) 55%,var(--del-bg));background:var(--del-bg);border:1px solid var(--del-bd);border-radius:var(--r-pill);padding:0 8px;}
+.confl-desc{font-size:var(--fs-sm);color:var(--ink-3);line-height:1.6;margin-bottom:9px;}
+.cf-file{border:1px solid var(--del-bd);border-left:3px solid var(--del);border-radius:var(--ctl-r);background:var(--panel);margin-bottom:8px;overflow:hidden;}
+.cf-name{display:flex;align-items:center;gap:7px;padding:6px 9px;font-family:var(--font-mono);font-size:var(--fs-md);font-weight:700;color:var(--del);background:var(--del-bg);border-bottom:1px solid var(--del-bd);}
+.cf-name .ic{color:var(--del);}
+.cf-mk{display:flex;justify-content:space-between;padding:4px 9px 0;font-size:var(--fs-cap);font-weight:800;letter-spacing:.3px;color:var(--muted);}
+.cf-mk .h{color:var(--stg)}.cf-mk .t{color:var(--indigo);}
+.cf-code{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--del-bd);border-bottom:1px solid var(--del-bd);}
+.cf-code span{font-family:var(--font-mono);font-size:var(--fs-sm);line-height:1.6;padding:6px 9px;white-space:pre-wrap;word-break:break-word;color:var(--ink-2);}
+.cf-code .m{border-right:1px solid var(--del-bd);background:var(--stg-bg);}
+.cf-code .t{background:var(--indigo-bg);}
+.cf-btns{display:flex;gap:5px;padding:7px 9px;}
+/* 冲突文件的三个处理按钮（保留我的 / 保留对方 / 都保留）。
+   外观走 .btn--sm（见 buttons.css），这里只负责"三等分撑满一行"。
+   「都保留」悬停时给一层蓝底：它是最稳妥的选项，值得在三个里稍微跳出来一点。 */
+.cfb{flex:1;}
+.cfb.both:hover{background:var(--stg-bg);border-color:var(--stg-bd);color:var(--stg);}
+
+/* ---------- 差异查看 ---------- */
+.diffbox{border:1px solid var(--line);border-radius:var(--ctl-r);background:var(--panel-2);margin-top:9px;overflow:hidden;}
+.diffbox .cap{display:flex;align-items:center;gap:6px;padding:5px 9px;font-family:var(--font-mono);font-size:var(--fs-sm);font-weight:700;color:var(--ink-2);background:var(--panel-2);border-bottom:1px solid var(--line);}
+.diffbox .cap .ic{color:var(--muted);}
+.dl{font-family:var(--font-mono);font-size:var(--fs-sm);line-height:1.65;padding:6px 9px;max-height:168px;overflow:auto;}
+.dl .l{white-space:pre;color:var(--ink-2);}
+.dl .l.add{background:var(--ok-bg);color:var(--ok);}
+.dl .l.del{background:var(--del-bg);color:var(--del);}
+
+/* =====================================================================
+   输入行左边的"终端 ⇄ AI"切换按钮（只在半屏堆叠模式下显示，见 responsive.css）
+   ---------------------------------------------------------------------
+   外观走 .icon-btn 基元（见 buttons.css），这里只留它与众不同的两点：
+     · 尺寸与同一行的输入框/运行按钮严格同高（--ctl-md-h）——
+       它就贴在输入框左侧，差 3px 都看得出来（原来写死 35 vs 32，实测上下沿错开）；
+     · 只在半屏堆叠模式下出现，桌面下 display:none。
+   每个面板的输入行里各有一个，各自显示"点一下会去的那一边"的图标：
+   终端那张显示 AI 图标，AI 那张显示终端图标 —— 同屏只看得见其中一个。
+   深色终端里的那份不用单独写：.term 会重指表面变量（见 buttons.css）。
+   ===================================================================== */
+.pswitch{
+  --ib:var(--ctl-md-h);
+  flex:none;display:none;
+}
+.pswitch .ic{width:16px;height:16px;}
+
+/* 悬浮指示：挂在 body 上（卡片 overflow:hidden 会裁掉它），位置由 JS 算 */
+.psw-tip{
+  position:fixed;z-index:120;max-width:min(300px,70vw);padding:6px 10px;border-radius:8px;
+  background:var(--tip-bg);color:var(--tip-ink);font-size:var(--fs-sm);font-weight:600;letter-spacing:.1px;
+  white-space:nowrap;box-shadow:var(--shadow-3);pointer-events:none;
+  opacity:0;visibility:hidden;transform:translateY(-4px);transition:.16s;
+}
+.psw-tip.on{opacity:1;visibility:visible;transform:none;}
+.psw-tip::before{                      /* 小箭头，指向上方的控件 */
+  content:'';position:absolute;bottom:100%;left:14px;border:5px solid transparent;
+  border-bottom-color:var(--tip-bg);
+}

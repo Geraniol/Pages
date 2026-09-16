@@ -1,0 +1,89 @@
+/* =====================================================================
+   Git Playground · 主要布局（三栏 grid + 卡片骨架 + 通用原子）
+   ===================================================================== */
+
+/* ---------- 三栏布局 ---------- */
+.main{
+  /* 三栏默认宽度严格 2 : 5 : 4。
+     这里**不放 minmax 下限**：下限会在窄一点的窗口里先被触发，比例随即失真
+     （哪一栏先顶到下限，哪一栏就停止收缩，2:5:4 就散了）。
+     窗口窄到摆不下三栏时不再是"挤一挤"，而是整体切成上下堆叠 —— 见 responsive.css
+     的 ≤1080px 规则，所以这里可以放心用纯比例。 */
+  display:grid;grid-template-columns:2fr 5fr 4fr;gap:12px;padding:12px;
+  height:calc(100vh - 56px);min-height:640px;
+  position:relative;                 /* 分隔线是绝对定位的覆盖层 */
+}
+.col{display:flex;flex-direction:column;gap:12px;min-height:0;min-width:0;}
+
+/* ---------- 卡片 ---------- */
+.card{
+  background:var(--panel);border:1px solid var(--line-2);border-radius:var(--r);
+  display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow);min-height:0;
+}
+.card.grow{flex:1 1 auto;min-height:0;}
+.card-head{
+  display:flex;align-items:center;gap:8px;flex:none;
+  background:linear-gradient(180deg,var(--panel),var(--panel-2));
+  border-bottom:1px solid var(--line);padding:0 12px;height:38px;
+  font-size:var(--fs-md);font-weight:700;color:var(--ink-2);letter-spacing:.1px;
+}
+.card-head>.ic{color:var(--ink-3);}
+.card-head .hint{margin-left:auto;font-weight:500;font-size:var(--fs-sm);color:var(--muted);display:flex;align-items:center;gap:5px;}
+/* flex:1 1 auto —— 内容不足时撑满卡片，把图例/页脚压到底部，而不是浮在中间 */
+.card-body{flex:1 1 auto;padding:10px 12px;overflow:auto;min-height:0;}
+.card-body.tight{padding:6px 8px;}
+
+/* ---------- 头部小按钮（.hbtn）：已删除 ----------
+   它原来是任务指南卡片头上的两枚按钮（「当前」定位 /「重置」）共用的样式。
+   那张卡删除后，这两个按钮一个取消、一个搬去顶栏换成 .icon-btn，
+   .hbtn 就成了**零引用**的纯化石 —— 整块移除。
+   卡头若要再放按钮，直接用 buttons.css 里的 .btn--sm / .icon-btn.sm。 */
+
+/* ---------- 通用原子 ---------- */
+.sec-cap{
+  display:flex;align-items:center;gap:6px;font-size:var(--fs-cap);font-weight:800;letter-spacing:.7px;
+  text-transform:uppercase;color:var(--muted);margin:0 0 6px;
+}
+.sec-cap .n{margin-left:auto;font-weight:700;letter-spacing:0;text-transform:none;font-size:var(--fs-cap);color:var(--muted);}
+
+
+/* =====================================================================
+   v4 · 可调布局
+   ---------------------------------------------------------------------
+   分隔线是覆盖在边界上的命中区，不在网格/弹性流里 —— 所以内置布局一行没改。
+   自定义尺寸只在桌面三栏（≥1081px）下生效；窄屏自动回到内置单列。
+   ===================================================================== */
+.split{position:absolute;z-index:20;display:none;}
+.split-col{cursor:col-resize;}
+.split-row{cursor:row-resize;}
+/* 视觉上只画一条细线，命中区靠 inset 撑开，避免"看得见却点不中" */
+.split::after{
+  content:'';position:absolute;background:transparent;border-radius:3px;transition:background .15s;
+}
+.split-col::after{left:2px;top:0;bottom:0;width:3px;}
+.split-row::after{top:2px;left:0;right:0;height:3px;}
+.split:hover::after,body.resizing .split::after{background:var(--focus);}
+body.resizing{user-select:none;cursor:inherit;}
+body.resizing *{cursor:inherit !important;}
+
+@media (min-width:1081px){
+  body.layout-custom .main{
+    grid-template-columns:var(--col-l,246px) minmax(0,1fr) var(--col-r,492px);
+  }
+  /* 中栏的第一张卡取固定高度，第二张（终端）吃掉剩余。
+     ⚠ 必须按 id 命中，不能用 `.card:first-child`：左栏的第一个孩子是 .files-close
+     关闭按钮（桌面下不显示、但一直在 DOM 里），`:first-child` 要求"既是 .card 又是第一个孩子"，
+     于是那条规则**从来没生效过**（症状是"拖了没反应""内容一长就把下面那张压成标题条"）。
+     ⚠⚠ 这里**只列中栏**。左栏不参与行拖拽（工作区固定 120px、文件树吃掉剩余，
+     见 cards.css），所以 #wsCard 不能再出现在下面这行里 —— 它是"第二张卡吃掉剩余"的旧写法，
+     留着的话：界面上看着好好的，只要用户**随便拖一下任何一根分隔线**，
+     layout-custom 一生效就把工作区从 120px 弹成"吃掉剩余"（实测 120 → 313px，
+     文件树 593 → 400px）。这就是"一改动布局，左侧就弹回去"。
+     ⚠⚠⚠ 右栏（#colRight）现在也只有一条规则：唯一那张 AI 助手卡永远吃掉整列，
+     所以 --row-right 已经没有任何规则引用它（layout.js 仍会写这个变量，见那边的说明）。 */
+  body.layout-custom #colMid   > .graph-card{flex:0 0 var(--row-mid,50%);}
+  /* ↑ 兜底值 50%：与未拖拽时的"提交图 / 终端各占一半"保持一致（见 graph.css）。
+     拖过之后走 --row-mid，那是用户自己定的比例。 */
+  body.layout-custom #aiCard{flex:1 1 auto;max-height:none;}
+  .split{display:block;}
+}

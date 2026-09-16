@@ -1,0 +1,82 @@
+/* =====================================================================
+   Git Playground · AI 助手（对话 + 建议 + 输入）
+   ---------------------------------------------------------------------
+   行高/内边距与终端刻意保持同一套指标（正文 → 快捷条 → 输入行）：
+   堆叠模式下两者在行 3 里轮流显示，谁多一点 padding，切换时整块内容就会跳。
+   配色仍各按各的主题（深色终端 / 浅色对话），只统一"骨架尺寸"。
+     正文    : .term-out / .chat      padding 10px（终端首行文字自带 12px 缩进）
+     快捷条  : .chips    / .sugs      padding 8px 12px, min-height 40px, 上边框
+     输入行  : .term-input / .chat-input  padding 9px 12px, 上边框
+     输入框  : .cmd-field / .chat-input .f  height 35px, radius 8
+     主按钮  : .run      / .send      height 35px, radius 8
+   ===================================================================== */
+.chat{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:10px 12px;}
+.bub{flex:0 0 auto;max-width:95%;border-radius:11px;padding:8px 11px;font-size:var(--fs-md);line-height:1.7;}
+.bub.ai{background:var(--panel-2);border:1px solid var(--line);border-left:3px solid var(--line-2);color:var(--ink-2);}
+.bub.me{align-self:flex-end;background:var(--stg-bg);border:1px solid var(--stg-bd);color:var(--ink-2);}
+.bub code{font-family:var(--font-mono);background:var(--panel-3);border-radius:4px;padding:1px 5px;font-size:var(--fs-sm);color:var(--ink-2);}
+.bub b{color:var(--ink);font-weight:700;}
+.bub .sub{display:block;margin-top:3px;font-size:var(--fs-sm);color:var(--muted);}
+.sugs{
+  /* 规格与终端的 .chips 完全一致（含"不换行、横滚"）：两格轮流显示时这一条不该变形 */
+  display:flex;flex-wrap:nowrap;gap:6px;flex:none;align-items:center;
+  padding:8px 12px;min-height:40px;overflow-x:auto;overflow-y:hidden;
+  scrollbar-width:none;-ms-overflow-style:none;
+  border-top:1px solid var(--line);background:var(--panel-2);
+}
+.sugs::-webkit-scrollbar{height:0;display:none;}
+/* 建议问题：外观走 .chip 基元（见 buttons.css）。
+   这里不留任何规则 —— 原来的 .sug / .sug:hover 整条删掉，
+   标记上直接挂 chip（见 app.js 的 renderSugs）。 */
+.chat-input{display:flex;gap:8px;flex:none;padding:9px 12px;border-top:1px solid var(--line);background:var(--panel);}
+.chat-input .f{
+  /* 圆角与同一行的发送按钮/切换按钮同档（--r-md），理由同终端那边的 .cmd-field */
+  flex:1;min-width:0;height:var(--ctl-md-h);display:flex;align-items:center;gap:7px;
+  border:1px solid var(--line-2);border-radius:var(--r-md);padding:0 11px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.chat-input .f:focus-within{border-color:var(--focus);box-shadow:0 0 0 3px var(--focus-ring);}
+.chat-input input{flex:1;min-width:0;border:none;outline:none;background:none;padding:0;height:100%;font-size:var(--fs-md);}
+/* 发送按钮：外观走 .btn .btn--primary（见 buttons.css），这里只负责
+   它比旁边的输入框宽一点 —— 同一行里它才是主行动。 */
+.send{flex:none;}
+/* 流式进行中：同一个按钮变成「停止」。
+   停止不是"主行动"而是"中断"，所以换危险色；局部变量覆盖 .btn--primary 的橙
+   （.send.stop 两个类 = 比 .btn--primary 一个类更具体，稳赢）。 */
+.send.stop{--ctl-bg:var(--del);--ctl-bd:var(--del);--ctl-fg:var(--accent-ink);}
+.send.stop:hover{background:color-mix(in srgb,var(--del) 88%,#000);border-color:transparent;}
+
+/* ---------- 卡片标题栏：模型配置状态 ----------
+   外观走 .chip 基元（见 buttons.css）—— 它本来就是一枚胶囊。这里只留三件
+   基元管不到的事：贴右、超长省略、以及"已配置 / 未配置"的状态配色。 */
+.ai-status{margin-left:auto;max-width:200px;color:var(--muted);}
+.ai-status>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ai-status .dot{
+  width:7px;height:7px;border-radius:50%;flex:none;
+  background:var(--line-2);box-shadow:0 0 0 2px color-mix(in srgb,var(--line-2) 35%,transparent);
+}
+/* ⚠ 悬停**不给任何视觉反馈**。
+   它是一枚状态读数（模型名 / 未配置），不是行动按钮 —— 挂上 .chip 之后它会跟着
+   上浮 2px、换描边、加深阴影，看着像个可以点的操作项，而它其实只是"现在接的是哪个模型"。
+   点开设置的功能保留（所以要 cursor:pointer），但不该朝人招手。
+   这几条必须写在 .on 之前：`.ai-status.on` 与 `.ai-status:hover` 同权重，
+   靠源码顺序决定谁赢 —— 已配置的绿底绿字要压过这里的灰色悬停态。 */
+.ai-status:hover{
+  transform:none;box-shadow:var(--shadow-1);
+  border-color:var(--line);background:var(--panel);color:var(--muted);
+}
+.ai-status.on{color:var(--ok);border-color:var(--ok-bd);background:var(--ok-bg);}
+.ai-status.on .dot{background:var(--ok);box-shadow:0 0 0 2px color-mix(in srgb,var(--ok) 22%,transparent);}
+/* 只读 = 常态，保持 .ai-status 的默认灰；
+   可写 = 命令会真的改动用户的真仓库，转红（与「清除数据」同一个危险色）。 */
+
+/* ---------- 流式输出 / 失败态 ---------- */
+.bub .caret{
+  display:inline-block;width:6px;height:12px;margin-left:2px;vertical-align:-2px;
+  background:var(--muted);border-radius:1px;animation:vgeCaret 1s steps(2,start) infinite;
+}
+@keyframes vgeCaret{0%,50%{opacity:1}50.01%,100%{opacity:0}}
+.bub.err{background:var(--del-bg);border-color:var(--del-bd);border-left-color:var(--del);color:var(--del);}
+.bub.err .sub{color:color-mix(in srgb,var(--del) 68%,var(--ink-2));}
+.bub.err code{background:var(--panel);color:var(--del);}
+.bub .sub code{background:var(--panel);}

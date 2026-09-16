@@ -1,0 +1,181 @@
+/* =====================================================================
+   Git Playground · 模态弹窗（确认 / 课堂代码 / 团队代码）
+   ===================================================================== */
+.mask{position:fixed;inset:0;background:var(--scrim);display:none;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(2px);}
+/* 通用确认框（#mask）必须压在设置弹窗之上：它是**从设置弹窗内部**打开的
+   （清除数据 / 写入模式确认）。两者同为 100 时由 DOM 顺序决定，而 #mask 在 HTML 里更靠前，
+   于是被设置弹窗整个盖住 —— 实测"确认清除"那一击命中的是下面的设置面板，点了毫无反应。 */
+#mask{z-index:130;}
+.mask.on{display:flex;}
+.modal{width:352px;background:var(--panel);border-radius:var(--r);box-shadow:var(--shadow-lg);overflow:hidden;}
+.modal h4{display:flex;align-items:center;gap:8px;padding:13px 15px 0;font-size:var(--fs-lg);color:var(--ink);}
+.modal p{padding:8px 15px 14px;font-size:var(--fs-md);color:var(--ink-3);line-height:1.7;}
+.modal .acts{display:flex;justify-content:flex-end;gap:8px;padding:11px 15px;background:var(--panel-2);border-top:1px solid var(--line);}
+/* 弹窗按钮：外观走 .btn 基元（见 buttons.css），这里只把左右内边距放宽一点 ——
+   弹窗里按钮少、字也短，比界面内的按钮宽一档看着才稳。
+   原来的 .mbtn.pri（红实心）/ .mbtn.go（蓝实心）两套配色已删除：
+   它们和别处的实心按钮各写各的（这里是 --del/#2563eb，别处是 navy/indigo），
+   现在统一由 .btn--danger / .btn--primary 表达，标记上直接挂（见 index.html）。 */
+.mbtn{padding:0 16px;}
+/* .modal .err 已删除：它是团队码弹窗的报错行（#teamErr），随该弹窗一起去掉。
+   注意别和终端输出的 .tout.err 搞混，那个还在用。 */
+
+/* =====================================================================
+   AI 配置弹窗（表单型）
+   ---------------------------------------------------------------------
+   注意：刻意不复用 .field input —— 那个类带大写转换与等宽字距，
+   会把 API Key / URL 这类大小写敏感的内容显示成错的。
+   ===================================================================== */
+.modal.wide{width:452px;max-width:calc(100vw - 24px);}
+.modal .cfg-intro{padding:8px 15px 12px;font-size:var(--fs-sm);line-height:1.68;color:var(--ink-3);}
+.modal .cfg-form{padding:0 15px;display:flex;flex-direction:column;gap:9px;}
+.cfg-row{display:flex;align-items:center;gap:10px;}
+.cfg-row>.k{flex:0 0 92px;font-size:var(--fs-sm);font-weight:650;color:var(--ink-3);}
+.cfg-row input,.cfg-row select{
+  flex:1;min-width:0;border:1px solid var(--line-2);border-radius:7px;padding:7px 10px;
+  outline:none;background:var(--panel);font-size:var(--fs-md);
+  transition:border-color .15s,box-shadow .15s;
+}
+/* 面板里所有可交互控件的盒子只认这一套尺寸：输入框 32px、下拉 32px、按钮 32px、
+   语言滑块 32px。不写死的话每类控件各按自己的字体算出不同高度
+   （实测过 30 / 32 / 33 三种），并排时上下沿就是错开的。 */
+.cfg-row input,.cfg-row select,.cfg-row>.mbtn,.seg{height:var(--ctl-md-h);}
+.cfg-row input:focus,.cfg-row select:focus{border-color:var(--focus);box-shadow:0 0 0 3px var(--focus-ring);}
+/* 下拉框与输入框同规格：不动 appearance 的话箭头是系统原生的，跟面板里的图标不是一套。
+   高度由上面那条统一规则给（32px 与输入框一致）。 */
+.cfg-row select{
+  appearance:none;-webkit-appearance:none;-moz-appearance:none;
+  /* select 不吃 base.css 里那条 button,input{font:inherit}，不写这句它就是 UA 的系统控件字体 */
+  font-family:inherit;font-size:var(--fs-sm);padding-right:28px;cursor:pointer;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237b879b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;background-size:13px 13px;
+}
+.cfg-row select:hover{border-color:var(--line-2);}
+/* 界面设置那种"标签贴左 / 控件贴右"的行：两端的留白由 space-between 分配，
+   控件定宽 → 三行的控件右边缘落在同一条竖线上。
+   定宽值取 134px：正好容下语言滑块（2×64 段 + 4 内边距 + 2 边框），两个按钮也用它。 */
+.modal .cfg-row.end{justify-content:space-between;gap:14px;}
+.modal .cfg-row.end>.k{flex:0 1 auto;}
+.modal .cfg-row.end>.mbtn,
+.modal .cfg-row.end>.seg{flex:none;width:134px;}
+.modal .cfg-row.end>.mbtn{padding:0;}
+
+/* 两段式滑块（语言 / 只读-可写都用它）：白色药丸用 transform 滑过去。
+   选项按钮由 JS 生成，容器上 data-idx 决定药丸停在第几格。 */
+.seg{
+  --seg-w:64px;
+  position:relative;display:inline-flex;flex:none;padding:2px;
+  border:1px solid var(--line-2);border-radius:var(--ctl-r);background:var(--panel-2);
+}
+.seg-pill{
+  position:absolute;top:2px;left:2px;width:var(--seg-w);height:calc(100% - 4px);
+  border-radius:calc(var(--ctl-r) - 2px);background:var(--panel);box-shadow:var(--shadow-1);
+  transition:transform .18s ease;
+}
+/* 药丸滑到第几格看 data-idx（0 / 1）—— 语言滑块和只读滑块共用这一条，
+   不再绑在某个具体语言代码上。data-cur 仍然保留，放的是"当前值"本身。 */
+.seg[data-idx="1"] .seg-pill{transform:translateX(var(--seg-w));}
+.seg-opt{
+  position:relative;z-index:1;width:var(--seg-w);height:100%;padding:0;border:0;
+  background:none;border-radius:calc(var(--ctl-r) - 2px);font-family:inherit;font-size:var(--fs-sm);font-weight:650;
+  color:var(--muted);cursor:pointer;transition:color .15s;
+}
+.seg-opt:hover{color:var(--ink-3);}
+.seg-opt.on{color:var(--ink);}
+/* 危险态滑块（目前只有「本地仓库只读模式 → 可写入」用）：
+   切到可写之后命令会真的改动用户的真仓库，滑块整条转红 —— 和「清除数据」同一个危险色，
+   不是装饰，是提醒"现在这个开关是带电的"。药丸变实红，压在它上面的那格文字翻白。 */
+.seg.warn{border-color:var(--del-bd);background:var(--del-bg);}
+.seg.warn .seg-pill{background:var(--del);box-shadow:var(--shadow-1);}
+.seg.warn .seg-opt{color:color-mix(in srgb,var(--del) 62%,var(--ink-2));}
+.seg.warn .seg-opt:hover{color:var(--del);}
+.seg.warn .seg-opt.on{color:var(--accent-ink);}
+.cfg-row input[type="password"],.cfg-row input[type="url"]{
+  font-family:var(--font-mono);font-size:var(--fs-sm);letter-spacing:0;
+}
+/* 复选行：把 .cfg-row input 的整行输入框样式收回来，只留一个小方块 */
+
+/* ---------- 提交节点详情面板（点击提交图节点弹出） ---------- */
+/* 比普通弹窗宽：里面要放逐文件 diff，344px 的对话框宽度根本没法看 */
+.modal.node-modal{width:640px;max-width:calc(100vw - 24px);display:flex;flex-direction:column;max-height:calc(100vh - 60px);}
+.modal.node-modal h4{padding-bottom:10px;border-bottom:1px solid var(--line);}
+.modal.node-modal h4 .ic{color:var(--indigo);flex:none;}
+/* 关闭叉：外观走 .icon-btn.ghost.sm（见 buttons.css），这里只把它推到标题行最右。
+   （原来自带一套 26px/6px 圆角/透明底的写法，与密码框那颗眼睛是重复的两份。） */
+.modal.node-modal .mclose{margin-left:auto;}
+/* 内容区自适应高度、内部滚动：diff 可能很长，弹窗本身不撑破屏幕 */
+.modal.node-modal .node-body{padding:11px 15px 15px;overflow:auto;flex:1 1 auto;min-height:0;font-size:var(--fs-md);line-height:1.7;color:var(--ink-2);}
+.modal.node-modal .node-body .sub{margin-top:6px;}
+/* 密钥框：外层容器负责边框与 focus 环，图标按钮落在框内 */
+.k-wrap{
+  flex:1;min-width:0;display:flex;align-items:center;gap:4px;
+  border:1px solid var(--line-2);border-radius:var(--ctl-r);background:var(--panel);padding-right:5px;
+  transition:border-color .15s,box-shadow .15s;
+}
+.k-wrap:focus-within{border-color:var(--focus);box-shadow:0 0 0 3px var(--focus-ring);}
+.k-wrap input{flex:1;min-width:0;border:none;border-radius:0;background:none;padding:7px 6px 7px 10px;}
+.k-wrap input:focus{box-shadow:none;}
+/* 密钥框里的显示/隐藏眼睛：外观走 .icon-btn.ghost.sm（见 buttons.css） */
+.keyeye{flex:none;}
+/* 测试结果那一行**按需出现**：没有结果时 display:none，点过测试才占位。
+   模型框下面不留空档 —— 面板高度随内容浮动，这正是要的效果。
+   ⚠ 别改成常驻占位（min-height 之类）来"防止跳动"：那样模型框下方会永远空一行。 */
+.modal .cfg-msg{padding:2px 0 0;font-size:var(--fs-sm);line-height:1.6;display:none;}
+.modal .cfg-msg.on{display:block;}
+.modal .cfg-msg.ok{color:var(--ok);}
+.modal .cfg-msg.bad{color:var(--del);}
+.modal .acts .grow{flex:1;}
+
+/* ---------- 设置弹窗：分区标题 + 布局分区 ----------
+   层级：弹窗标题 14px/--ink ＞ 分区标题 11.5px/800/--ink-2 ＞ 行标签 11.5px/650/--ink-3。
+   分区标题原来是 10px + --muted，比它管着的行标签（11.5px）还小还淡，
+   看上去像行标签的下级注释，反了。 */
+.modal .cfg-sec{
+  display:flex;align-items:center;gap:6px;margin:12px 15px 0;
+  font-size:var(--fs-sm);font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--ink-2);
+}
+.modal .cfg-sec:first-of-type{margin-top:10px;}
+/* 两组设置之间拉一条**通栏**分隔线 + 加大留白：原来只隔着一个 11.5px 的灰色小标题，
+   扫一眼分不出"AI 设置"和"界面设置"是两件事，改完一组容易漏掉另一组。
+   .cfg-sec 原本左右各有 15px 外边距（为了和表单对齐），通栏要把这段外边距去掉、
+   改成内边距 —— 用负外边距会往外顶出弹窗 15px（实测分隔线比弹窗左右各宽 15px）。 */
+.modal .cfg-form+.cfg-sec{
+  margin:20px 0 0;padding:16px 15px 0;border-top:1px solid var(--line);
+}
+/* 只有「界面设置」那一区是标题直接接控件行（AI 区中间还隔着 .cfg-intro，它自带内边距），
+   所以只给这种相邻关系补间距。 */
+.modal .cfg-sec + .cfg-form{margin-top:9px;}
+/* 末行到页脚：原来行底边与 .acts 的分隔线严丝合缝贴着，看着像被切掉。
+   （设置弹窗的页脚已经删掉 —— 改成填写即保存了，这条现在只剩别的弹窗在用。） */
+.modal .cfg-form + .acts{margin-top:14px;}
+/* 设置弹窗没有页脚之后，末行「清除数据」直接贴到弹窗底边（实测间距 0px，像被切掉）。
+   原来这点空间是 .acts 自己 11px 内边距给的，页脚一删就没了。
+   ⚠ 必须用**内边距**（撑在弹窗自己身上），不能用最后一行 .cfg-form 的 margin-bottom：
+     · margin 会随"最后一个孩子是谁"变 —— 面板高度浮动时，内容一多一少就可能塌掉；
+     · 相邻外边距还会折叠，一旦哪天弹窗的 overflow 不再是 hidden 就整段消失。
+   内边距不折叠、也不看兄弟，无论面板多高多矮，底部永远留这一条。 */
+.modal.cfg-modal{padding-bottom:14px;}
+.cfg-row>.mbtn{flex:none;}
+
+/* ---------- 节点详情面板：统计条 + 改动文件目录视图 + 按需展开的 diff ---------- */
+.modal.node-modal .node-stats{display:flex;flex-wrap:wrap;align-items:center;gap:11px;margin:10px 0 7px;font-size:var(--fs-sm);font-weight:650;}
+.node-stats .ns{display:inline-flex;align-items:center;gap:3px;}
+.node-stats .ns.a{color:var(--ok);}
+.node-stats .ns.m{color:var(--mod);}
+.node-stats .ns.d{color:var(--del);}
+.node-stats .ns.n{color:var(--muted);font-weight:500;margin-left:auto;}
+/* 目录视图：只列这次提交动过的文件，中间目录自动补齐 */
+.modal.node-modal .node-tree{
+  border:1px solid var(--line);border-radius:var(--ctl-r);background:var(--panel-2);padding:7px 9px;
+}
+.node-tree .tnode{border-radius:5px;transition:background .12s;}
+/* 文件行可点击（展开 diff）；目录行只是结构，不参与交互 */
+.node-tree .tnode.clickable{cursor:pointer;}
+.node-tree .tnode.clickable:hover{background:var(--panel-3);}
+.node-tree .tnode.open{background:var(--stg-bg);}
+.node-tree .nd-stat{margin-left:auto;flex:none;display:inline-flex;gap:7px;font-family:var(--font-mono);font-size:var(--fs-sm);font-weight:700;}
+.node-tree .nd-stat .p{color:var(--ok);}
+.node-tree .nd-stat .m{color:var(--del);}
+/* 展开出来的 diff：与目录树缩进对齐一点，视觉上从属于该文件 */
+.nodediff{margin:3px 0 9px 18px;}
+.nodediff .diffbox{margin-top:0;}

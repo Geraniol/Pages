@@ -1,0 +1,195 @@
+/* =====================================================================
+   Git Playground · 设计变量 / 明暗主题
+   ---------------------------------------------------------------------
+   换肤 = 只改这里。所有组件样式一律引用变量，不写死颜色。
+
+   ---- 这一版跟上一版的区别 ----
+   1) 值全部换成 chapter_1.html（同目录上一级的 assets/theme.css）那套 ——
+      同样的灰阶、同样的橙、同样的阴影与动效曲线。**变量名一个没改**：
+      下游有六千多行 CSS/JS 在引用它们，改名等于全量重写，收益为零。
+   2) 顶栏不再是"按模式变色"的深色渐变。那个设计的前提是有三种模式可切，
+      而模式切换已经删除、页面永远停在 teaching —— 绿色不再承担任何含义，
+      于是顶栏回归 chapter_1 的样子：白底 + 一条底边线。
+   3) 新增明暗两套。原来只有亮色；深色块的值同样取自 chapter_1。
+
+   ⚠ 字号阶梯刻意**没有**跟着换。chapter_1 是阅读页（12/13/15/17px），
+     这里是三栏密集工具界面（10/11.5/12.5/14px）。照搬会把卡头、图例、
+     终端按钮全部撑挤，得不偿失 —— 这是取舍，不是遗漏。
+   ===================================================================== */
+
+/* ---------------------------------------------------------------- 亮色 --- */
+/* 默认即亮色：chapter_1.html 会在 <html> 上写 data-theme，本页也多写一份，
+   但 :root 兜底，保证 JS 没跑起来时页面依然是可读的亮色。 */
+:root,
+[data-theme="light"]{
+  color-scheme:light;                /* 让原生控件（输入框、滚动条）跟着走 */
+
+  /* ---------- 字体 ---------- */
+  --font-ui:"Segoe UI Variable Text","Segoe UI",Inter,"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+  --font-mono:ui-monospace,"Cascadia Mono","JetBrains Mono",Consolas,Menlo,monospace;
+
+  /* ---------- 表面 ---------- */
+  --bg:#f4f6fb;
+  --panel:#ffffff;
+  --panel-2:#f6f8fc;
+  --panel-3:#eceff7;
+
+  /* ---------- 描边 ---------- */
+  --line:#e2e7f1;
+  --line-2:#cdd5e5;
+
+  /* ---------- 文字：四级，从正文到最弱的提示 ----------
+     ⚠ --muted 换成了 chapter_1 的 --faint（#98a3bd），比原来的 #8b95a7 更浅。
+     这是**按位置**对齐的结果（--ink/--ink-2/--ink-3/--muted 对应
+     --text/--text-soft/--muted/--faint 四级）。如果实测觉得提示文字太淡，
+     把它改回 #64708c 即可 —— 但那样 --ink-3 与 --muted 就同色了，只剩三级。 */
+  --ink:#0e1526;
+  --ink-2:#35405a;
+  --ink-3:#64708c;
+  --muted:#98a3bd;
+
+  /* ---------- 品牌强调色 ----------
+     chapter_1 的 Git 橙。原来这里按模式分四组（教学绿 / 本地蓝 / 本地可写红 /
+     合作橙），每组还带 --bar / --bar-2 两个渐变底。模式切换删除后只剩一组，
+     渐变底也随之取消（顶栏改成 --panel 白底 + --line 底边线，见 appbar.css）。 */
+  --accent:#e8542f;
+  --accent-ink:#ffffff;
+  --accent-soft:#fdeee9;
+  --accent-line:#f7c9ba;
+  --focus:var(--accent);             /* 焦点圈跟强调色走（chapter_1 就是这么做的） */
+  /* 输入框聚焦时那圈外发光。单独开一个 token 是因为它出现得很频繁
+     （每个输入框、每个下拉都一样），散着写 rgba 就会有五六种浓淡。 */
+  --focus-ring:color-mix(in srgb,var(--focus) 16%,transparent);
+  /* 弹窗背后的遮罩。原来是写死的 rgba(15,22,35,.5)。 */
+  --scrim:rgba(10,16,30,.5);
+
+  /* ---------- 语义色 ----------
+     命名沿用本项目的 --ok/--mod/--del/--stg（新增/修改/删除/暂存），
+     值取 chapter_1 的 --good/--warn/--bad/--info。
+     --*-bd 是本项目独有的（chapter_1 用 color-mix 现算描边，没有这层 token），
+     所以只有 --stg-bd 跟着主色挪了色相（原来的 #c2d3f7 配的是旧靛蓝 #1d4ed8，
+     配新的天蓝 #3b82f6 会偏紫），其余三个原样保留。 */
+  --ok:#16a34a;   --ok-bg:#e6f6ec;   --ok-bd:#b7e2c8;
+  --mod:#d97706;  --mod-bg:#fdf1e0;  --mod-bd:#f0d8a8;
+  --del:#dc2626;  --del-bg:#fdeaea;  --del-bd:#f3c4c4;
+  --stg:#3b82f6;  --stg-bg:#e8f1fe;  --stg-bd:#bfdbfe;
+
+  /* 章节 / 概念类强调色，外加一对底色 —— 冲突面板用它在"对方版本"那一栏
+     和 --stg 的"我的版本"配对（原来是写死的 #c026d3 / #fdf2fb 一对洋红）。
+     主色取 chapter_1 的 --violet，让休眠的课程面板也落在同一套色板里。 */
+  --indigo:#7c5cf0;  --indigo-bg:#efeaff;  --indigo-bd:#d9d0ff;
+
+  /* 悬浮提示（.psw-tip）：一个**反色**的小气泡 —— 亮色主题下是深底浅字，
+     暗色主题下翻过来。用两个 token 而不是写死 rgba(15,23,42,.95)，
+     否则暗色主题里会得到"深底压在深底上"，等于没有提示。 */
+  --tip-bg:#1e293b;  --tip-ink:#e8eef7;
+
+  /* ---------- 终端（恒暗，两套主题下都一样） ----------
+     终端不是"深色模式下的界面"，它就是一个深色的东西 —— 跟主题走反而奇怪：
+     亮色页面里它是块黑玻璃，深色页面里也还是黑玻璃。所以这一族**不参与换肤**。 */
+  --term-bg:#0d1117;
+  --term-bg2:#161b22;
+  --term-bg3:#1c2431;
+  --term-line:#242c38;
+  --term-ink:#c9d3e0;
+  --term-dim:#7c8798;
+  --term-green:#4ade80;
+  --term-red:#f87171;
+  --term-blue:#7cb6ff;
+  --term-amber:#f5c66b;
+
+  /* ---------- 圆角 ----------
+     三档角色，对应 chapter_1 的三种基元（见 components/buttons.css）：
+       --ctl-r      紧凑控件（26~32px 高的次级按钮、输入框、小图标按钮）
+       --r-md       标准按钮 / 顶栏图标按钮（chapter_1 的 .btn / .icon-btn）
+       --r-pill     胶囊（标签、chips）
+     --r 是面板与卡片的外圆角，原来是 10px，跟 chapter_1 的 --r-md 对齐成 12px。 */
+  --r:12px;
+  --r-sm:8px;
+  --r-md:12px;
+  --r-lg:16px;
+  --r-xl:22px;
+  --r-pill:999px;
+  --ctl-r:8px;
+  --ctl-r-pill:999px;
+
+  /* ---------- 可交互控件统一规格 ----------
+     ⚠ 高度与字号**保持不变**（这是密集界面的密度基线，见文件头的说明），
+     只把圆角与阴影换到 chapter_1 那套。 */
+  --ctl-label-h:19px; --ctl-label-fs:10px;
+  --ctl-sm-h:   26px; --ctl-sm-fs:  11.5px;
+  --ctl-md-h:   32px; --ctl-md-fs:  12.5px;
+
+  /* ---------- 界面文字阶梯（不变） ---------- */
+  --fs-cap:  10px;
+  --fs-sm:  11.5px;
+  --fs-md:  12.5px;
+  --fs-lg:  14px;
+  --fs-num: 17px;
+
+  /* ---------- 阴影：三档，取代原来的两档 ----------
+     --shadow / --shadow-lg 是旧名字，下游有引用，保留成别名，别删。 */
+  --shadow-1:0 1px 2px rgba(16,24,45,.05),0 1px 3px rgba(16,24,45,.04);
+  --shadow-2:0 2px 4px rgba(16,24,45,.05),0 8px 20px -6px rgba(16,24,45,.12);
+  --shadow-3:0 10px 34px -10px rgba(16,24,45,.24);
+  --shadow:var(--shadow-1);
+  --shadow-lg:var(--shadow-3);
+
+  /* ---------- 动效 ----------
+     统一 hover 位移只用 --lift 一个值：按钮、chips、提交图的悬浮卡都走它，
+     免得"有的浮 1px、有的浮 2px"。 */
+  --lift:-2px;
+  --dur-fast:140ms;
+  --dur:260ms;
+  --dur-slow:520ms;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+
+/* ---------------------------------------------------------------- 暗色 --- */
+/* 值取自 chapter_1.html 的 [data-theme="dark"]；它没有对应物的几族（--term-*、
+   --*-bd、--indigo）按同一套明度关系手工配。
+   切换逻辑见 assets/js/core/theme.js，防闪脚本在 index.html 的 <head>。 */
+[data-theme="dark"]{
+  color-scheme:dark;
+
+  --bg:#080d18;
+  --panel:#111a2c;
+  --panel-2:#16203a;
+  --panel-3:#1d2942;
+
+  --line:#22304c;
+  --line-2:#33425f;
+
+  --ink:#e9eefb;
+  --ink-2:#c3cde3;
+  --ink-3:#8b98b8;
+  --muted:#64708e;
+
+  --accent:#ff6a44;
+  --accent-ink:#ffffff;
+  --accent-soft:#3a1d16;
+  --accent-line:#6d3323;
+  --focus:var(--accent);
+  --focus-ring:color-mix(in srgb,var(--focus) 26%,transparent);
+  --scrim:rgba(0,0,0,.68);
+
+  /* 暗底上的语义色要提亮，浅底用的那种粉彩（*-bg）要压暗 ——
+     否则一块 #e6f6ec 会亮得像贴了张纸。
+     --*-bd 同理压暗：亮色主题里它们是"比底色深一点的描边"，
+     暗色主题里必须是"比底色亮一点的描边"，方向相反。 */
+  --ok:#34c46b;   --ok-bg:#102c1e;   --ok-bd:#2b5f42;
+  --mod:#f0a13a;  --mod-bg:#33230d;  --mod-bd:#6b4a1c;
+  --del:#f0645f;  --del-bg:#3a1717;  --del-bd:#6b2b2b;
+  --stg:#5b9dff;  --stg-bg:#14243f;  --stg-bd:#2b4a7a;
+
+  --indigo:#9b83ff;  --indigo-bg:#241c45;  --indigo-bd:#3b2f6b;
+  --tip-bg:#e9eefb;  --tip-ink:#0e1526;
+
+  /* 终端一族刻意不覆盖 —— 见亮色块的说明。 */
+
+  --shadow-1:0 1px 2px rgba(0,0,0,.4);
+  --shadow-2:0 2px 6px rgba(0,0,0,.42),0 10px 26px -8px rgba(0,0,0,.6);
+  --shadow-3:0 14px 40px -12px rgba(0,0,0,.75);
+  --shadow:var(--shadow-1);
+  --shadow-lg:var(--shadow-3);
+}

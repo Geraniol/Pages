@@ -1,0 +1,166 @@
+/* =====================================================================
+   Git Playground · 按钮基元
+   ---------------------------------------------------------------------
+   搬自 chapter_1.html（上级目录 assets/chapter.css 的 .icon-btn / .btn /
+   .btn--primary / .btn--danger，以及文件末尾那条统一 hover 块），
+   只把它的 --surface / --border / --text / --border-firm 换成本项目同义的
+   --panel / --line / --ink / --line-2。
+
+   ---- 三个角色，组件层只挑角色，不再自己写外观 ----
+     .btn       带文字的行动按钮（运行、发送、弹窗按钮、阻塞式确认）
+     .icon-btn  纯图标按钮（顶栏、提交图工具、关闭叉、密码眼睛）
+     .chip      胶囊式按钮（终端快捷命令、AI 建议）
+
+   ---- 与 chapter_1 的**唯一**结构性差异：高度写法 ----
+   chapter_1 的 .btn 靠 padding（9px 16px）把高度撑出来，因为它周围是自由排版
+   的阅读页面。这里是密集工具界面：终端输入行、AI 输入行里按钮要和输入框
+   **严丝合缝地对齐**，所以按钮一律用固定高度（--ctl-md-h / --ctl-sm-h），
+   靠 padding 只管横向。这不是走样，是同一个角色在不同排版约束下的写法。
+
+   ---- 圆角为什么有两档 ----
+   32px 的按钮用 --r-md（12px，= chapter_1 的 .btn / .icon-btn），
+   26px 的紧凑按钮用 --ctl-r（8px，= chapter_1 的 --r-sm）。
+   12px 落在 26px 高的控件上，两条圆角边会直接碰头、看起来就是个胶囊，
+   和 .chip 分不出来。按尺寸分档是 chapter_1 自己也在用的规则
+   （它的 .btn 用 --r-md、:focus-visible 的小控件用 --r-sm），
+   不是"又一个没统一的地方"。
+   ===================================================================== */
+
+/* ---------- 表面参数：让"同一种按钮"能活在深色表面上 ----------
+   三个基元的外观不直接引用 --panel / --line / --ink，而是引用一组表面变量。
+   容器想改表面时只重指这几个变量即可 —— 终端那张卡是恒深的
+   （见 theme.css 里 --term-* 的说明），它里面的按钮不能是白底描边。
+   于是"统一按钮样式"和"终端保持深色"不打架：外观一套，表面参数两套。
+
+   ⚠ 默认值必须写在 :root 上，**不能**写在 `.btn,.icon-btn,.chip` 上。
+   自定义属性是继承来的，而"元素自己匹配到的声明"永远赢过"从祖先继承来的值"：
+   若默认值挂在 `.btn,.icon-btn,.chip` 上，每颗按钮都会直接用白底那份默认值，
+   容器再怎么重指都没用（.term 那条会输给按钮自己匹配到的那条）。
+   放在 :root 上，按钮平时是"继承"到默认值，容器里的 `.term .chip` 这类
+   选择器直接命中按钮本身，才能真正覆盖。 */
+:root{
+  --ctl-bg:var(--panel);
+  --ctl-bd:var(--line);
+  --ctl-bd-hover:var(--line-2);
+  --ctl-fg:var(--ink);            /* 带文字按钮的字色 */
+  --ctl-fg-idle:var(--ink-3);     /* 纯图标按钮"没被指着"时的字色，比正文浅一档 */
+  --ctl-fg-hover:var(--accent);
+  --ctl-bd-focus:var(--accent-line);
+}
+
+/* ---------- 基元 1 · .btn ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  flex:none;white-space:nowrap;
+  height:var(--ctl-md-h);padding:0 14px;
+  border-radius:var(--r-md);
+  border:1px solid var(--ctl-bd);
+  background:var(--ctl-bg);
+  color:var(--ctl-fg);
+  font-size:var(--ctl-md-fs);font-weight:600;
+  box-shadow:var(--shadow-1);
+  transition:transform var(--dur-fast) var(--ease),
+             box-shadow var(--dur-fast) var(--ease),
+             border-color var(--dur-fast) var(--ease),
+             background-color var(--dur-fast) var(--ease),
+             color var(--dur-fast) var(--ease);
+}
+.btn:hover{border-color:var(--ctl-bd-hover);transform:translateY(var(--lift));box-shadow:var(--shadow-2);}
+.btn:active{transform:translateY(0);box-shadow:var(--shadow-1);}
+.btn:disabled,.btn[disabled]{opacity:.4;pointer-events:none;}
+
+/* 主行动：整块强调色。chapter_1 的 .btn--primary 是纯色底 + 同色描边，
+   hover 时描边转透明、底色压深一档 —— 这里照做，只是压深用 color-mix 现算，
+   免得再开一个 token。
+   强调色按钮**不吃容器的表面变量**：橙底橙字在深色终端里和浅色卡片里是同一个东西，
+   这正是它作为主行动按钮的意义。 */
+.btn--primary,.btn--primary:hover{--ctl-bg:var(--accent);--ctl-bd:var(--accent);--ctl-fg:var(--accent-ink);}
+.btn--primary:hover{background:color-mix(in srgb,var(--accent) 88%,#000);border-color:transparent;}
+
+/* 危险动作：浅红底 + 红字。注意 hover **不变深**（chapter_1 就是只换描边）——
+   它表示"这件事有破坏性"，不该靠一个更刺激的 hover 去鼓励点它。 */
+.btn--danger{--ctl-fg:var(--del);background:var(--del-bg);border-color:color-mix(in srgb,var(--del) 35%,var(--ctl-bd));}
+.btn--danger:hover{border-color:var(--del);background:var(--del-bg);}
+
+/* 紧凑档：26px 高，用在终端行 / 弹窗行这类密集处 */
+.btn--sm{height:var(--ctl-sm-h);padding:0 11px;border-radius:var(--ctl-r);font-size:var(--ctl-sm-fs);}
+
+
+/* ---------- 基元 2 · .icon-btn ---------- */
+/* 尺寸走 --ib 变量而不是写死 38px：顶栏那两枚是 38px（= chapter_1 的 .icon-btn），
+   提交图工具、终端切换这些塞在行内的要用 26px。同一个外观，两档尺寸。 */
+.icon-btn{
+  --ib:38px;
+  display:inline-grid;place-items:center;flex:none;
+  width:var(--ib);height:var(--ib);
+  border-radius:var(--r-md);
+  border:1px solid var(--ctl-bd);
+  background:var(--ctl-bg);
+  color:var(--ctl-fg-idle);
+  box-shadow:var(--shadow-1);
+  transition:transform var(--dur-fast) var(--ease),
+             box-shadow var(--dur-fast) var(--ease),
+             border-color var(--dur-fast) var(--ease),
+             background-color var(--dur-fast) var(--ease),
+             color var(--dur-fast) var(--ease);
+}
+.icon-btn:hover{color:var(--ctl-fg-hover);border-color:var(--ctl-bd-focus);transform:translateY(var(--lift));box-shadow:var(--shadow-2);}
+/* 按下时缩一下（chapter_1 的 .icon-btn:active 就是 scale(.96) 而不是位移）——
+   图标按钮没有文字，缩放比位移更能让人感到"按下去了"。 */
+.icon-btn:active{transform:translateY(0) scale(.96);}
+.icon-btn.sm{--ib:var(--ctl-sm-h);border-radius:var(--ctl-r);}
+/* 无框档：弹窗右上角的叉、密码框里的眼睛。它嵌在别人身上，不该自带白底和阴影。 */
+.icon-btn.ghost{background:transparent;border-color:transparent;box-shadow:none;}
+.icon-btn.ghost:hover{background:var(--panel-3);border-color:transparent;color:var(--ink);transform:none;box-shadow:none;}
+
+/* ---------- 基元 3 · .chip ---------- */
+/* 胶囊控件。chapter_1 的 .chip 是可拖拽的卡片筹码（有 grab 光标、拖动位移），
+   这里只借它的**外观**：胶囊 + 描边 + 描边阴影 + 上浮。
+   拖拽那套（touch-action / is-dragging / is-picked）与本项目无关，没有搬。 */
+.chip{
+  display:inline-flex;align-items:center;gap:6px;flex:none;white-space:nowrap;
+  height:var(--ctl-sm-h);padding:0 12px;
+  border-radius:var(--r-pill);
+  border:1px solid var(--ctl-bd);
+  background:var(--ctl-bg);
+  color:var(--ctl-fg);
+  font-size:var(--ctl-sm-fs);font-weight:600;
+  box-shadow:var(--shadow-1);
+  transition:transform var(--dur-fast) var(--ease),
+             box-shadow var(--dur-fast) var(--ease),
+             border-color var(--dur-fast) var(--ease),
+             background-color var(--dur-fast) var(--ease),
+             color var(--dur-fast) var(--ease);
+}
+.chip:hover{border-color:var(--ctl-bd-hover);transform:translateY(var(--lift));box-shadow:var(--shadow-2);}
+.chip:active{transform:translateY(0);box-shadow:var(--shadow-1);}
+
+/* ---------- 深色表面：终端那张卡 ----------
+   终端是恒深的（两套主题下都是黑玻璃，见 theme.css）。它里面的按钮/快捷条
+   不该是白底描边，所以在这里把表面变量整体重指到终端调色板。
+   这是"一套外观、两种表面"，不是给终端开后门另写一套按钮。
+
+   ⚠ 选择器必须落到按钮**自己身上**（.term .btn 而不是 .term）——
+   原因见上面 :root 那段的说明：挂在容器上的值只是被继承，继承永远输给
+   "元素自己匹配到的声明"。 */
+.term .btn,.term .icon-btn,.term .chip{
+  --ctl-bg:var(--term-bg3);
+  --ctl-bd:var(--term-line);
+  --ctl-bd-hover:var(--t-btn-hover-bd);
+  --ctl-fg:var(--term-ink);
+  --ctl-fg-idle:var(--t-btn-ink);
+  --ctl-fg-hover:var(--term-amber);
+  --ctl-bd-focus:color-mix(in srgb,var(--term-amber) 50%,transparent);
+}
+/* 深底上不需要白色投影——阴影在黑底上只会糊成一圈脏边。
+   注意主行动按钮（.btn--primary）也一样去掉：橙块自己在黑底上就够跳了。 */
+.term .btn,.term .icon-btn,.term .chip,
+.term .btn:hover,.term .icon-btn:hover,.term .chip:hover{box-shadow:none;}
+
+/* ---------- 统一动效开关 ----------
+   系统开了"减弱动态效果"就把位移去掉，只保留颜色与阴影的反馈 ——
+   和 chapter_1 的处理一致（它的 reduced-motion 块也是只关 transform）。 */
+@media (prefers-reduced-motion:reduce){
+  .btn:hover,.icon-btn:hover,.chip:hover{transform:none;}
+  .btn:active,.icon-btn:active,.chip:active{transform:none;}
+}

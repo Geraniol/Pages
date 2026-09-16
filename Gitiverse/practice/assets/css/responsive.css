@@ -1,0 +1,154 @@
+/* =====================================================================
+   Git Playground v5 · 响应式
+   ---------------------------------------------------------------------
+   只有一个断点：1081px。
+
+   · ≥1081px —— 桌面三栏，宽度严格 2 : 5 : 4（见 layout.css），可拖拽调整。
+   · ≤1080px —— "半屏堆叠"：改成上（提交图）/ 下（终端 · AI）两格，
+                每格占 1fr，整体刚好填满视口、**不出现全局滚动**；
+                左栏（文件 + 工作区）折叠成一个悬浮按钮，悬停/点击展开为浮层。
+                原来是三格，中间那格是右栏的「任务指南」卡；那张卡删除后
+                右栏只剩 AI 助手，于是并到终端那一格里轮流显示（见 core/stacked.js）。
+
+   ---- 为什么用 display:contents ----
+   堆叠后，"提交图"和"终端"分别来自中栏的第 1、3 个孩子 ——
+   跨列重排本来是做不到的。把中/右两列的**列壳**设成 display:contents 之后，
+   它们的卡片直接成为 .main 网格的项目，于是可以用 grid-area 任意指派到第几行，
+   完全不用挪 DOM（挪 DOM 会丢事件绑定、也会让布局代码和渲染代码互相纠缠）。
+   左栏不参与：它是浮层，自带 position:fixed，本来就脱离网格流。
+
+   顺带把手机端那套"一步一按钮引导"（.mobile-guide / .mgo-*）删掉了：
+   它和堆叠布局是两种重叠的窄屏方案，留着只会互相打架；真要做移动端以后再重构。
+   ===================================================================== */
+
+/* 折叠开关与浮层里的关闭按钮只在堆叠模式下存在（桌面三栏：整列本来就是常驻的）。
+   ⚠ .files-close 这条 display:none 是**全局唯一**一条管它的规则：
+     删掉它，左栏浮层里就会冒出一枚没有样式的关闭按钮（DOM 里那个 #filesClose
+     是保留给 stacked.js 的绑定用的，本来就该永远不显示）。所以这一条不能跟着
+     "清理死代码"一起删。 */
+.files-toggle,.files-close{display:none;}
+
+/* 原来这里有一条 @media (max-width:1240px){ .mode{padding:0 11px} } ——
+   "窗口变窄时先把模式按钮的内边距收一点，好让三个按钮待在顶栏里"。
+   模式按钮整条撤掉后它对不上任何元素，删除。同一件事的另一半
+   （≤800px 把模式按钮收成纯图标）也已从下面的断点里移除。 */
+
+/* =====================================================================
+   ≤1080px · 半屏堆叠
+   ===================================================================== */
+@media (max-width:1080px){
+
+  /* ---------- 两格骨架 ---------- */
+  .main{
+    /* 两行高度可调：--st-r* 是"半屏模式专属"的比例变量（layout.js 里拖出来、存下来）。
+       没调过时用 1fr 兜底 —— 与原来的均分完全一致。
+       用 fr 而不是百分比：百分比加 gap 会溢出，fr 只在剩余空间里分配，永远填满不溢出。
+       ⚠ 变量只有 --st-r1 / --st-r2 两个了：任务指南那张卡删掉后行数从三变两，
+       layout.js 的 applyStack() 也只写这两个（它还负责清掉历史残留的 --st-r3）。 */
+    display:grid;grid-template-columns:1fr;
+    grid-template-rows:var(--st-r1,1fr) var(--st-r2,1fr);
+    gap:10px;padding:10px;
+    /* 固定为"视口减顶栏"：两格各 1fr 平分，页面本身不滚动（各卡内部自己滚）。
+       min-height:640px / 卡片上的 min-height 都必须在这里中和掉，
+       否则内容一多就把整页顶出视口，出现全局滚动条。 */
+    height:calc(100vh - 56px);min-height:0;overflow:hidden;
+  }
+  html,body{overflow:hidden;}
+  #colMid,#colRight{display:contents;}
+  .col{min-height:0;}
+
+  /* 行 1：提交图（相对定位：折叠按钮绝对定位在它左上角） */
+  .graph-card{grid-area:1 / 1;min-height:0;position:relative;}
+  /* 行 2：终端与 AI 轮流占用同一格（切换逻辑见 core/stacked.js） */
+  #termCard{grid-area:2 / 1;min-height:0;}
+  #aiCard{grid-area:2 / 1;min-height:0;}
+  /* 合作模式的身份切换条（.devbar）与它那套四行网格规则已随模式切换一起撤掉：
+     界面现在只跑教学模式，.devbar 恒为 display:none（见 devbar.css），
+     不再是网格项，也就不会再被自动排到隐式的第 3 行里去。 */
+
+  /* ---------- 行 2：终端 ⇄ AI 的过渡 ---------- */
+  /* 只做淡入淡出，**不带任何位移**：上下浮一下会让"同一格里的两块内容"看起来在抖动，
+     而这里本来就是"换个人占这一格"，纯渐变最干净。
+     用 visibility 而不是 display：两者的布局都保留，交叉淡入时不会有一格先塌掉再撑开。 */
+  #termCard,#aiCard{transition:opacity .22s ease, visibility .22s;}
+  #aiCard{opacity:0;visibility:hidden;}
+  body.stack-ai #aiCard{opacity:1;visibility:visible;}
+  body.stack-ai #termCard{opacity:0;visibility:hidden;}
+  @media (prefers-reduced-motion:reduce){
+    #termCard,#aiCard{transition:none;}
+  }
+
+  /* ---------- 左栏折叠：悬浮按钮 + 浮层 ---------- */
+  /* 外观走 .btn--sm（见 buttons.css），这里只剩两件它自己的事：
+     与后面的图标/标题之间留一点空，以及展开时把箭头转过来。
+     （原来是自带一整套白底描边的写法，与同一行的其它按钮各写各的。）
+     ⚠ display 必须在这里显式打开：文件开头那条 `.files-toggle,.files-close{
+     display:none}` 是全局的，半屏模式下要把它翻回来 —— 原来靠的就是这一块里
+     的 display:inline-flex，删了它按钮在任何宽度下都不出现。 */
+  .files-toggle{display:inline-flex;margin-right:2px;}
+  .files-toggle .chev{transition:transform .18s;}
+  body.files-open .files-toggle .chev{transform:rotate(180deg);}
+  #colLeft{
+    /* 顶边落在卡片头部之下（头部 = 顶部 66 + 38 高），而不是盖住按钮本身：
+       浮层压住触发它的按钮 → 按钮收到 pointerleave → 收起 → 按钮又露出来 → 再展开，
+       悬停态会在两者之间反复抖（实测过）。同理按钮的 z-index 高于浮层。 */
+    position:fixed;left:10px;top:104px;z-index:50;
+    width:min(340px,calc(100vw - 20px));max-height:calc(100vh - 116px);
+    display:flex;flex-direction:column;gap:10px;overflow:hidden;
+    background:var(--panel);border:1px solid var(--line-2);border-radius:var(--r);
+    box-shadow:var(--shadow-3);padding:10px;
+    opacity:0;visibility:hidden;transform:translateY(-6px);transition:.18s;
+  }
+  body.files-open #colLeft{opacity:1;visibility:visible;transform:none;}
+  /* 浮层里两张卡按内容分配高度：文件树吃掉剩余空间，工作区提示有上限 */
+  #colLeft>.card{min-height:0;}
+  #colLeft>.card:first-of-type{flex:1 1 auto;}
+  /* 浮层里的工作区也保持固定高度：原来这条是 flex:0 1 auto + max-height:42%，
+     把它覆盖成了"可压缩"，文件树一长就把它挤成标题条。
+     现在文件树（flex:1 1 auto + 卡内滚动）去让位，工作区纹丝不动。 */
+  #wsCard{flex:0 0 auto;max-height:none;}
+  /* 浮层右上角原来有个 X 关闭按钮，已去掉：浮层的开合本来就有四条鼠标/键盘路径
+     （再点一次"文件与工作区"按钮、指针移出、点浮层外部、Esc），X 是多余的，
+     右下角还白占 38px 的标题宽度。DOM 里的 #filesClose 保留但保持全局的
+     display:none（见文件开头），这样 stacked.js 的绑定与旧测试不受影响。 */
+
+  /* ---------- 课程向导的半屏排布（整块删除） ----------
+     这里原来有一整套"半屏下课程面板改左右两列"的规则：课程条 + 章节导航竖排在左列
+     （27% 宽）、正文独占右列，靠 #tasks.has-course / .course-side / .task-list 这套
+     网格壳把两列各自滚起来。
+     任务指南那张卡（#guideCard 与它的 #tasks）已经从界面上删掉，课程面板没有容器了，
+     这些选择器全部落空 —— 留着只会让人以为界面上还有这么一块，所以整段移除。
+     课程面板的桌面样式仍在 tasks.css / course.css 里，将来要把这张卡加回来时
+     一并恢复这一段即可（那是当时为窄屏专门量过的排布）。 */
+
+  /* ---------- 空间不够时的收尾 ---------- */
+  /* 图例里的"vis-network · 横向"是引擎信息，窄屏没必要占一行 */
+  .legend .tipbit{display:none;}
+  .legend{gap:12px;padding:6px 10px;}
+  /* "悬停…/点击…"这类提示在窄屏让位给标题 —— 但**终端那条除外**：
+     终端每一行都能悬停回溯，这句是它唯一的说明；被回溯的行本身在视觉上又是灰色的，
+     没有这句提示就完全看不出"这里可以点"。其余几处（提交图/文件树/工作区）说的是
+     各自的悬停/点击效果，窄屏下仍按原样收起。 */
+  .card-head .hint{display:none;}
+  .term .card-head .hint{display:flex;flex:none;white-space:nowrap;margin-left:auto;}
+  /* 提交图两枚工具按钮的尺寸交给 .icon-btn.sm（见 buttons.css），这里不再单独覆盖 */
+}
+
+/* 原来 800px 处还有一条"把三个模式按钮收成纯图标"的断点：模式按钮撤掉后，
+   顶栏右侧只剩「重置 + 设置」两枚小控件，宽度压力小了一个量级
+   （实测 ~788px → ~540px 的那套换算也随之作废），整条删除。 */
+
+/* git ⇄ ai 切换按钮只在半屏堆叠模式下出现（桌面两栏都在，没有"切换"可言） */
+@media (max-width:1080px){
+  /* 用 inline-grid 而不是 inline-flex：它的外观来自 .icon-btn，
+     那颗按钮靠 place-items:center 把图标居中 —— 换成 flex 就没有居中了
+     （.icon-btn 不写 align-items/justify-content，因为默认档就是 grid）。 */
+  .pswitch{display:inline-grid;}
+}
+/* 更窄（≤760px）：提交图那个折叠按钮只留图标 + 箭头。
+   品牌名不再隐藏 —— 它是这张界面唯一的标题，窄屏也得看得见。 */
+@media (max-width:760px){
+  .appbar{gap:10px;padding:0 10px;}
+  .files-toggle span[data-i18n="files.toggle"]{display:none;}
+  #colLeft{width:calc(100vw - 20px);}
+}
