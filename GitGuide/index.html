@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Interactive prototype — Chapter 1: Why Do We Need Git.">
+  <title>Chapter 1 · Why Do We Need Git</title>
+
+  <!-- ---------------------------------------------------------------------
+    Theme bootstrap. Runs before first paint so the page never flashes the
+    wrong palette. Mirrors the logic in assets/app.js (Theme module).
+  --------------------------------------------------------------------- -->
+  <script>
+    (function () {
+      var mode;
+      try { mode = localStorage.getItem('gitcourse.theme'); } catch (e) { mode = null; }
+      if (mode !== 'light' && mode !== 'dark') {
+        mode = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+          ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-theme', mode);
+    })();
+  </script>
+
+  <!-- ---------------------------------------------------------------------
+    Stylesheets. Two layers, on purpose:
+      theme.css   — design tokens, day/night palettes, base elements, motion
+      chapter.css — layout and components
+  --------------------------------------------------------------------- -->
+  <link rel="stylesheet" href="assets/theme.css">
+  <link rel="stylesheet" href="assets/chapter.css">
+</head>
+
+<body>
+  <!-- The shell is intentionally empty: assets/app.js builds the steps rail,
+       the top bar, each page — and, one at a time, each page's beats — from
+       assets/content.en.js. Swap the content file to change what is taught. -->
+  <div class="app">
+    <aside class="rail" id="rail" aria-label="Chapter steps"></aside>
+
+    <div class="main">
+      <header class="topbar" id="topbar"></header>
+      <main class="stage" id="stage" tabindex="-1"></main>
+      <nav class="footnav" id="footnav" aria-label="Step navigation"></nav>
+    </div>
+  </div>
+
+  <noscript>
+    <p style="max-width:44rem;margin:4rem auto;padding:0 1.5rem;font:16px/1.6 system-ui">
+      This chapter is an interactive prototype and needs JavaScript enabled.
+    </p>
+  </noscript>
+
+  <!-- ---------------------------------------------------------------------
+    Scripts, loaded in order (all plain scripts so the file also works when
+    opened directly from disk with file://):
+      icons.js        Lucide sprite + GitIcons.svg() / .hydrate()
+      content.en.js   every string and every piece of teaching data
+      app.js          router, theme, progress and the six page widgets
+  --------------------------------------------------------------------- -->
+  <script src="assets/icons.js"></script>
+  <script src="assets/content.en.js"></script>
+  <script src="assets/app.js"></script>
+</body>
+</html>

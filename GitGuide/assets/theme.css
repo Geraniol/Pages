@@ -1,0 +1,262 @@
+/* ===========================================================================
+ * theme.css — design tokens, day/night palettes, base elements, motion
+ * ---------------------------------------------------------------------------
+ * Nothing in here knows about Chapter 1. It only defines *what things look
+ * like*. Layout lives in chapter.css, data lives in content.en.js.
+ *
+ * Day/night is driven by a single attribute on <html>:
+ *     <html data-theme="light">   or   <html data-theme="dark">
+ * Every colour below is a variable, so both themes share one stylesheet.
+ * =========================================================================== */
+
+/* ------------------------------------------------------------- tokens ---- */
+:root {
+  /* type */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+               "Noto Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+               "Liberation Mono", monospace;
+
+  --fs-xs:   0.75rem;
+  --fs-sm:   0.8125rem;
+  --fs-base: 0.9375rem;
+  --fs-md:   1.0625rem;
+  --fs-lg:   1.375rem;
+  --fs-xl:   1.75rem;
+  --fs-2xl:  2.125rem;
+
+  /* spacing */
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.5rem;
+  --sp-6: 2rem;
+  --sp-7: 3rem;
+
+  /* shape */
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+
+  /* motion */
+  --dur-fast: 140ms;
+  --dur: 260ms;
+  --dur-slow: 520ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out-back: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+  /* layout */
+  --rail-w: 250px;
+  --topbar-h: 62px;
+  --page-max: 1060px;
+
+  /* brand hues — identical in both themes */
+  --accent:      #e8542f;   /* Git orange */
+  --accent-ink:  #ffffff;
+  --info:        #3b82f6;
+  --good:        #16a34a;
+  --warn:        #d97706;
+  --bad:         #dc2626;
+  --violet:      #7c5cf0;
+}
+
+/* ---------------------------------------------------------- day theme ---- */
+:root,
+[data-theme="light"] {
+  color-scheme: light;
+
+  --bg:          #f4f6fb;
+  --bg-grad-a:   #eef1f9;
+  --bg-grad-b:   #f8f5f2;
+
+  --surface:     #ffffff;
+  --surface-2:   #f6f8fc;
+  --surface-3:   #eceff7;
+  --surface-sunk:#e9edf6;
+
+  --text:        #0e1526;
+  --text-soft:   #35405a;
+  --muted:       #64708c;
+  --faint:       #98a3bd;
+
+  --border:      #e2e7f1;
+  --border-firm: #cdd5e5;
+
+  --accent-soft: #fdeee9;
+  --accent-line: #f7c9ba;
+  --info-soft:   #e8f1fe;
+  --good-soft:   #e6f6ec;
+  --warn-soft:   #fdf1e0;
+  --bad-soft:    #fdeaea;
+  --violet-soft: #efeaff;
+
+  --shadow-1: 0 1px 2px rgba(16, 24, 45, 0.05),
+              0 1px 3px rgba(16, 24, 45, 0.04);
+  --shadow-2: 0 2px 4px rgba(16, 24, 45, 0.05),
+              0 8px 20px -6px rgba(16, 24, 45, 0.12);
+  --shadow-3: 0 10px 34px -10px rgba(16, 24, 45, 0.24);
+  --grid-line: rgba(20, 32, 60, 0.06);
+}
+
+/* -------------------------------------------------------- night theme ---- */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg:          #080d18;
+  --bg-grad-a:   #0b1226;
+  --bg-grad-b:   #120e1c;
+
+  --surface:     #111a2c;
+  --surface-2:   #16203a;
+  --surface-3:   #1d2942;
+  --surface-sunk:#0c1424;
+
+  --text:        #e9eefb;
+  --text-soft:   #c3cde3;
+  --muted:       #8b98b8;
+  --faint:       #64708e;
+
+  --border:      #22304c;
+  --border-firm: #33425f;
+
+  --accent-soft: #3a1d16;
+  --accent-line: #6d3323;
+  --info-soft:   #14243f;
+  --good-soft:   #102c1e;
+  --warn-soft:   #33230d;
+  --bad-soft:    #3a1717;
+  --violet-soft: #241c45;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.42),
+              0 10px 26px -8px rgba(0, 0, 0, 0.6);
+  --shadow-3: 0 14px 40px -12px rgba(0, 0, 0, 0.75);
+  --grid-line: rgba(150, 175, 230, 0.08);
+
+  --accent:     #ff6a44;
+  --info:       #5b9dff;
+  --good:       #34c46b;
+  --warn:       #f0a13a;
+  --bad:        #f0645f;
+  --violet:     #9b83ff;
+}
+
+/* --------------------------------------------------------------- base ---- */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: 1.55;
+  color: var(--text);
+  background-color: var(--bg);
+  background-image:
+    radial-gradient(1200px 600px at 12% -10%, var(--bg-grad-a), transparent 62%),
+    radial-gradient(1000px 620px at 96% 4%, var(--bg-grad-b), transparent 58%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background-color var(--dur) var(--ease),
+              color var(--dur) var(--ease);
+}
+
+h1, h2, h3, h4, p, figure { margin: 0; }
+button { font: inherit; color: inherit; }
+svg.lucide { display: block; flex: none; }
+
+::selection { background: var(--accent); color: var(--accent-ink); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ------------------------------------------------------- scrollbars ------ */
+* { scrollbar-width: thin; scrollbar-color: var(--border-firm) transparent; }
+*::-webkit-scrollbar { width: 9px; height: 9px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-firm);
+  border-radius: var(--r-pill);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--faint); background-clip: content-box; }
+
+/* ------------------------------------------------------------ utility ---- */
+.mono { font-family: var(--font-mono); font-size: 0.9em; letter-spacing: -0.01em; }
+
+/* --------------------------------------------------------- animations ---- */
+@keyframes fade-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0.82); }
+  60%  { opacity: 1; transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+@keyframes pop-node {
+  0%   { transform: scale(0); }
+  70%  { transform: scale(1.28); }
+  100% { transform: scale(1); }
+}
+@keyframes nudge-x {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-3px); }
+  75%      { transform: translateX(3px); }
+}
+@keyframes shake-x {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-6px); }
+  40%      { transform: translateX(5px); }
+  60%      { transform: translateX(-3px); }
+  80%      { transform: translateX(2px); }
+}
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  70%  { box-shadow: 0 0 0 12px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes travel-x {
+  from { left: 0%; }
+  to   { left: 100%; }
+}
+@keyframes dash-flow { to { stroke-dashoffset: -24; } }
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-5px); }
+}
+@keyframes wobble {
+  0%, 100% { transform: rotate(0deg); }
+  30%      { transform: rotate(-1.6deg); }
+  65%      { transform: rotate(1.4deg); }
+}
+@keyframes bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+
+/* --------------------------------------------------- reduced motion ------ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
