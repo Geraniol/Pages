@@ -41,7 +41,8 @@ const ICONS = {
   "check": `<path d="M20 6 9 17l-5-5"/>`,
   /* 评价正负面 */
   "thumbs-up": `<path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/> <path d="M7 10v12"/>`,
-  "thumbs-down": `<path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/> <path d="M17 14V2"/>`
+  "thumbs-down": `<path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/> <path d="M17 14V2"/>`,
+  "star": `<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>`
 };
 
 /* ─────────── 标签体系 ───────────
@@ -63,6 +64,20 @@ const DEFAULT_TAGS = {
   "红灯区":   { icon: "octagon-minus",  color: "--tag-redlight" }
 };
 
+/* ─────────── 推荐位判据 ───────────
+   数据契约：有 rank 即视为推荐位（见 SKILL.md 第一节）。
+   卡片徽章与筛选栏都走它，口径只写这一处。 */
+const isFeat = p => !!p.rank;
+
+/* ─────────── 非常规筛选键 ───────────
+   判据不是 tags，而是条目上的某个字段，所以不并进 DEFAULT_TAGS——
+   并进去等于允许数据文件写 tags:["推荐景点"]，那是错的。
+   key 同时是 chip 的 data-key 与 active 集合里的成员，与标签同权参与筛选。
+   color 指 main.css 的变量名：推荐位全站统一用 --feat，不跟随标签色。 */
+const FLAGS = {
+  "推荐景点": { icon: "star", color: "--feat", test: isFeat }
+};
+
 const DEFAULT_TILES =
   "https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}";
 
@@ -77,8 +92,11 @@ const cssVar = n => (CSSVARS.getPropertyValue(n) || "").trim();
 
 let TAGS = DEFAULT_TAGS;                       // 每次挂载按城市重设
 
-const colorOf = t => (TAGS[t] && cssVar(TAGS[t].color)) || "#8a8a9a";
-const glyphOf = t => ICONS[(TAGS[t] && TAGS[t].icon) || ""] || "";
+/* 标签与非常规筛选键共用一套取色/取图标：两边都是「key → {icon, color}」。
+   查不到时退同一个默认色——默认值只此一处，别在别处再写一遍。 */
+const defOf   = k => TAGS[k] || FLAGS[k] || null;
+const colorOf = k => (defOf(k) && cssVar(defOf(k).color)) || "#8a8a9a";
+const glyphOf = k => ICONS[(defOf(k) && defOf(k).icon) || ""] || "";
 const INK  = () => cssVar("--pin-ink")  || "#23232e";
 const FILL = () => cssVar("--pin-fill") || "#ffffff";
 
@@ -147,7 +165,8 @@ const el = {
   cityName: $("city-name"), cityBtn: $("city-btn"), count: $("count"),
   filters: $("filters"), list: $("list"),
   overlay: $("overlay"), sheet: $("sheet"),
-  cityOverlay: $("city-overlay"), citySheet: $("city-sheet")
+  cityOverlay: $("city-overlay"), citySheet: $("city-sheet"),
+  mapWarning: $("map-warning")
 };
 
 const CLOSE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"` +
@@ -156,6 +175,18 @@ const CLOSE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"` 
 function bootError(msg) {
   const box = $("boot-error");
   if (box) { box.textContent = msg; box.hidden = false; }
+}
+
+/* 底图失效提示。瓦片加载失败在界面上是「静默」的——要么一片空白，
+   要么铺满瓦片源自己返回的占位图，使用者只能看出「地图坏了」。 */
+function showMapWarning(msg) {
+  if (!el.mapWarning) return;
+  el.mapWarning.textContent = msg;
+  el.mapWarning.hidden = false;
+}
+
+function hideMapWarning() {
+  if (el.mapWarning) el.mapWarning.hidden = true;
 }
 
 /* ─────────── 城市数据按需加载 ───────────
@@ -181,6 +212,7 @@ function loadCity(entry, ok) {
 
 let map = null, cityId = null, CITY = null;
 let spots = [], markers = {}, markerLayer = null;
+let tileErr = 0, tileOk = 0;                   // 底图瓦片成败计数，用于失效提示
 const active = new Set();
 
 /* ══════════════ 挂载 ══════════════ */
@@ -199,6 +231,9 @@ function mount(id) {
   spots = [];
   markers = {};
   active.clear();
+  tileErr = 0;
+  tileOk = 0;
+  hideMapWarning();
   closeDetail();
   closeCityPicker();
   document.body.dataset.view = "map";
@@ -224,15 +259,37 @@ function build(entry, data) {
   spots = data.spots;
   TAGS = Object.assign({}, DEFAULT_TAGS, data.extraTags || {});
 
-  /* 地图 */
+  /* 地图。center / zoom 是数据契约里的必填项（见 SKILL.md 第一节），
+     这里**不做兜底**：兜底值只能写死在逻辑层，等于把某个城市的坐标混进逻辑，
+     数据一缺就静默显示成那个城市，比报错更难发现。
+     缺了就直接说出来，别让 setView 抛一个看不懂的异常。 */
+  if (!CITY.center || !CITY.zoom) { bootError("数据缺少 center / zoom：" + entry.file); return; }
   map = L.map("map", { zoomControl: false })
-    .setView(CITY.center || [23.113, 113.300], CITY.zoom || 12);
+    .setView(CITY.center, CITY.zoom);
   L.control.zoom({ position: "bottomright" }).addTo(map);
-  L.tileLayer(CITY.tiles || DEFAULT_TILES, {
+  /* 底图。这里统计的是**网络层**成败：域名解析不了、连接被拒、离线等。
+     注意它发现不了「HTTP 200 但内容是占位图/封禁图」那一类失效
+     （Carto 无 key 的 API KEY REQUIRED、OSM 对 file:// 的 Access blocked）——
+     那两类会正常触发 tileload，只能靠交付前人工抓图核对。
+     判据用「失败数 > 成功数」而非固定阈值：正常加载时失败数几乎为 0，
+     真出故障时失败数会迅速超过成功数。 */
+  const tiles = L.tileLayer(CITY.tiles || DEFAULT_TILES, {
     subdomains: ["1", "2", "3", "4"],
     attribution: CITY.attribution || "",
     maxZoom: 18
-  }).addTo(map);
+  });
+  tiles.on("tileerror", () => {
+    tileErr++;
+    if (tileErr >= 4 && tileErr > tileOk) {
+      const host = String(CITY.tiles || DEFAULT_TILES).replace(/^https?:\/\//, "").split("/")[0];
+      showMapWarning("底图加载失败（" + host + "）。该瓦片源可能已失效或改为需要 key，请更换数据里的 tiles。");
+    }
+  });
+  tiles.on("tileload", () => {
+    tileOk++;
+    if (tileOk > tileErr) hideMapWarning();
+  });
+  tiles.addTo(map);
 
   markerLayer = L.layerGroup().addTo(map);
 
@@ -264,16 +321,22 @@ function build(entry, data) {
 /* ══════════════ 筛选与列表 ══════════════ */
 
 function renderFilters() {
-  const used = Object.keys(TAGS).filter(t => spots.some(p => (p.tags || []).includes(t)));
+  /* 用不到的键不出现：没有推荐位的城市不显示那枚 chip，
+     没有条目的标签也不显示——两者一个口径。 */
+  const used  = Object.keys(TAGS).filter(t => spots.some(p => (p.tags || []).includes(t)));
+  const flags = Object.keys(FLAGS).filter(f => spots.some(FLAGS[f].test));
   el.filters.innerHTML =
-    `<button class="chip all on" data-tag="">全部</button>` +
-    used.map(t =>
-      `<button class="chip" data-tag="${t}" style="--chip-c:${colorOf(t)}">` +
-      `${iconOnly(t)}${t}</button>`).join("");
+    `<button class="chip all on" data-key="">全部</button>` +
+    flags.concat(used).map(k =>
+      `<button class="chip" data-key="${k}" style="--chip-c:${colorOf(k)}">` +
+      `${iconOnly(k)}${k}</button>`).join("");
 }
 
+/* active 里同时装标签与非常规筛选键，两者同权取并集 */
 const matched = () =>
-  spots.filter(p => active.size === 0 || (p.tags || []).some(t => active.has(t)));
+  spots.filter(p => active.size === 0 ||
+    (p.tags || []).some(t => active.has(t)) ||
+    Object.keys(FLAGS).some(f => active.has(f) && FLAGS[f].test(p)));
 
 function refresh() {
   const vis = matched();
@@ -289,7 +352,7 @@ function renderList(vis) {
     return;
   }
   el.list.innerHTML = vis.map(p => {
-    const feat = !!p.rank;                       // 有 rank 即视为推荐位
+    const feat = isFeat(p);
     return `
     <div class="card${feat ? " feat" : ""}" data-id="${p.id}">
       <div class="pin-sm">${pinSVG(p.tags || [])}</div>
@@ -418,13 +481,14 @@ function switchCity(id) {
 el.filters.onclick = e => {
   const btn = e.target.closest(".chip");
   if (!btn) return;
-  const tag = btn.dataset.tag;
-  if (!tag) active.clear();
-  else if (active.has(tag)) active.delete(tag);
-  else active.add(tag);
+  /* data-key 既可能是标签名，也可能是非常规筛选键（如「推荐景点」） */
+  const key = btn.dataset.key;
+  if (!key) active.clear();
+  else if (active.has(key)) active.delete(key);
+  else active.add(key);
   el.filters.querySelectorAll(".chip").forEach(c => {
-    const t = c.dataset.tag;
-    c.classList.toggle("on", t ? active.has(t) : active.size === 0);
+    const k = c.dataset.key;
+    c.classList.toggle("on", k ? active.has(k) : active.size === 0);
   });
   refresh();
 };

@@ -50,7 +50,10 @@
   --pin-fill:      #ffffff;   /* 标记底色                  */
   --pin-md:        40px;      /* 地图标记宽度。app.js 会读取它来定 iconSize，
                                  改这里即可，不要在 JS 里另写一份 */
-  --pin-sm:        28px;      /* 卡片与详情里的标记宽度    */
+  --pin-sm:        28px;      /* 标记图形本身的宽度（卡片与详情共用）。
+                                 **推荐位与普通位同宽**，尺寸不作为区分手段 */
+  --pin-col:       36px;      /* 列表卡片里标记占的列宽：图标在列内居中，
+                                 推荐位与普通位共用，正文左边缘才对得齐 */
   --pin-shadow:    0 2px 4px rgba(0, 0, 0, .4);
 
   /* ---------- 尺寸与节奏 ---------- */
@@ -101,6 +104,29 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .app { display: flex; height: 100%; }
 
 .mapwrap { flex: 1; position: relative; min-width: 0; }
+
+/* 底图失效提示：浮在地图上，不挤占布局。
+   瓦片源失效或被拦截时，报错图会静默铺满整屏，没有提示很难判断是网络问题
+   还是底图源本身的问题。由 app.js 统计瓦片成败后显示/隐藏。 */
+.map-warning {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 800;                              /* 盖住瓦片与标记，低于详情弹层 */
+  max-width: calc(100% - 24px);
+  margin: 0;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--neg) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--neg) 16%, var(--bg-elevated));
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.map-warning[hidden] { display: none; }
 #map { position: absolute; inset: 0; background: var(--bg-elevated); }
 
 .panel {
@@ -200,9 +226,20 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .card:hover { background: var(--bg-card-hover); }
 
 /* ---------- 推荐位：只给图标加一层光晕 ----------
-   不加底托、不加方框，避免看起来像一个被框住的图标。 */
-.card .pin-sm { width: var(--pin-sm); flex: none; margin-top: 1px; transition: width .16s; }
-.card.feat .pin-sm { width: 36px; }
+   不加底托、不加方框，避免看起来像一个被框住的图标。
+   列宽恒定，图形在列内居中，正文左边缘因此天然对齐。
+   **图标本身推荐位与普通位同宽（都用 --pin-sm）**：早先这里多写了一句
+   `.card.feat .pin-sm svg { width: var(--pin-col) }`，推荐位图标被放大到 36px，
+   同一列里一大一小既不等重、左边缘还差 4px，看起来就是没对齐。
+   现在图标尺寸不再是区分手段，推荐位只剩光晕与标题旁的徽章。 */
+.card .pin-sm {
+  width: var(--pin-col);
+  flex: none;
+  display: grid;
+  justify-items: center;
+  margin-top: 1px;
+}
+.card .pin-sm svg { width: var(--pin-sm); }
 .card.feat .pin-sm svg {
   filter: drop-shadow(0 0 5px color-mix(in srgb, var(--feat) 65%, transparent));
 }
@@ -471,7 +508,6 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .pin { display: block; width: 100%; height: auto; aspect-ratio: 44 / 58; }
 .leaflet-div-icon { background: transparent !important; border: none !important; }
 .pin-wrap { filter: drop-shadow(var(--pin-shadow)); }
-.pin-wrap.dim { opacity: .28; filter: none; }
 
 .leaflet-popup-content-wrapper {
   background: var(--bg-panel);
@@ -518,7 +554,6 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   body[data-view="cards"] .panel { transform: none; }
 
   .brand { padding: 16px 16px 12px; }
-  .brand h1 { font-size: 19px; }
 
   /* 筛选条横向滚动，不换行，避免占掉半屏 */
   .filters {
@@ -585,7 +620,6 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 /* 横屏矮屏时压缩标题区 */
 @media (max-height: 520px) and (max-width: 768px) {
   .brand { padding: 12px 16px 8px; }
-  .brand h1 { font-size: 17px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

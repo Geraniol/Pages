@@ -11,5 +11,8 @@
 window.CITIES = [
   { id:"gz", name:"广州", file:"data/gz.js" },
   { id:"sz", name:"深圳", file:"data/sz.js" },
-  { id:"hk", name:"香港", file:"data/hk.js" }
+  { id:"hk", name:"香港", file:"data/hk.js" },
+  /* 全国一份：境外底图与坐标系都不同，见 SKILL.md 第四节「境外」小节 */
+  { id:"au", name:"澳大利亚", file:"data/au.js" },
+  { id:"nz", name:"新西兰", file:"data/nz.js" }
 ];

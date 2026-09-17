@@ -38,4 +38,4 @@ A live clock that tells whether the current period is peak or off-peak, counts d
 A TimeTable for 2026-2027S1 Preschool Education Students of GDUE.
 
 ### [TravelMap](TravelMap)
-A Leaflet map of hand-picked places in Guangzhou, Shenzhen and Hong Kong: filter by tag, then click a pin or a card for opening hours, tickets, transport, sourced pros and cons, and official links.
+A Leaflet map of hand-picked places in Guangzhou, Shenzhen, Hong Kong, Australia and New Zealand: filter by tag or by the recommended-spots chip, then click a pin or a card for opening hours, tickets, transport, sourced pros and cons, and official links.
