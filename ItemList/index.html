@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title></title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface-2: #f7f8f9;
+    --text: #1f2329;
+    --text-2: #7a828d;
+    --border: #eceef1;
+    --shadow: 0 2px 10px rgba(15, 20, 30, .05);
+    --red: #ff3388;
+    --orange: #ff9944;
+    --yellow: #ffcc22;
+    --green: #77cc44;
+    --blue: #22aaee;
+    --radius: 14px;
+  }
+  [data-theme="dark"] {
+    --bg: #0f1115;
+    --surface: #1a1d24;
+    --surface-2: #20242d;
+    --text: #e6e8eb;
+    --text-2: #98a1ad;
+    --border: #2a2f3a;
+    --shadow: 0 2px 12px rgba(0, 0, 0, .4);
+    --red: #ee4444;
+    --orange: #ee7711;
+    --yellow: #eedd00;
+    --green: #22cc55;
+    --blue: #22bbff;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    line-height: 1.5;
+    transition: background-color .4s ease, color .4s ease;
+  }
+
+  .wrap {
+    max-width: 660px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .top {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 16px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    transition: background-color .4s ease, border-color .4s ease;
+  }
+  .title { margin-right: auto; }
+  .title h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: .3px;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+  .leg {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-2);
+    white-space: nowrap;
+    transition: color .4s ease;
+  }
+  .leg i {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--c, var(--red));
+  }
+
+  .icon-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+    transition: background-color .3s ease, border-color .3s ease,
+                transform .2s ease, color .3s ease;
+  }
+  .icon-btn:hover { transform: translateY(-1px); border-color: var(--text-2); }
+  .icon-btn:active { transform: scale(.94); }
+  .reset-btn:hover { color: var(--red); border-color: var(--red); }
+  .theme-btn .sun, .theme-btn .moon { position: absolute; transition: opacity .35s ease, transform .5s ease; }
+  .theme-btn .sun { opacity: 1; transform: rotate(0deg) scale(1); }
+  .theme-btn .moon { opacity: 0; transform: rotate(-90deg) scale(.6); }
+  [data-theme="dark"] .theme-btn .sun { opacity: 0; transform: rotate(90deg) scale(.6); }
+  [data-theme="dark"] .theme-btn .moon { opacity: 1; transform: rotate(0deg) scale(1); }
+  .icon-btn svg { display: block; }
+
+  .actions { display: flex; align-items: center; gap: 8px; }
+  .ver {
+    margin-left: 8px;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-2);
+    vertical-align: middle;
+    letter-spacing: .2px;
+  }
+
+  /* 移动端：两栏——第 1 行「标题+按钮」，第 2 行「图例」 */
+  @media (max-width: 640px) {
+    .top { flex-wrap: wrap; }
+    .title { order: 1; flex: 1 1 auto; }
+    .actions { order: 2; }
+    .legend { order: 3; width: 100%; }
+  }
+
+  /* ---------- 分类 ---------- */
+  .cat {
+    margin-bottom: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    transition: background-color .4s ease, border-color .4s ease;
+  }
+  .cat-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color .25s ease;
+  }
+  .cat-head:hover { background: var(--surface-2); }
+  .cat-head .icon {
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--surface-2);
+    color: var(--text-2);
+    transition: background-color .4s ease, color .4s ease;
+  }
+  .cat-head .icon svg { display: block; }
+  .cat-head .name { font-size: 15px; font-weight: 600; }
+  .cat-head .count {
+    margin-left: auto;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-2);
+    padding: 3px 9px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    transition: background-color .4s ease, color .4s ease;
+  }
+  .cat-head .count.done { color: var(--green); }
+  .cat-head .count.all { color: var(--green); font-weight: 700; }
+  .cat-head .chev {
+    color: var(--text-2);
+    transform: rotate(0deg);
+    transition: transform .35s ease;
+  }
+  .cat.collapsed .cat-head .chev { transform: rotate(-90deg); }
+
+  .cat-body {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows .35s cubic-bezier(.22, .61, .36, 1);
+  }
+  .cat-body > .inner { overflow: hidden; min-height: 0; }
+  .cat.collapsed .cat-body { grid-template-rows: 0fr; }
+
+  /* ---------- 物品 ---------- */
+  .items { padding: 2px 8px 10px; }
+  .item {
+    --prio: var(--red);
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 8px 9px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background-color .25s ease, opacity .3s ease;
+  }
+  .item:hover { background: var(--surface-2); }
+  .item .box {
+    width: 19px;
+    height: 19px;
+    flex: none;
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+    border: 2px solid var(--prio);
+    border-radius: 6px;
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition: background-color .25s ease, border-color .25s ease;
+  }
+  .item .box:checked {
+    background: var(--prio);
+    border-color: var(--prio);
+  }
+  .item .box:checked::after {
+    content: "";
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-1px, -1px);
+  }
+  .item .lbl { font-size: 14.5px; transition: color .3s ease; }
+
+  .item.checked { opacity: .42; }
+  .item.checked .lbl { color: var(--text-2); text-decoration: line-through; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="title">
+        <h1><span id="appTitle"></span><span class="ver" id="ver"></span></h1>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="actions">
+        <button class="icon-btn reset-btn" id="resetBtn" title="清空本地记录" aria-label="清空本地记录">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+        </button>
+        <button class="icon-btn theme-btn" id="themeBtn" aria-label="切换日夜模式" title="日夜模式">
+          <svg class="sun" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M2 12h2.5M19.5 12H22M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+          <svg class="moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main id="list"></main>
+  </div>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const DATA = window.CHECKLIST_DATA || { categories: [] };
+
+  /* 页面标题：来自 data.js 的 title 字段，同步用于浏览器标签 <title> 与顶部 h1（改 data.js 即可重命名整个页面） */
+  const pageTitle = DATA.title || "大学开学物品清单";
+  document.title = pageTitle;
+  const titleEl = document.getElementById("appTitle");
+  if (titleEl) titleEl.textContent = pageTitle;
+
+  const COLORS = { red: "var(--red)", orange: "var(--orange)", yellow: "var(--yellow)", green: "var(--green)" };
+
+  /* Lucide 图标内联路径（stroke 风格，viewBox 0 0 24 24） */
+  const ICONS = {
+    "file-text": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+    "bed-double": '<path d="M2 20v-8a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v8"/><path d="M4 10V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v4"/><path d="M2 17h20"/>',
+    "spray-can": '<path d="M3 3h.01"/><path d="M7 5h.01"/><path d="M11 7h.01"/><path d="M3 7h.01"/><path d="M7 9h.01"/><path d="M3 11h.01"/><rect width="4" height="4" x="15" y="5"/><path d="m19 9 2 2v10c0 .6-.4 1-1 1h-6c-.6 0-1-.4-1-1V11l2-2"/><path d="m13 14 8-2"/><path d="m13 19 8-2"/>',
+    "washing-machine": '<path d="M3 6h3"/><path d="M17 6h.01"/><rect width="18" height="20" x="3" y="2" rx="2"/><circle cx="12" cy="13" r="5"/><path d="M12 18a2.5 2.5 0 0 0 0-5 2.5 2.5 0 0 1 0-5"/>',
+    "shirt": '<path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>',
+    "laptop": '<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/>',
+    "book-open": '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>',
+    "package": '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/>',
+    "moon": '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+    "pill": '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/>',
+    "archive": '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>'
+  };
+  const svgIcon = (name) =>
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">' +
+    (ICONS[name] || "") + "</svg>";
+
+  const listEl = document.getElementById("list");
+  const themeBtn = document.getElementById("themeBtn");
+  const root = document.documentElement;
+  const legendEl = document.getElementById("legend");
+
+  /* 图例：由 data.js 的 tags 字段（颜色 → 名称）动态生成，改 data.js 即可重命名/增减彩色图例 */
+  function buildLegend() {
+    if (!legendEl) return;
+    legendEl.innerHTML = "";
+    const tags = DATA.tags;
+    if (!tags) return;
+    Object.keys(tags).forEach((key) => {
+      const span = document.createElement("span");
+      span.className = "leg";
+      const dot = document.createElement("i");
+      dot.style.setProperty("--c", COLORS[key] || COLORS.red);
+      span.appendChild(dot);
+      span.appendChild(document.createTextNode(tags[key]));
+      legendEl.appendChild(span);
+    });
+  }
+  buildLegend();
+
+  /* ---------- 存储 ---------- */
+  const KEY_CHECKED = "uni-checklist:checked";
+  const KEY_COLLAPSED = "uni-checklist:collapsed";
+  const KEY_THEME = "uni-checklist:theme";
+
+  const load = (k, fb) => {
+    try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? fb : v; }
+    catch (e) { return fb; }
+  };
+  const save = (k, v) => {
+    try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+  };
+
+  const checked = new Set(load(KEY_CHECKED, []));
+  const collapsed = load(KEY_COLLAPSED, {});
+  let theme = load(KEY_THEME, null) || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+  /* 方案1：清理本地缓存中的孤儿/失效 id（物品 + 分类），并在有清理时回写 */
+  const validItemIds = new Set();
+  const validCatIds = new Set();
+  DATA.categories.forEach((c) => {
+    validCatIds.add(c.id);
+    (c.items || []).forEach((it) => validItemIds.add(it.id));
+  });
+  let pruned = false;
+  [...checked].forEach((id) => { if (!validItemIds.has(id)) { checked.delete(id); pruned = true; } });
+  Object.keys(collapsed).forEach((cid) => { if (!validCatIds.has(cid)) { delete collapsed[cid]; pruned = true; } });
+  if (pruned) { save(KEY_CHECKED, [...checked]); save(KEY_COLLAPSED, collapsed); }
+
+  function applyTheme() { root.setAttribute("data-theme", theme); }
+  function toggleTheme() {
+    theme = theme === "dark" ? "light" : "dark";
+    applyTheme();
+    save(KEY_THEME, theme);
+  }
+  applyTheme();
+  themeBtn.addEventListener("click", toggleTheme);
+
+  // 版本号：仅展示，不参与校验
+  const verEl = document.getElementById("ver");
+  if (verEl && typeof DATA.v !== "undefined") verEl.textContent = "v" + DATA.v;
+
+  /* 重置：清空所有本地缓存并重建界面 */
+  const resetBtn = document.getElementById("resetBtn");
+  resetBtn.addEventListener("click", () => {
+    if (!window.confirm("确定清空所有本地记录（勾选、折叠、主题）吗？")) return;
+    localStorage.removeItem(KEY_CHECKED);
+    localStorage.removeItem(KEY_COLLAPSED);
+    localStorage.removeItem(KEY_THEME);
+    checked.clear();
+    Object.keys(collapsed).forEach((k) => delete collapsed[k]);
+    theme = "light";
+    applyTheme();
+    listEl.innerHTML = "";
+    init();
+  });
+
+  /* ---------- 渲染 ---------- */
+  function countDone(cat) {
+    return cat.items.filter((it) => checked.has(it.id)).length;
+  }
+
+  function buildCategory(cat) {
+    const sec = document.createElement("section");
+    sec.className = "cat" + (collapsed[cat.id] ? " collapsed" : "");
+    sec.dataset.cat = cat.id;
+
+    const head = document.createElement("div");
+    head.className = "cat-head";
+    head.innerHTML =
+      '<span class="icon">' + svgIcon(cat.icon) + "</span>" +
+      '<span class="name"></span>' +
+      '<span class="count"></span>' +
+      '<span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><polyline points="6 9 12 15 18 9"/></svg></span>';
+    head.querySelector(".name").textContent = cat.name;
+
+    const countEl = head.querySelector(".count");
+    const updateCount = () => {
+      const done = countDone(cat);
+      countEl.textContent = done + " / " + cat.items.length;
+      countEl.classList.toggle("done", done > 0);
+      countEl.classList.toggle("all", done === cat.items.length);
+    };
+
+    head.addEventListener("click", () => {
+      sec.classList.toggle("collapsed");
+      collapsed[cat.id] = sec.classList.contains("collapsed");
+      save(KEY_COLLAPSED, collapsed);
+    });
+
+    const body = document.createElement("div");
+    body.className = "cat-body";
+    const inner = document.createElement("div");
+    inner.className = "inner";
+    const items = document.createElement("div");
+    items.className = "items";
+
+    cat.items.forEach((it) => items.appendChild(buildItem(it)));
+    inner.appendChild(items);
+    body.appendChild(inner);
+    sec.appendChild(head);
+    sec.appendChild(body);
+    sec._items = items;
+    sec._updateCount = updateCount;
+    /* 是否“所有选项都已勾选”（用于自动折叠；空分类不折叠） */
+    sec._allFilled = () => cat.items.length > 0 && cat.items.every((it) => checked.has(it.id));
+    updateCount();
+    return sec;
+  }
+
+  function buildItem(it) {
+    const row = document.createElement("label");
+    row.className = "item";
+    row.style.setProperty("--prio", COLORS[it.tag] || COLORS.red);
+    row.dataset.id = it.id;
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "box";
+    cb.checked = checked.has(it.id);
+    if (cb.checked) row.classList.add("checked");
+    row.appendChild(cb);
+
+    const lbl = document.createElement("span");
+    lbl.className = "lbl";
+    lbl.textContent = it.text;
+    row.appendChild(lbl);
+
+    row.addEventListener("change", () => {
+      if (cb.checked) { checked.add(it.id); row.classList.add("checked"); }
+      else { checked.delete(it.id); row.classList.remove("checked"); }
+      save(KEY_CHECKED, [...checked]);
+      const s = secOf(row);
+      reorder(s);
+      catUIOf(s);
+      /* 优化：该分类所有选项都被勾选 → 自动折叠（写入 localStorage，刷新保持折叠）。
+         取消勾选时分类必处于展开状态，故无需“自动展开”，不会出现折叠时看不到复选框的死角。 */
+      if (s && s._allFilled && s._allFilled() && !s.classList.contains("collapsed")) {
+        s.classList.add("collapsed");
+        collapsed[s.dataset.cat] = true;
+        save(KEY_COLLAPSED, collapsed);
+      }
+    });
+
+    return row;
+  }
+
+  const secOf = (el) => closest(el, ".cat");
+  const catUIOf = (el) => { const s = closest(el, ".cat"); if (s && s._updateCount) s._updateCount(); };
+  function closest(el, sel) {
+    while (el && el !== document) { if (el.matches(sel)) return el; el = el.parentElement; }
+    return null;
+  }
+
+  // FLIP：勾选后移动到分类底部，动画过渡
+  function reorder(catEl) {
+    const items = [...catEl._items.children];
+    const unchecked = items.filter((i) => !i.classList.contains("checked"));
+    const chk = items.filter((i) => i.classList.contains("checked"));
+    const newOrder = unchecked.concat(chk);
+    if (newOrder.length !== items.length) return;
+
+    const first = items.map((el) => el.getBoundingClientRect().top);
+    newOrder.forEach((el) => catEl._items.appendChild(el));
+    items.forEach((el, i) => {
+      const delta = first[i] - el.getBoundingClientRect().top;
+      if (Math.abs(delta) > 0.5) {
+        el.animate(
+          [{ transform: "translateY(" + delta + "px)" }, { transform: "translateY(0)" }],
+          { duration: 320, easing: "cubic-bezier(.22,.61,.36,1)" }
+        );
+      }
+    });
+  }
+
+  /* ---------- 初始化 ---------- */
+  function init() {
+    const frag = document.createDocumentFragment();
+    DATA.categories.forEach((cat) => frag.appendChild(buildCategory(cat)));
+    listEl.appendChild(frag);
+
+    // 初始：勾选项置底（不带动画）
+    DATA.categories.forEach((cat) => {
+      const sec = listEl.querySelector('[data-cat="' + cat.id + '"]');
+      const arr = [...sec._items.children];
+      const un = arr.filter((i) => !i.classList.contains("checked"));
+      const ch = arr.filter((i) => i.classList.contains("checked"));
+      [].concat(un, ch).forEach((el) => sec._items.appendChild(el));
+    });
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

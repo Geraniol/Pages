@@ -10,6 +10,9 @@ A static web app that lets two OpenAI-compatible models take turns in one conver
 ### [Background](Background)
 A set of interactive animated wallpapers — an illustrated girl, chocolate, a silent planet and a mini planet — made to run full screen as a screensaver or inside Wallpaper Engine.
 
+### [Color565](Color565)
+An RGB565 color picker: R/G/B sliders in 5/6/5 bits, with the packed 16-bit value, its bit-by-bit layout and the 8-bit approximation shown live, plus a hex round-trip comparison against the original color.
+
 ### [CUHKSZPASSPORT](CUHKSZPASSPORT)
 A static, offline-ready web app that simulates the CUHKSZ Passport, installable on mobile devices and supporting customizable information display.
 
@@ -21,6 +24,9 @@ A two-part Git learning site: Git Adventure, a guided interactive course whose s
 
 ### [ImgDiff](ImgDiff)
 A web app that allows users to compare two images and highlight the differences.
+
+### [ItemList](ItemList)
+A checklist page with collapsible categories, per-item priority colours and locally stored check-offs, whose entire content is edited in `data.js` rather than in the page.
 
 ### [PolarAxis](PolarAxis)
 A 3D viewfinder simulator that shows how polar alignment errors smear stars into trails, with draggable dials for the polar, mount and camera axes.

@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color565 颜色控制与可视化</title>
+    <style>
+        :root {
+            --bg: #1a1d23;
+            --surface: #252830;
+            --surface2: #2d3039;
+            --text: #e1e4e8;
+            --text-secondary: #a0a6b0;
+            --border: #3a3d45;
+            --accent-r: #ff5252;
+            --accent-g: #4caf82;
+            --accent-b: #4d9dff;
+            --accent-r-bg: rgba(255, 82, 82, 0.15);
+            --accent-g-bg: rgba(76, 175, 130, 0.15);
+            --accent-b-bg: rgba(77, 157, 255, 0.15);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --transition: 0.2s ease;
+            --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', 'Monaco', 'Menlo', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .container {
+            background: var(--surface);
+            border-radius: 20px;
+            padding: 32px 28px;
+            width: 100%;
+            max-width: 620px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* 标题 */
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header .logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #ff5252, #ff9800, #4caf82, #4d9dff, #9c27b0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 900;
+            font-size: 16px;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+        .header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            color: #fff;
+        }
+        .header .badge {
+            font-size: 0.7rem;
+            background: var(--surface2);
+            color: var(--text-secondary);
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            border: 1px solid var(--border);
+        }
+
+        /* 颜色预览区 */
+        .preview-section {
+            display: flex;
+            gap: 16px;
+            align-items: stretch;
+        }
+        .preview-main {
+            flex: 1;
+            min-height: 140px;
+            border-radius: var(--radius);
+            border: 3px solid var(--border);
+            transition: background-color 0.15s ease, border-color 0.2s ease;
+            position: relative;
+            overflow: hidden;
+            cursor: default;
+            display: flex;
+            align-items: flex-end;
+            padding: 14px 16px;
+        }
+        .preview-main .color-label {
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            font-family: var(--font-mono);
+            transition: all 0.2s ease;
+        }
+        .preview-compare {
+            width: 70px;
+            min-height: 140px;
+            border-radius: var(--radius);
+            border: 2px dashed var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: background-color 0.15s ease, border-color 0.2s ease, opacity 0.3s ease;
+            position: relative;
+        }
+        .preview-compare.empty {
+            opacity: 0.4;
+            background: var(--surface2) !important;
+            border-style: dashed;
+        }
+        .preview-compare .compare-hint {
+            font-size: 0.65rem;
+            color: var(--text-secondary);
+            text-align: center;
+            line-height: 1.3;
+            pointer-events: none;
+            padding: 8px;
+        }
+        .preview-compare .compare-label {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            padding: 2px 8px;
+            border-radius: 10px;
+            white-space: nowrap;
+            pointer-events: none;
+            letter-spacing: 0.3px;
+        }
+
+        /* 滑块区域 */
+        .sliders-section {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .slider-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: var(--surface2);
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid transparent;
+            transition: border-color 0.2s ease;
+        }
+        .slider-group:hover {
+            border-color: var(--border);
+        }
+        .slider-label {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.85rem;
+            color: #fff;
+            flex-shrink: 0;
+            letter-spacing: -0.3px;
+        }
+        .slider-label.r {
+            background: #e53935;
+        }
+        .slider-label.g {
+            background: #388e3c;
+        }
+        .slider-label.b {
+            background: #1e6cd9;
+        }
+
+        .slider-input-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+        }
+        .slider-input-wrap input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            outline: none;
+            cursor: pointer;
+            transition: opacity 0.15s ease;
+        }
+        .slider-input-wrap input[type="range"]:active {
+            cursor: grabbing;
+        }
+        /* R滑块轨道 */
+        .slider-r input[type="range"] {
+            background: linear-gradient(to right, #1a0000, #ff3030);
+        }
+        /* G滑块轨道 */
+        .slider-g input[type="range"] {
+            background: linear-gradient(to right, #001a00, #30c050);
+        }
+        /* B滑块轨道 */
+        .slider-b input[type="range"] {
+            background: linear-gradient(to right, #00001a, #3070ff);
+        }
+
+        /* WebKit滑块样式 */
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+            transition: transform 0.1s ease, box-shadow 0.15s ease;
+        }
+        input[type="range"]::-webkit-slider-thumb:active {
+            transform: scale(1.15);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: #fff;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+        }
+
+        .slider-values {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+            flex-shrink: 0;
+            min-width: 110px;
+            justify-content: flex-end;
+            letter-spacing: -0.2px;
+        }
+        .slider-values .val-5bit,
+        .slider-values .val-6bit {
+            font-weight: 700;
+            color: #fff;
+            font-size: 0.85rem;
+            min-width: 22px;
+            text-align: center;
+        }
+        .slider-values .val-8bit {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            opacity: 0.8;
+        }
+        .slider-values .sep {
+            color: #555;
+            margin: 0 1px;
+        }
+
+        /* 信息显示区 */
+        .info-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        @media (max-width: 500px) {
+            .info-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        .info-card {
+            background: var(--surface2);
+            border-radius: var(--radius-sm);
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .info-card .info-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .info-card .info-value {
+            font-family: var(--font-mono);
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: -0.3px;
+            word-break: break-all;
+        }
+        .info-card .info-value.small {
+            font-size: 0.85rem;
+        }
+        .copy-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.7rem;
+            padding: 4px 10px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+            white-space: nowrap;
+            align-self: flex-start;
+            letter-spacing: 0.3px;
+        }
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: #666;
+            color: #fff;
+        }
+        .copy-btn:active {
+            background: rgba(255, 255, 255, 0.12);
+            transform: scale(0.96);
+        }
+        .copy-btn.copied {
+            background: rgba(76, 175, 130, 0.2);
+            border-color: #4caf82;
+            color: #4caf82;
+        }
+
+        /* 二进制显示 */
+        .binary-display {
+            display: flex;
+            align-items: center;
+            gap: 0px;
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            letter-spacing: 1.5px;
+            flex-wrap: wrap;
+            line-height: 2;
+        }
+        .binary-display .bit-group {
+            display: flex;
+            gap: 2px;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        .binary-display .bit-group.r {
+            background: var(--accent-r-bg);
+        }
+        .binary-display .bit-group.g {
+            background: var(--accent-g-bg);
+        }
+        .binary-display .bit-group.b {
+            background: var(--accent-b-bg);
+        }
+        .binary-display .bit {
+            display: inline-block;
+            width: 13px;
+            text-align: center;
+            font-weight: 700;
+            color: #ddd;
+            transition: color 0.15s ease;
+        }
+        .binary-display .bit.highlight {
+            color: #fff;
+        }
+        .binary-display .gap {
+            width: 4px;
+            flex-shrink: 0;
+        }
+        .binary-display .legend-dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            margin-right: 3px;
+            vertical-align: middle;
+            position: relative;
+            top: -1px;
+        }
+        .binary-display .legend-dot.r {
+            background: #ff5252;
+        }
+        .binary-display .legend-dot.g {
+            background: #4caf82;
+        }
+        .binary-display .legend-dot.b {
+            background: #4d9dff;
+        }
+
+        /* Hex输入 */
+        .hex-input-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .hex-input {
+            flex: 1;
+            min-width: 140px;
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 2px solid var(--border);
+            background: var(--surface2);
+            color: #fff;
+            font-family: var(--font-mono);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            letter-spacing: 0.5px;
+        }
+        .hex-input:focus {
+            border-color: #6a8cff;
+            box-shadow: 0 0 0 3px rgba(106, 140, 255, 0.12);
+        }
+        .hex-input::placeholder {
+            color: #555;
+            letter-spacing: 0.3px;
+        }
+        .hex-apply-btn {
+            padding: 10px 18px;
+            border-radius: var(--radius-sm);
+            border: none;
+            background: #4d6aff;
+            color: #fff;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            letter-spacing: 0.3px;
+        }
+        .hex-apply-btn:hover {
+            background: #5c7aff;
+            box-shadow: 0 4px 16px rgba(77, 106, 255, 0.3);
+        }
+        .hex-apply-btn:active {
+            transform: scale(0.96);
+            background: #3d5aef;
+        }
+        .hex-clear-btn {
+            padding: 10px 14px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            letter-spacing: 0.3px;
+        }
+        .hex-clear-btn:hover {
+            border-color: #666;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        /* 预设颜色 */
+        .presets-section {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .presets-section .presets-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            width: 100%;
+            margin-bottom: 2px;
+        }
+        .preset-swatch {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        .preset-swatch:hover {
+            transform: scale(1.2);
+            border-color: #fff;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+            z-index: 2;
+        }
+        .preset-swatch:active {
+            transform: scale(0.9);
+            transition: transform 0.08s ease;
+        }
+
+        /* 响应式 */
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px 14px;
+                gap: 16px;
+                border-radius: 16px;
+            }
+            .preview-main {
+                min-height: 110px;
+                border-radius: 10px;
+            }
+            .preview-compare {
+                width: 50px;
+                min-height: 110px;
+                border-radius: 10px;
+            }
+            .slider-group {
+                padding: 10px 12px;
+                gap: 8px;
+            }
+            .slider-values {
+                min-width: 90px;
+                font-size: 0.7rem;
+            }
+            .slider-values .val-5bit,
+            .slider-values .val-6bit {
+                font-size: 0.75rem;
+                min-width: 16px;
+            }
+            .slider-values .val-8bit {
+                font-size: 0.65rem;
+            }
+            .binary-display {
+                font-size: 0.75rem;
+                letter-spacing: 1px;
+            }
+            .binary-display .bit {
+                width: 10px;
+            }
+            .info-card .info-value {
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 标题 -->
+        <div class="header">
+            <div class="logo">16</div>
+            <h1>Color565</h1>
+            <span class="badge">RGB565</span>
+        </div>
+
+        <!-- 颜色预览 -->
+        <div class="preview-section">
+            <div class="preview-main" id="previewMain">
+                <span class="color-label" id="previewLabel">#000000</span>
+            </div>
+            <div class="preview-compare empty" id="previewCompare" title="8位RGB原始颜色对比">
+                <span class="compare-hint">8位<br>对比</span>
+                <span class="compare-label" id="compareLabel" style="display:none;">原始</span>
+            </div>
+        </div>
+
+        <!-- 滑块 -->
+        <div class="sliders-section">
+            <!-- R滑块 -->
+            <div class="slider-group slider-r">
+                <div class="slider-label r">R</div>
+                <div class="slider-input-wrap">
+                    <input type="range" id="sliderR" min="0" max="31" value="16" step="1">
+                </div>
+                <div class="slider-values">
+                    <span class="val-5bit" id="valR5">16</span>
+                    <span class="sep">/31</span>
+                    <span class="val-8bit" id="valR8">≈132</span>
+                </div>
+            </div>
+            <!-- G滑块 -->
+            <div class="slider-group slider-g">
+                <div class="slider-label g">G</div>
+                <div class="slider-input-wrap">
+                    <input type="range" id="sliderG" min="0" max="63" value="32" step="1">
+                </div>
+                <div class="slider-values">
+                    <span class="val-6bit" id="valG6">32</span>
+                    <span class="sep">/63</span>
+                    <span class="val-8bit" id="valG8">≈130</span>
+                </div>
+            </div>
+            <!-- B滑块 -->
+            <div class="slider-group slider-b">
+                <div class="slider-label b">B</div>
+                <div class="slider-input-wrap">
+                    <input type="range" id="sliderB" min="0" max="31" value="16" step="1">
+                </div>
+                <div class="slider-values">
+                    <span class="val-5bit" id="valB5">16</span>
+                    <span class="sep">/31</span>
+                    <span class="val-8bit" id="valB8">≈132</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 信息区 -->
+        <div class="info-section">
+            <!-- Color565 十六进制 -->
+            <div class="info-card">
+                <span class="info-title">📦 Color565 值</span>
+                <span class="info-value" id="infoHex565">0x8410</span>
+                <button class="copy-btn" data-copy-target="infoHex565" data-copy-format="hex">📋 复制</button>
+            </div>
+            <!-- 8位RGB近似 -->
+            <div class="info-card">
+                <span class="info-title">🎨 8位RGB 近似</span>
+                <span class="info-value small" id="infoHex888">#848484</span>
+                <button class="copy-btn" data-copy-target="infoHex888" data-copy-format="hex888">📋 复制</button>
+            </div>
+        </div>
+
+        <!-- 二进制显示 -->
+        <div class="info-card" style="grid-column: 1 / -1;">
+            <span class="info-title">🔢 16位二进制结构 &nbsp;
+                <span class="legend-dot r"></span>R(5位)&nbsp;
+                <span class="legend-dot g"></span>G(6位)&nbsp;
+                <span class="legend-dot b"></span>B(5位)
+            </span>
+            <div class="binary-display" id="binaryDisplay"></div>
+            <span style="font-size:0.65rem;color:var(--text-secondary);margin-top:2px;">
+                十进制: <span id="infoDecimal" style="font-family:var(--font-mono);color:#fff;">33808</span>
+            </span>
+        </div>
+
+        <!-- 8位Hex输入 -->
+        <div class="info-card" style="grid-column: 1 / -1;">
+            <span class="info-title">🔍 从8位RGB Hex转换</span>
+            <div class="hex-input-row">
+                <input type="text" class="hex-input" id="hexInput" placeholder="例如: #ff8800 或 ff8800" maxlength="7">
+                <button class="hex-apply-btn" id="hexApplyBtn">转换</button>
+                <button class="hex-clear-btn" id="hexClearBtn">清除对比</button>
+            </div>
+        </div>
+
+        <!-- 预设颜色 -->
+        <div class="presets-section">
+            <span class="presets-label">🎯 预设颜色 (点击应用)</span>
+            <div class="preset-swatch" data-r="31" data-g="0" data-b="0" style="background:#ff0000;" title="纯红"></div>
+            <div class="preset-swatch" data-r="0" data-g="63" data-b="0" style="background:#00ff00;" title="纯绿"></div>
+            <div class="preset-swatch" data-r="0" data-g="0" data-b="31" style="background:#0000ff;" title="纯蓝"></div>
+            <div class="preset-swatch" data-r="31" data-g="63" data-b="31" style="background:#ffffff;" title="白色"></div>
+            <div class="preset-swatch" data-r="0" data-g="0" data-b="0" style="background:#000000; border-color:#555;" title="黑色"></div>
+            <div class="preset-swatch" data-r="31" data-g="63" data-b="0" style="background:#ffff00;" title="黄色"></div>
+            <div class="preset-swatch" data-r="0" data-g="63" data-b="31" style="background:#00ffff;" title="青色"></div>
+            <div class="preset-swatch" data-r="31" data-g="0" data-b="31" style="background:#ff00ff;" title="品红"></div>
+            <div class="preset-swatch" data-r="31" data-g="32" data-b="0" style="background:#ff8400;" title="橙色"></div>
+            <div class="preset-swatch" data-r="16" data-g="32" data-b="16" style="background:#848484;" title="中灰"></div>
+            <div class="preset-swatch" data-r="20" data-g="40" data-b="20" style="background:#a5c8a5;" title="灰绿"></div>
+            <div class="preset-swatch" data-r="24" data-g="16" data-b="24" style="background:#c684c6;" title="淡紫"></div>
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            // DOM元素
+            const sliderR = document.getElementById('sliderR');
+            const sliderG = document.getElementById('sliderG');
+            const sliderB = document.getElementById('sliderB');
+            const valR5 = document.getElementById('valR5');
+            const valG6 = document.getElementById('valG6');
+            const valB5 = document.getElementById('valB5');
+            const valR8 = document.getElementById('valR8');
+            const valG8 = document.getElementById('valG8');
+            const valB8 = document.getElementById('valB8');
+            const previewMain = document.getElementById('previewMain');
+            const previewLabel = document.getElementById('previewLabel');
+            const previewCompare = document.getElementById('previewCompare');
+            const compareLabel = document.getElementById('compareLabel');
+            const infoHex565 = document.getElementById('infoHex565');
+            const infoHex888 = document.getElementById('infoHex888');
+            const infoDecimal = document.getElementById('infoDecimal');
+            const binaryDisplay = document.getElementById('binaryDisplay');
+            const hexInput = document.getElementById('hexInput');
+            const hexApplyBtn = document.getElementById('hexApplyBtn');
+            const hexClearBtn = document.getElementById('hexClearBtn');
+            const copyBtns = document.querySelectorAll('.copy-btn');
+            const presetSwatches = document.querySelectorAll('.preset-swatch');
+
+            // 当前存储的8位原始对比颜色 (来自hex输入)
+            let compareR8 = null;
+            let compareG8 = null;
+            let compareB8 = null;
+
+            // 5位值 -> 8位值 (位扩展法)
+            function c5to8(v5) {
+                return (v5 << 3) | (v5 >> 2);
+            }
+
+            // 6位值 -> 8位值 (位扩展法)
+            function c6to8(v6) {
+                return (v6 << 2) | (v6 >> 4);
+            }
+
+            // 8位值 -> 5位值 (四舍五入)
+            function c8to5(v8) {
+                return Math.round(v8 * 31 / 255);
+            }
+
+            // 8位值 -> 6位值 (四舍五入)
+            function c8to6(v8) {
+                return Math.round(v8 * 63 / 255);
+            }
+
+            // 获取当前滑块值
+            function getCurrentValues() {
+                return {
+                    r5: parseInt(sliderR.value),
+                    g6: parseInt(sliderG.value),
+                    b5: parseInt(sliderB.value),
+                };
+            }
+
+            // 计算Color565的16位值
+            function calcColor565(r5, g6, b5) {
+                return ((r5 & 0x1F) << 11) | ((g6 & 0x3F) << 5) | (b5 & 0x1F);
+            }
+
+            // 获取16位二进制字符串
+            function getBinaryString(color565) {
+                let bin = '';
+                for (let i = 15; i >= 0; i--) {
+                    bin += (color565 >> i) & 1;
+                }
+                return bin;
+            }
+
+            // 更新所有显示
+            function updateAll(r5, g6, b5) {
+                // 计算8位近似值
+                const r8 = c5to8(r5);
+                const g8 = c6to8(g6);
+                const b8 = c5to8(b5);
+
+                // 更新滑块数值显示
+                valR5.textContent = r5;
+                valG6.textContent = g6;
+                valB5.textContent = b5;
+                valR8.textContent = '≈' + r8;
+                valG8.textContent = '≈' + g8;
+                valB8.textContent = '≈' + b8;
+
+                // 计算Color565值
+                const color565 = calcColor565(r5, g6, b5);
+                const hex565 = '0x' + color565.toString(16).toUpperCase().padStart(4, '0');
+                const hex888 = '#' + [r8, g8, b8].map(v => v.toString(16).toUpperCase().padStart(2,
+                    '0')).join('');
+                const decStr = color565.toString();
+
+                // 更新信息卡片
+                infoHex565.textContent = hex565;
+                infoHex888.textContent = hex888;
+                infoDecimal.textContent = decStr;
+
+                // 更新颜色预览
+                const cssColor = `rgb(${r8},${g8},${b8})`;
+                previewMain.style.backgroundColor = cssColor;
+                previewLabel.textContent = hex888;
+
+                // 根据亮度调整标签文字颜色
+                const luminance = (0.299 * r8 + 0.587 * g8 + 0.114 * b8) / 255;
+                if (luminance < 0.5) {
+                    previewLabel.style.color = '#fff';
+                    previewLabel.style.background = 'rgba(0,0,0,0.55)';
+                } else {
+                    previewLabel.style.color = '#222';
+                    previewLabel.style.background = 'rgba(255,255,255,0.7)';
+                }
+
+                // 更新二进制显示
+                const binStr = getBinaryString(color565);
+                updateBinaryDisplay(binStr);
+
+                // 更新对比预览（如果有8位原始颜色）
+                updateComparePreview();
+
+                // 更新预设色块的高亮状态
+                updatePresetHighlight(r5, g6, b5);
+            }
+
+            // 更新二进制显示
+            function updateBinaryDisplay(binStr) {
+                // binStr: 16位字符串，索引0=位15(最高位), 索引15=位0(最低位)
+                // 位15-11: R (5位), 位10-5: G (6位), 位4-0: B (5位)
+                const rBits = binStr.slice(0, 5); // 位15-11
+                const gBits = binStr.slice(5, 11); // 位10-5
+                const bBits = binStr.slice(11, 16); // 位4-0
+
+                let html = '';
+                // R组
+                html += '<span class="bit-group r">';
+                for (const ch of rBits) {
+                    html += `<span class="bit${ch === '1' ? ' highlight' : ''}">${ch}</span>`;
+                }
+                html += '</span>';
+                html += '<span class="gap"></span>';
+                // G组
+                html += '<span class="bit-group g">';
+                for (const ch of gBits) {
+                    html += `<span class="bit${ch === '1' ? ' highlight' : ''}">${ch}</span>`;
+                }
+                html += '</span>';
+                html += '<span class="gap"></span>';
+                // B组
+                html += '<span class="bit-group b">';
+                for (const ch of bBits) {
+                    html += `<span class="bit${ch === '1' ? ' highlight' : ''}">${ch}</span>`;
+                }
+                html += '</span>';
+
+                binaryDisplay.innerHTML = html;
+            }
+
+            // 更新对比预览
+            function updateComparePreview() {
+                if (compareR8 !== null && compareG8 !== null && compareB8 !== null) {
+                    const cssColor = `rgb(${compareR8},${compareG8},${compareB8})`;
+                    previewCompare.style.backgroundColor = cssColor;
+                    previewCompare.classList.remove('empty');
+                    previewCompare.querySelector('.compare-hint').style.display = 'none';
+                    compareLabel.style.display = 'block';
+                    // 更新边框样式
+                    previewCompare.style.borderStyle = 'solid';
+                    previewCompare.style.borderColor = 'rgba(255,255,255,0.35)';
+                } else {
+                    previewCompare.style.backgroundColor = '';
+                    previewCompare.classList.add('empty');
+                    previewCompare.querySelector('.compare-hint').style.display = '';
+                    compareLabel.style.display = 'none';
+                    previewCompare.style.borderStyle = 'dashed';
+                    previewCompare.style.borderColor = '';
+                }
+            }
+
+            // 更新预设色块高亮
+            function updatePresetHighlight(r5, g6, b5) {
+                presetSwatches.forEach(swatch => {
+                    const sr = parseInt(swatch.dataset.r);
+                    const sg = parseInt(swatch.dataset.g);
+                    const sb = parseInt(swatch.dataset.b);
+                    if (sr === r5 && sg === g6 && sb === b5) {
+                        swatch.style.borderColor = '#fff';
+                        swatch.style.boxShadow = '0 0 0 4px rgba(255,255,255,0.25), 0 4px 16px rgba(0,0,0,0.4)';
+                        swatch.style.transform = 'scale(1.15)';
+                    } else {
+                        swatch.style.borderColor = 'transparent';
+                        swatch.style.boxShadow = '0 2px 6px rgba(0,0,0,0.2)';
+                        swatch.style.transform = 'scale(1)';
+                    }
+                });
+            }
+
+            // 设置滑块值（带更新）
+            function setSliders(r5, g6, b5) {
+                sliderR.value = r5;
+                sliderG.value = g6;
+                sliderB.value = b5;
+                updateAll(r5, g6, b5);
+            }
+
+            // 处理hex输入
+            function applyHexInput() {
+                let hex = hexInput.value.trim();
+                if (hex.startsWith('#')) {
+                    hex = hex.slice(1);
+                }
+                // 验证
+                if (!/^[0-9A-Fa-f]{6}$/.test(hex)) {
+                    // 无效输入，轻微闪烁提示
+                    hexInput.style.borderColor = '#ff5252';
+                    setTimeout(() => {
+                        hexInput.style.borderColor = '';
+                    }, 600);
+                    return;
+                }
+                hexInput.style.borderColor = '#4caf82';
+                setTimeout(() => {
+                    hexInput.style.borderColor = '';
+                }, 800);
+
+                const r8 = parseInt(hex.slice(0, 2), 16);
+                const g8 = parseInt(hex.slice(2, 4), 16);
+                const b8 = parseInt(hex.slice(4, 6), 16);
+
+                // 存储原始8位值用于对比
+                compareR8 = r8;
+                compareG8 = g8;
+                compareB8 = b8;
+
+                // 转换到Color565
+                const r5 = c8to5(r8);
+                const g6 = c8to6(g8);
+                const b5 = c8to5(b8);
+
+                setSliders(r5, g6, b5);
+                updateComparePreview();
+            }
+
+            // 清除对比
+            function clearCompare() {
+                compareR8 = null;
+                compareG8 = null;
+                compareB8 = null;
+                hexInput.value = '';
+                updateComparePreview();
+                // 重新更新以刷新对比显示
+                const vals = getCurrentValues();
+                updateAll(vals.r5, vals.g6, vals.b5);
+            }
+
+            // 事件监听
+            sliderR.addEventListener('input', () => {
+                const vals = getCurrentValues();
+                updateAll(vals.r5, vals.g6, vals.b5);
+            });
+            sliderG.addEventListener('input', () => {
+                const vals = getCurrentValues();
+                updateAll(vals.r5, vals.g6, vals.b5);
+            });
+            sliderB.addEventListener('input', () => {
+                const vals = getCurrentValues();
+                updateAll(vals.r5, vals.g6, vals.b5);
+            });
+
+            hexApplyBtn.addEventListener('click', applyHexInput);
+            hexInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    applyHexInput();
+                }
+            });
+            hexClearBtn.addEventListener('click', clearCompare);
+
+            // 预设颜色点击
+            presetSwatches.forEach(swatch => {
+                swatch.addEventListener('click', () => {
+                    const r5 = parseInt(swatch.dataset.r);
+                    const g6 = parseInt(swatch.dataset.g);
+                    const b5 = parseInt(swatch.dataset.b);
+                    // 预设颜色来自Color565直接值，清除外部对比
+                    compareR8 = null;
+                    compareG8 = null;
+                    compareB8 = null;
+                    hexInput.value = '';
+                    setSliders(r5, g6, b5);
+                    updateComparePreview();
+                });
+            });
+
+            // 复制按钮
+            copyBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetId = btn.dataset.copyTarget;
+                    const format = btn.dataset.copyFormat;
+                    const targetEl = document.getElementById(targetId);
+                    if (!targetEl) return;
+
+                    let textToCopy = targetEl.textContent.trim();
+
+                    // 对于hex565，确保格式正确
+                    if (format === 'hex' && !textToCopy.startsWith('0x')) {
+                        textToCopy = '0x' + textToCopy;
+                    }
+                    if (format === 'hex888' && !textToCopy.startsWith('#')) {
+                        textToCopy = '#' + textToCopy;
+                    }
+
+                    navigator.clipboard.writeText(textToCopy).then(() => {
+                        const originalText = btn.textContent;
+                        btn.textContent = '✅ 已复制!';
+                        btn.classList.add('copied');
+                        setTimeout(() => {
+                            btn.textContent = originalText;
+                            btn.classList.remove('copied');
+                        }, 1500);
+                    }).catch(() => {
+                        // 回退方案
+                        const textarea = document.createElement('textarea');
+                        textarea.value = textToCopy;
+                        textarea.style.position = 'fixed';
+                        textarea.style.opacity = '0';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        try {
+                            document.execCommand('copy');
+                            const originalText = btn.textContent;
+                            btn.textContent = '✅ 已复制!';
+                            btn.classList.add('copied');
+                            setTimeout(() => {
+                                btn.textContent = originalText;
+                                btn.classList.remove('copied');
+                            }, 1500);
+                        } catch (err) {
+                            btn.textContent = '❌ 失败';
+                            setTimeout(() => {
+                                btn.textContent = '📋 复制';
+                            }, 1500);
+                        }
+                        document.body.removeChild(textarea);
+                    });
+                });
+            });
+
+            // 键盘快捷键：方向键微调滑块
+            document.addEventListener('keydown', (e) => {
+                // 检查焦点是否在输入框上
+                if (document.activeElement === hexInput) return;
+                if (document.activeElement.tagName === 'INPUT' && document.activeElement.type ===
+                    'text') return;
+
+                const vals = getCurrentValues();
+                let handled = true;
+                const shift = e.shiftKey ? 4 : 1;
+
+                switch (e.key) {
+                    case 'ArrowUp':
+                        e.preventDefault();
+                        if (e.ctrlKey || e.metaKey) {
+                            // 调整G
+                            sliderG.value = Math.min(63, vals.g6 + shift);
+                        } else {
+                            sliderR.value = Math.min(31, vals.r5 + shift);
+                        }
+                        break;
+                    case 'ArrowDown':
+                        e.preventDefault();
+                        if (e.ctrlKey || e.metaKey) {
+                            sliderG.value = Math.max(0, vals.g6 - shift);
+                        } else {
+                            sliderR.value = Math.max(0, vals.r5 - shift);
+                        }
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        sliderB.value = Math.min(31, vals.b5 + shift);
+                        break;
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        sliderB.value = Math.max(0, vals.b5 - shift);
+                        break;
+                    default:
+                        handled = false;
+                }
+                if (handled) {
+                    const newVals = getCurrentValues();
+                    updateAll(newVals.r5, newVals.g6, newVals.b5);
+                }
+            });
+
+            // 初始化
+            const initR5 = 16;
+            const initG6 = 32;
+            const initB5 = 16;
+            sliderR.value = initR5;
+            sliderG.value = initG6;
+            sliderB.value = initB5;
+            updateAll(initR5, initG6, initB5);
+            updateComparePreview();
+
+            console.log('🎨 Color565 可视化工具已就绪');
+            console.log('   💡 提示: 使用方向键微调 R/B 滑块, Ctrl+↑↓ 调整 G 滑块');
+            console.log('   📋 点击复制按钮复制颜色值');
+            console.log('   🔍 输入8位RGB Hex查看转换效果');
+            console.log('   🎯 点击预设颜色快速切换');
+        })();
+    </script>
+</body>
+</html>
