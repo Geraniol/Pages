@@ -1,0 +1,569 @@
+/* ══════════════════════════════════════════════════════════════
+   TravelMap · main.css
+   城市兴趣点互动地图 —— 共享样式
+   所有可调项集中在 :root。改主题只改这里，页面不写死颜色。
+   标签色由 JS 通过 getComputedStyle 读取，用于生成地图图标环。
+   ══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ---------- 基础色板 ---------- */
+  --bg-app:        #101018;
+  --bg-panel:      #181826;
+  --bg-card:       #1f1f2e;
+  --bg-card-hover: #26263a;
+  --bg-elevated:   #2a2a3e;
+
+  --border:        #32324a;
+  --border-soft:   #26263a;
+
+  --text:          #f2f2f7;
+  --text-dim:      #9c9cb0;
+  --text-faint:    #6a6a80;
+
+  /* ---------- 标签色 ----------
+     icon 名与标签的对应关系写在页面的 TAGS 配置里。
+     这里只定义颜色，一个标签一个变量，勿复用。            */
+  --tag-culture:   #e8593f;   /* 人文景观 · castle        */
+  --tag-food:      #ffa53d;   /* 美食     · soup          */
+  --tag-museum:    #e8c547;   /* 博物馆   · landmark      */
+  --tag-nature:    #3fb950;   /* 自然风景 · tree-palm     */
+  --tag-acg:       #a855f7;   /* 二次元   · paw-print     */
+  --tag-mall:      #ec4899;   /* 商场     · shopping-cart */
+  --tag-fun:       #38bdf8;   /* 娱乐     · ferris-wheel  */
+  --tag-book:      #b8a04a;   /* 书店     · book-open-text*/
+  --tag-photo:     #94a3b8;   /* 摄影     · camera（器材卖场）*/
+  --tag-tech:      #2dd4bf;   /* 科技     · microscope    */
+  --tag-astro:     #6366f1;   /* 天文     · telescope     */
+  --tag-military:  #7f9a4a;   /* 军事     · swords        */
+  --tag-redlight:  #e5484d;   /* 红灯区   · octagon-minus */
+
+  /* 评价倾向色 */
+  --pos:           #3fb950;
+  --neg:           #e05252;
+
+  /* 推荐位强调色 —— 全站统一一个，不跟随标签色，
+     否则不同分类的推荐位会各染一色，看起来像是分类色而非推荐标记 */
+  --feat:          #f0b429;
+
+  /* ---------- 地图标记 ---------- */
+  --pin-ink:       #23232e;   /* 图标与轮廓的墨色          */
+  --pin-fill:      #ffffff;   /* 标记底色                  */
+  --pin-md:        40px;      /* 地图标记宽度。app.js 会读取它来定 iconSize，
+                                 改这里即可，不要在 JS 里另写一份 */
+  --pin-sm:        28px;      /* 卡片与详情里的标记宽度    */
+  --pin-shadow:    0 2px 4px rgba(0, 0, 0, .4);
+
+  /* ---------- 尺寸与节奏 ---------- */
+  --sidebar-w:     380px;
+  --radius:        14px;
+  --radius-sm:     9px;
+
+  --shadow:        0 8px 28px rgba(0, 0, 0, .45);
+  --shadow-lg:     0 24px 70px rgba(0, 0, 0, .65);
+
+  --tabbar-h:      56px;
+}
+
+/* ══════════════ 基础 ══════════════ */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+               "Microsoft YaHei", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  background: var(--bg-app);
+  color: var(--text);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+/* 数据/脚本加载失败时的提示 */
+.boot-error {
+  margin: 0;
+  padding: 28px;
+  color: var(--text-faint);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* ══════════════ 布局 ══════════════ */
+
+.app { display: flex; height: 100%; }
+
+.mapwrap { flex: 1; position: relative; min-width: 0; }
+#map { position: absolute; inset: 0; background: var(--bg-elevated); }
+
+.panel {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  border-right: 1px solid var(--border-soft);
+}
+
+/* ---------- 标题行 ---------- */
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 15px 18px 13px;
+}
+
+/* 城市名是个按钮：点开切换城市 */
+.city-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 2px 2px 0;
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  color: var(--text);
+  transition: color .16s;
+}
+.city-btn:hover { color: var(--feat); }
+.city-btn svg { width: 17px; height: 17px; flex: none; opacity: .5; margin-top: 3px; }
+.city-btn:hover svg { opacity: 1; }
+
+.brand .count { font-size: 12px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+
+/* ---------- 标签筛选 ---------- */
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 14px 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px 5px 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-dim);
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  transition: background .16s, color .16s, border-color .16s;
+  white-space: nowrap;
+}
+.chip svg { width: 13px; height: 13px; flex: none; }
+.chip:hover { background: var(--bg-card-hover); color: var(--text); }
+
+/* 选中态：用标签自己的颜色描边 + 文字着色 */
+.chip.on {
+  color: var(--chip-c, var(--text));
+  border-color: var(--chip-c, var(--border));
+  background: color-mix(in srgb, var(--chip-c, #888) 16%, var(--bg-card));
+}
+
+.chip.all { padding-left: 11px; }
+.chip.all.on { color: var(--text); border-color: var(--text-dim);
+               background: var(--bg-card-hover); }
+
+/* ---------- 地点列表 ---------- */
+
+.list { flex: 1; overflow-y: auto; padding: 10px; overscroll-behavior: contain; }
+.list::-webkit-scrollbar { width: 8px; }
+.list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.card {
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
+  padding: 12px;
+  margin-bottom: 8px;
+  background: var(--bg-card);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background .16s, border-color .16s;
+}
+.card:hover { background: var(--bg-card-hover); }
+
+/* ---------- 推荐位：只给图标加一层光晕 ----------
+   不加底托、不加方框，避免看起来像一个被框住的图标。 */
+.card .pin-sm { width: var(--pin-sm); flex: none; margin-top: 1px; transition: width .16s; }
+.card.feat .pin-sm { width: 36px; }
+.card.feat .pin-sm svg {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--feat) 65%, transparent));
+}
+
+.card .body { min-width: 0; flex: 1; }
+
+.card .head {
+  display: flex; align-items: center; gap: 7px;
+  flex-wrap: wrap; margin-bottom: 6px;
+}
+.card .head .site { font-size: 10px; padding: 2px 7px; gap: 3px; }
+.card .head .site svg { width: 11px; height: 11px; }
+.card .title { font-size: 14.5px; font-weight: 700; }
+.card .rank {
+  font-size: 10px; font-weight: 700; letter-spacing: .3px;
+  padding: 2px 7px; border-radius: 999px;
+  color: #2a1d00;
+  background: linear-gradient(135deg,
+              color-mix(in srgb, var(--feat) 88%, #fff), var(--feat));
+}
+
+/* ---------- 位置 / 费用 / 开放时间：小标签 ---------- */
+.card .meta { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 7px; }
+.card .meta .m {
+  display: inline-flex; align-items: center; gap: 4px;
+  min-width: 0; max-width: 100%;
+  padding: 3px 8px; border-radius: 6px;
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  font-size: 11px; line-height: 1.4;
+}
+.card .meta .m svg { width: 12px; height: 12px; flex: none; opacity: .7; }
+.card .meta .m .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- 简介：最多两行，超出省略 ---------- */
+.card .intro {
+  font-size: 12.5px; line-height: 1.62; color: var(--text-dim);
+  margin-bottom: 8px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.card .dots { display: flex; gap: 4px; }
+.card .dot { width: 14px; height: 3px; border-radius: 2px; }
+
+.empty { padding: 40px 20px; text-align: center; color: var(--text-faint); font-size: 13px; }
+
+/* ══════════════ 详情 ══════════════ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: none;
+  background: rgba(0, 0, 0, .58);
+  backdrop-filter: blur(2px);
+}
+.overlay.on { display: flex; align-items: center; justify-content: center; }
+
+.sheet {
+  position: relative;
+  width: min(460px, 92vw);
+  max-height: 86vh;
+  overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  overscroll-behavior: contain;
+}
+.sheet::-webkit-scrollbar { width: 8px; }
+.sheet::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.sheet-close {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  z-index: 2;
+}
+.sheet-close:hover { color: var(--text); background: var(--border); }
+.sheet-close svg { width: 16px; height: 16px; }
+
+.sheet-head {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 22px 22px 14px;
+  background: linear-gradient(180deg, var(--bg-elevated), transparent);
+}
+.sheet-head .pin-sm { width: 44px; flex: none; }
+.sheet-head .headtext { min-width: 0; }
+/* 标题行：名称与官网入口同排，需要时换行但不各占一行 */
+.sheet-head h2 {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  font-size: 20px; font-weight: 700; line-height: 1.3;
+  padding-right: 34px;
+}
+.sheet-head .area { font-size: 12.5px; color: var(--text-dim); margin-top: 4px; }
+
+/* 纵向节奏一律由 flex gap 决定，不用 margin ——
+   margin 会与相邻块发生外边距折叠，间距和对齐都变得不可预测。 */
+.sheet-body {
+  padding: 0 22px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.sheet-body > * { margin-top: 0; margin-bottom: 0; }
+
+.tagrow { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.facts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--border-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.facts > div { background: var(--bg-card); padding: 10px 12px; }
+.facts dt { font-size: 11px; color: var(--text-faint); margin-bottom: 4px; }
+.facts dd { font-size: 13px; font-weight: 600; line-height: 1.45; }
+
+.sect h4 {
+  display: flex;              /* 标题与徽章同一行 */
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  line-height: 1.5;           /* 显式行高，让文字盒高度可预期 */
+  font-weight: 700;
+  letter-spacing: .8px;
+  color: var(--text-faint);
+  margin: 0 0 7px;
+}
+.sect p { font-size: 13.5px; line-height: 1.75; color: var(--text-dim); }
+
+/* ---------- 评价：优缺点 ---------- */
+
+.review { display: grid; gap: 8px; }
+.review .row {
+  display: flex;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-card);
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--text-dim);
+}
+/* 正负面标记：只留拇指图标本身，靠颜色区分正负，不加圆底。
+   图标 stroke 为 currentColor，所以颜色定在 .mk 上即可。 */
+.review .row .mk {
+  flex: none;
+  width: 15px; height: 15px;
+  margin-top: 3px;
+}
+.review .row .mk svg { display: block; width: 100%; height: 100%; }
+.review .pro .mk { color: var(--pos); }
+.review .con .mk { color: var(--neg); }
+
+/* ---------- 数据来源标记 ----------
+   review = 检索到的真实评价，来源可查
+   facts  = 票价/时间/交通等客观信息，非用户评价
+   两者在视觉上必须能一眼分开。 */
+
+.sect h4 .badge {
+  display: inline-flex;       /* 与标题同为弹性项，由 align-items 统一对齐 */
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 1.5;
+  font-weight: 700;
+  letter-spacing: .3px;
+}
+.badge.review { background: color-mix(in srgb, var(--pos) 20%, transparent); color: var(--pos); }
+.badge.facts  { background: var(--bg-elevated); color: var(--text-faint); }
+
+.src {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  border-left: 2px solid var(--border);
+  background: var(--bg-card);
+  font-size: 11.5px;
+  line-height: 1.65;
+  color: var(--text-faint);
+}
+.src.review { border-left-color: var(--pos); }
+.src b { display: block; color: var(--text-dim); font-weight: 600; margin-bottom: 2px; }
+
+/* ---------- 链接 ---------- */
+
+/* 来源链接：列在来源说明下方 */
+.links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.links a {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px; border-radius: 999px;
+  background: var(--bg-elevated); color: var(--text-dim);
+  font-size: 11.5px; font-weight: 600; text-decoration: none;
+  transition: background .16s, color .16s;
+}
+.links a:hover { background: var(--border); color: var(--text); }
+.links a svg { width: 12px; height: 12px; flex: none; opacity: .8; }
+
+/* 官网入口：跟在标题后面，不占单独一行。
+   标题行是 flex + wrap，链接作为其中一个弹性项参与排列。 */
+.site {
+  display: inline-flex; align-items: center; gap: 4px;
+  flex: none;
+  padding: 3px 8px; border-radius: 999px;
+  background: var(--bg-elevated); color: var(--text-dim);
+  font-size: 11px; font-weight: 600; line-height: 1.4;
+  text-decoration: none; white-space: nowrap;
+  transition: background .16s, color .16s;
+}
+.site:hover { background: var(--border); color: var(--text); }
+.site svg { width: 12px; height: 12px; flex: none; opacity: .8; }
+
+.checked {
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ══════════════ 城市选择面板 ══════════════ */
+
+.citysheet { width: min(340px, 88vw); }
+.citysheet-head { padding: 20px 22px 10px; }
+.citysheet-head h2 { font-size: 16px; font-weight: 700; padding-right: 34px; }
+
+.citylist { padding: 0 10px 12px; }
+
+.cityitem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  color: var(--text-dim);
+  transition: background .16s, color .16s;
+}
+.cityitem:hover { background: var(--bg-card-hover); color: var(--text); }
+.cityitem.on { background: var(--bg-card); color: var(--text); }
+.cityitem .cn { flex: 1; font-size: 15px; font-weight: 600; }
+.cityitem .ck { width: 16px; height: 16px; flex: none; color: var(--feat); }
+.cityitem .ck svg { display: block; width: 16px; height: 16px; }
+
+/* ══════════════ 地图标记 ══════════════ */
+
+/* SVG 不带 width/height 属性，靠 viewBox + aspect-ratio 定比例，
+   这样同一个图标能在标记（40px）与卡片（28px）上复用 */
+.pin { display: block; width: 100%; height: auto; aspect-ratio: 44 / 58; }
+.leaflet-div-icon { background: transparent !important; border: none !important; }
+.pin-wrap { filter: drop-shadow(var(--pin-shadow)); }
+.pin-wrap.dim { opacity: .28; filter: none; }
+
+.leaflet-popup-content-wrapper {
+  background: var(--bg-panel);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+}
+.leaflet-popup-content { margin: 11px 14px; font-size: 12.5px; line-height: 1.65; }
+.leaflet-popup-content b { color: var(--text); }
+.leaflet-popup-tip { background: var(--bg-panel); }
+.leaflet-container a.leaflet-popup-close-button { color: var(--text-faint); }
+
+/* 高德瓦片偏亮，压一点饱和让深色 UI 更协调 */
+.leaflet-tile-pane { filter: saturate(.82) brightness(.94); }
+
+/* ══════════════ 移动端 ══════════════ */
+
+.tabbar { display: none; }
+
+@media (max-width: 768px) {
+  .app { display: block; }
+
+  .mapwrap { position: fixed; inset: 0 0 var(--tabbar-h) 0; }
+
+  /* 面板变成全屏卡片视图，默认收起 */
+  .panel {
+    position: fixed;
+    inset: 0 0 var(--tabbar-h) 0;
+    width: 100%;
+    border-right: none;
+    transform: translateY(101%);
+    transition: transform .3s cubic-bezier(.32, .72, 0, 1);
+    will-change: transform;
+  }
+  body[data-view="cards"] .panel { transform: none; }
+
+  .brand { padding: 16px 16px 12px; }
+  .brand h1 { font-size: 19px; }
+
+  /* 筛选条横向滚动，不换行，避免占掉半屏 */
+  .filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding: 0 12px 12px;
+    scrollbar-width: none;
+  }
+  .filters::-webkit-scrollbar { display: none; }
+
+  .list { padding: 8px; }
+  .card { padding: 12px; }
+
+  /* 底部视图切换 */
+  .tabbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    height: var(--tabbar-h);
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border-soft);
+    z-index: 1500;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabbar button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-faint);
+    transition: color .16s;
+  }
+  .tabbar button svg { width: 17px; height: 17px; }
+  .tabbar button.on { color: var(--text); }
+
+  /* 详情变底部抽屉 */
+  .overlay.on { align-items: flex-end; }
+  .sheet {
+    width: 100%;
+    max-height: 88vh;
+    border-radius: var(--radius) var(--radius) 0 0;
+    border-bottom: none;
+    animation: sheet-up .3s cubic-bezier(.32, .72, 0, 1);
+  }
+  @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+
+  .facts { grid-template-columns: 1fr; }
+  .sheet-head { padding: 20px 18px 12px; }
+  .sheet-body { padding: 0 18px 20px; }
+}
+
+/* 横屏矮屏时压缩标题区 */
+@media (max-height: 520px) and (max-width: 768px) {
+  .brand { padding: 12px 16px 8px; }
+  .brand h1 { font-size: 17px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}

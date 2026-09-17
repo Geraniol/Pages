@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#181826">
+<title>TravelMap</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="main.css" />
+</head>
+<body data-view="map">
+
+<!-- ══════════════════════════════════════════════════════════
+     框架层 —— 固定不变，各城市共用。
+     城市索引见 data.js，各城市数据在 data/<id>.js（按需加载），
+     逻辑见 app.js，样式见 main.css。
+     城市由 URL 锚点决定：index.html#gz、index.html#sz
+     ══════════════════════════════════════════════════════════ -->
+
+<p id="boot-error" class="boot-error" hidden></p>
+
+<div class="app">
+  <aside class="panel">
+    <div class="brand">
+      <button class="city-btn" id="city-btn" aria-haspopup="dialog">
+        <span id="city-name"></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+             stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="list" id="list"></div>
+  </aside>
+  <div class="mapwrap"><div id="map"></div></div>
+</div>
+
+<nav class="tabbar">
+  <button data-view="map" class="on">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>
+    地图
+  </button>
+  <button data-view="cards">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg>
+    卡片
+  </button>
+</nav>
+
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<div class="overlay" id="city-overlay">
+  <div class="sheet citysheet" id="city-sheet"></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
