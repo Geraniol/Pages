@@ -61,7 +61,12 @@
   --shadow:        0 8px 28px rgba(0, 0, 0, .45);
   --shadow-lg:     0 24px 70px rgba(0, 0, 0, .65);
 
-  --tabbar-h:      56px;
+  /* 底部视图切换栏。--tabbar-base 是基准高度，--tabbar-h 是实际高度：
+     全面屏上还要垫一条手势区，由移动端媒体查询里的 @supports 覆盖。
+     --tabbar-h 同时被 .tabbar 的高度与 .mapwrap / .panel 的 inset 引用，
+     所以只改这一处，三者一起让位。 */
+  --tabbar-base:   56px;
+  --tabbar-h:      var(--tabbar-base);
 }
 
 /* ══════════════ 基础 ══════════════ */
@@ -264,6 +269,7 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   position: relative;
   width: min(460px, 92vw);
   max-height: 86vh;
+  max-height: 86dvh;   /* 移动端底栏会伸缩，vh 取的是收起时的大视口；dvh 才等于当前可见高度 */
   overflow-y: auto;
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -486,6 +492,15 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
 .tabbar { display: none; }
 
 @media (max-width: 768px) {
+  /* 全面屏手势条：切换栏要按安全区加高。高度本身就决定了栏内按钮的位置
+     （border-box 下 padding-bottom 从高度里扣），.mapwrap / .panel 的 inset
+     引用同一个变量，会一并抬到底栏之上。
+     必须用 @supports 兜住：自定义属性在解析期不校验值，env() 一旦不被支持，
+     会在计算期让整条 var() 失效（inset 退成 auto，布局直接塌），比不写还糟。 */
+  @supports (padding: env(safe-area-inset-bottom)) {
+    :root { --tabbar-h: calc(var(--tabbar-base) + env(safe-area-inset-bottom)); }
+  }
+
   .app { display: block; }
 
   .mapwrap { position: fixed; inset: 0 0 var(--tabbar-h) 0; }
@@ -517,7 +532,9 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   .list { padding: 8px; }
   .card { padding: 12px; }
 
-  /* 底部视图切换 */
+  /* 底部视图切换。
+     height 用 --tabbar-h（已含手势条高度），padding-bottom 再扣掉同样一条，
+     border-box 下按钮就只占上面那 56px，手势条区域留空不压按钮。 */
   .tabbar {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -543,10 +560,17 @@ button { font: inherit; color: inherit; background: none; border: none; cursor: 
   .tabbar button.on { color: var(--text); }
 
   /* 详情变底部抽屉 */
+  /* 抽屉的锚点：inset:0 的底边在移动端会落到浏览器底栏之下，
+     显式给高度后 bottom 因过约束被忽略，底边正好停在可见区底部。
+     不支持 dvh 的老浏览器保留 100vh 回退，与改动前表现一致。 */
+  .overlay { height: 100vh; height: 100dvh; }
   .overlay.on { align-items: flex-end; }
   .sheet {
     width: 100%;
     max-height: 88vh;
+    max-height: 88dvh;
+    /* 全面屏手势条 / 圆角区域：别让最后一行压在上面 */
+    padding-bottom: env(safe-area-inset-bottom);
     border-radius: var(--radius) var(--radius) 0 0;
     border-bottom: none;
     animation: sheet-up .3s cubic-bezier(.32, .72, 0, 1);
