@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>李萨如图形 · 质数频率比矩阵</title>
+<style>
+  :root{
+    /* -------- 颜色 -------- */
+    --bg:#070b16;
+    --panel:rgba(255,255,255,.035);
+    --line:rgba(255,255,255,.10);
+    --line-soft:rgba(255,255,255,.055);
+    --ink:#e8edf7;
+    --ink-dim:#8d99b5;
+    --ink-faint:#5b6784;
+    --accent:#5ad1ff;
+    --accent-2:#b28cff;
+    --knob:#0a1020;                       /* 控件内芯：滑块手柄底 / 复选框对勾 */
+    --glow:rgba(90,209,255,.6);           /* 控件高亮辉光 */
+    --ctl-line:rgba(255,255,255,.22);     /* 控件常态描边 */
+
+    /* -------- 形状尺度：全站统一由这里控制 -------- */
+    --radius-box:14px;    /* 容器：设置栏 / 公式栏 / 说明区 */
+    --radius-cell:12px;   /* 矩阵格子 */
+    --radius-chip:5px;    /* 复选框 */
+    --radius-code:4px;    /* 行内代码 */
+
+    --pad-box:14px 18px;  /* 容器内边距 */
+    --gap-cell:8px;       /* 格子之间的间隙 */
+    --gap-ctl:11px;       /* 控件与其文字的间距 */
+    --gap-box:22px;       /* 容器内各控件组之间的横向间距 */
+    --gap-row:14px;       /* 容器内换行后的行间距 */
+
+    /* 格子边长：随视口宽度自动缩放，表随宽度整体收缩。
+       136px 为设计上限（等于 SVG viewBox 的设计尺寸），86px 为可读下限，
+       再窄就保持 86px 并改用横向滚动。
+       式中减去的 118px = 行号列 + 格间距 + 单元格边框 + 滚动条余量 的固定开销 */
+    --cell-size:clamp(86px, calc((min(100vw - 48px, 1180px) - 118px) / 6), 136px);
+
+    --ctl-size:17px;      /* 控件尺寸：复选框边长 = 滑块手柄直径 */
+    --track-h:4px;        /* 滑块轨道厚度 */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 700px at 15% -10%, rgba(90,209,255,.10), transparent 60%),
+      radial-gradient(1000px 600px at 95% 110%, rgba(190,110,255,.10), transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI","PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+    font-size:14px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+    padding:36px 24px 56px;   /* 底部留白（原为页脚预留，已随页脚一并收紧） */
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+
+  /* ---------- 标题 ---------- */
+  header{margin-bottom:26px}
+  h1{
+    font-size:clamp(20px,2.4vw,30px);
+    font-weight:600;
+    letter-spacing:.5px;
+    margin:0 0 8px;
+    background:linear-gradient(92deg,#7fe3ff,var(--accent-2) 55%,#ff9ad5);
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;
+  }
+  .sub{color:var(--ink-dim);font-size:13px;margin:0;max-width:78ch}
+  /* 公式栏与设置栏共用同一套容器外观 */
+  .formula{
+    display:inline-block;margin-top:14px;padding:var(--pad-box);
+    border:1px solid var(--line);border-radius:var(--radius-box);
+    background:var(--panel);backdrop-filter:blur(6px);
+    font-family:"Cambria Math","Times New Roman",Georgia,serif;
+    font-size:15px;color:#cfe0ff;letter-spacing:.3px;
+  }
+  .formula i{color:var(--accent);font-style:italic}
+
+  /* ---------- 控制条 ---------- */
+  .panel{
+    display:flex;flex-wrap:wrap;gap:var(--gap-row) var(--gap-box);align-items:center;
+    padding:var(--pad-box);margin:22px 0 26px;
+    border:1px solid var(--line);border-radius:var(--radius-box);
+    background:var(--panel);
+    backdrop-filter:blur(6px);
+  }
+  .ctl{display:flex;align-items:center;gap:var(--gap-ctl)}
+  .ctl.full{flex:0 0 100%}   /* 独占整行，后续控件被换到下一行 */
+  .ctl > label{color:var(--ink-dim);font-size:12.5px;letter-spacing:.4px;white-space:nowrap}
+  input[type=range]{
+    -webkit-appearance:none;appearance:none;
+    width:220px;height:var(--track-h);border-radius:var(--track-h);
+    background:linear-gradient(90deg,var(--accent),var(--accent-2));
+    outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;box-sizing:border-box;
+    width:var(--ctl-size);height:var(--ctl-size);border-radius:50%;
+    background:var(--knob);border:2px solid var(--accent);
+    box-shadow:0 0 10px var(--glow);cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    box-sizing:border-box;
+    width:var(--ctl-size);height:var(--ctl-size);border-radius:50%;
+    background:var(--knob);border:2px solid var(--accent);
+    box-shadow:0 0 10px var(--glow);cursor:pointer;
+  }
+  input[type=range]:focus-visible{outline:2px solid var(--glow);outline-offset:4px}
+  .readout{
+    font-family:ui-monospace,Consolas,"Cascadia Mono",monospace;
+    font-size:12.5px;color:var(--accent);
+    min-width:132px;letter-spacing:.2px;
+  }
+  /* 复选框：与滑块同一套视觉——同样的尺寸、深色内芯、青紫渐变与青色辉光 */
+  .toggle{
+    display:inline-flex;align-items:center;gap:var(--gap-ctl);cursor:pointer;
+    color:var(--ink-dim);font-size:12.5px;letter-spacing:.4px;
+    user-select:none;white-space:nowrap;
+  }
+  .toggle input{
+    -webkit-appearance:none;appearance:none;
+    flex:none;width:var(--ctl-size);height:var(--ctl-size);
+    margin:0;position:relative;
+    border:1px solid var(--ctl-line);
+    border-radius:var(--radius-chip);
+    background:rgba(255,255,255,.04);
+    cursor:pointer;
+    transition:border-color .18s, background .18s, box-shadow .18s;
+  }
+  .toggle input:hover{border-color:var(--glow)}
+  .toggle input:checked{
+    border-color:transparent;
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    box-shadow:0 0 10px var(--glow);
+  }
+  .toggle input:checked::after{
+    content:"";position:absolute;left:50%;top:48%;
+    width:4px;height:8px;
+    border:solid var(--knob);border-width:0 2px 2px 0;
+    transform:translate(-50%,-50%) rotate(45deg);
+  }
+  .toggle input:focus-visible{
+    outline:2px solid var(--glow);
+    outline-offset:4px;
+  }
+
+  /* ---------- 表格 ---------- */
+  h2{
+    font-size:14px;font-weight:600;letter-spacing:1.4px;
+    color:var(--ink-dim);text-transform:uppercase;
+    margin:38px 0 14px;display:flex;align-items:center;gap:12px;
+  }
+  h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+
+  .scroller{overflow-x:auto;padding-bottom:6px}
+  /* 横向滚动条：系统默认样式在深色背景上过于抢眼，这里换成细而低对比的自绘样式 */
+  .scroller::-webkit-scrollbar{height:8px}
+  .scroller::-webkit-scrollbar-track{background:transparent}
+  .scroller::-webkit-scrollbar-thumb{
+    background:rgba(255,255,255,.12);
+    border-radius:var(--radius-code);
+  }
+  .scroller::-webkit-scrollbar-thumb:hover{background:var(--glow)}
+  .scroller::-webkit-scrollbar-corner{background:transparent}
+  /* Firefox 不支持 ::-webkit-scrollbar，改用标准属性；两者同时写会互相覆盖，故用 @supports 分开 */
+  @supports not selector(::-webkit-scrollbar){
+    .scroller{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+  }
+
+  /* 表格永远按内容的自然宽度排版：宁可横向滚动，也不压缩列宽。
+     否则窄屏下单元格被挤窄 → 中文逐字断行 → 表头行被撑得极高、右侧留出大片空白 */
+  table{
+    border-collapse:separate;border-spacing:var(--gap-cell);
+    margin:0 auto;width:max-content;
+  }
+  th,td{padding:0;text-align:center;vertical-align:middle}
+
+  th.corner{width:22px}          /* 仅作左上角留白，不放文字 */
+  th.head{
+    font-family:ui-monospace,Consolas,monospace;
+    font-size:13px;font-weight:600;color:var(--ink-dim);
+    padding:0 0 8px;letter-spacing:.5px;
+  }
+  th.rowhead{
+    font-family:ui-monospace,Consolas,monospace;
+    font-size:13px;font-weight:600;color:var(--ink-dim);
+    text-align:right;padding-right:12px;white-space:nowrap;
+  }
+
+  td.cellwrap{
+    border:1px solid var(--line-soft);
+    border-radius:var(--radius-cell);
+    background:linear-gradient(160deg,rgba(255,255,255,.045),rgba(255,255,255,.012));
+    transition:border-color .22s, background .22s, transform .22s, box-shadow .22s;
+    position:relative;
+  }
+  td.cellwrap:hover{
+    border-color:rgba(120,200,255,.5);
+    background:linear-gradient(160deg,rgba(90,209,255,.13),rgba(178,140,255,.06));
+    transform:translateY(-3px);
+    box-shadow:0 10px 26px -10px rgba(90,209,255,.5);
+    z-index:2;
+  }
+  td.cellwrap.diag{
+    border-style:dashed;
+    background:linear-gradient(160deg,rgba(255,255,255,.02),rgba(255,255,255,0));
+  }
+  td.cellwrap.diag:hover{border-color:rgba(255,255,255,.35)}
+
+  /* .cell 同时作为容器查询的基准，供下方按格子宽度调整标注 */
+  .cell{position:relative;width:var(--cell-size);height:var(--cell-size);
+        container-type:inline-size}
+  .fig{display:block;width:var(--cell-size);height:var(--cell-size);overflow:visible;
+       fill:none;stroke:currentColor;stroke-width:1.5;
+       stroke-linecap:round;stroke-linejoin:round}
+  .fig .axis{stroke:rgba(255,255,255,.075);stroke-width:1;stroke-dasharray:2 4}
+  .fig .frame{stroke:rgba(255,255,255,.07);stroke-width:1;fill:none}
+  .fig .base{opacity:.92}
+  .fig .pulse{
+    stroke-width:2.6;stroke-dasharray:.13 .87;stroke-dashoffset:0;
+    opacity:.9;
+    animation:travel 3.6s linear infinite;
+    filter:drop-shadow(0 0 3px rgba(255,255,255,.85));
+  }
+  @keyframes travel{ to{ stroke-dashoffset:-1 } }
+  body.noanim .fig .pulse{display:none}
+  body.noanim .fig .base{opacity:1}
+  td.cellwrap:hover .fig{filter:url(#glow)}
+
+  .tag{
+    position:absolute;left:0;right:0;bottom:5px;
+    font-family:ui-monospace,Consolas,monospace;
+    font-size:clamp(9px, calc(var(--cell-size) * .085), 11.5px);
+    letter-spacing:.6px;
+    color:rgba(232,237,247,.82);pointer-events:none;
+  }
+  .tag em{
+    font-style:normal;color:var(--ink-faint);
+    font-size:clamp(8px, calc(var(--cell-size) * .07), 9.5px);
+    letter-spacing:.2px;
+  }
+  .cellwrap:hover .tag em{color:var(--ink-dim)}
+  /* 格子收窄到放不下副标注时，先舍去副标注，保证 "p : q" 比值始终完整 */
+  @container (max-width:124px){
+    .tag em{display:none}
+  }
+
+  /* ---------- 说明 ---------- */
+  .notes{
+    margin-top:34px;padding:var(--pad-box);
+    border:1px solid var(--line);border-radius:var(--radius-box);
+    background:var(--panel);
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px 34px;
+  }
+  .notes h3{
+    margin:0 0 7px;font-size:12.5px;font-weight:600;letter-spacing:.8px;
+    color:var(--accent);
+  }
+  .notes p{margin:0;font-size:12.8px;color:var(--ink-dim);line-height:1.75}
+  .notes code{
+    font-family:ui-monospace,Consolas,monospace;font-size:12px;
+    color:#cfe0ff;background:rgba(255,255,255,.06);
+    padding:1px 5px;border-radius:var(--radius-code);
+  }
+  @media (prefers-reduced-motion:reduce){
+    .fig .pulse{animation:none;display:none}
+    td.cellwrap:hover{transform:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>李萨如图形 · 质数频率比矩阵</h1>
+    <p class="sub">
+      横轴与纵轴分别由两个简谐振动驱动，频率之比取不同的质数对。由于任意两个<strong>不同质数必然互质</strong>，
+      曲线的<strong>最小正周期恰为 2π</strong>：图形严格闭合、不会随时间缓慢翻滚——这正是质数比在示波器上
+      呈现出「干净、稳定」花样的原因（这一点已对表中全部组合数值验证）。矩阵中<strong>同为奇数的质数对</strong>
+      沿主对角线互为镜像。
+    </p>
+    <div class="formula">
+      <i>x</i>(t) = A·sin(<i>p</i>·t + <i>δ</i>) &nbsp;&nbsp;·&nbsp;&nbsp; <i>y</i>(t) = B·sin(<i>q</i>·t)
+    </div>
+  </header>
+
+  <div class="panel">
+    <!-- 第一行：相位滑块（.full 让它独占一行） -->
+    <div class="ctl full">
+      <label for="phase">相位差 δ</label>
+      <input id="phase" type="range" min="0" max="360" step="1" value="90">
+      <span class="readout" id="phaseOut">90° = π/2</span>
+    </div>
+    <!-- 第二行：三个开关 -->
+    <div class="ctl">
+      <label class="toggle"><input id="sweep" type="checkbox" checked> 相位自动演化（约 30 秒一圈）</label>
+    </div>
+    <div class="ctl">
+      <label class="toggle"><input id="anim" type="checkbox" checked> 光点沿曲线运动</label>
+    </div>
+    <div class="ctl">
+      <label class="toggle"><input id="axes" type="checkbox" checked> 显示辅助线</label>
+    </div>
+  </div>
+
+  <h2>质数比矩阵 p : q</h2>
+  <div class="scroller"><table id="grid"></table></div>
+
+  <div class="notes">
+    <div>
+      <h3>闭合与最小周期</h3>
+      <p>写成最简整数比 <code>a : b</code>（<code>a ⟂ b</code>）后，<code>γ(t + T) = γ(t)</code>
+      要求 <code>aT</code> 与 <code>bT</code> 同时为 <code>2π</code> 的整数倍；互质使最小正周期恰为
+      <code>T = 2π</code>。两个不同质数自动互质，所以矩阵中每个格子都是严格闭合的静止花样。</p>
+    </div>
+    <div>
+      <h3>重复描迹：含 2 的那一行</h3>
+      <p>闭合不等于「不重描」。在 <code>δ = 90°</code> 下，若 <code>a</code> 为偶、<code>b</code> 为奇，
+      则 <code>γ(π − t) = γ(t)</code> 恒成立，整条曲线会被<strong>描画两次</strong>——矩阵中
+      <code>p = 2</code> 那一行正是如此。而<strong>两个质数同为奇数</strong>时不存在这种对称，
+      曲线只走一遍，光点轨迹最「经济」。</p>
+    </div>
+    <div>
+      <h3>自交节点的数量</h3>
+      <p>这个数<strong>依赖具体的参数化与相位</strong>，没有统一定值：对一般的相位，互质
+      <code>p, q</code> 的曲线有 <code>2pq − p − q</code> 个二重点；在特殊相位下图形退化、被重复描画，
+      交点数随之减半（例如 <code>x = cos pt, y = cos qt</code> 在相位为 0 时是 <code>(p−1)(q−1)/2</code>）。
+      因此本表只呈现形状，不标注节点数。详见 MathOverflow 讨论
+      <em>“Formula for number of intersection points for Lissajous curve?”</em>。</p>
+    </div>
+    <div>
+      <h3>对角线：退化情形</h3>
+      <p>对角线上 <code>p = q</code>，比值为 <code>1 : 1</code>。此时曲线退化为圆（δ = 90°）
+      或直线段（δ = 0°/180°），不再具有频率比信息——真正的「质数比」只出现在非对角元。</p>
+    </div>
+    <div>
+      <h3>相位差 δ 的作用</h3>
+      <p>δ 控制曲线在矩形框内的「张开程度」，也是最容易改变图形观感的参数：δ = 90° 时图形最饱满，
+      δ 趋于 0° 或 180° 时逐渐收拢成一条对角线。拖动上方滑块可以手动定格任意相位，
+      打开<strong>相位自动演化</strong>则会让全部 36 个格子一起缓慢变形（约 30 秒走完一圈）。</p>
+    </div>
+    <div>
+      <h3>镜像对称只发生在奇数对</h3>
+      <p>把 <code>p</code> 与 <code>q</code> 互换，只有在<strong>两者同为奇数</strong>时才恰好等于沿
+      <code>y = x</code> 的镜像——表中标了 <code>⇋ 镜像</code> 的格子与其转置格互为镜像。
+      一旦含偶数的质数（也就是 2），转置后的图形会变成另一个形状，不再是简单翻转。</p>
+    </div>
+    <div>
+      <h3>为什么用质数</h3>
+      <p>若频率比为 <code>6 : 4</code>，化简为 <code>3 : 2</code>，图形与 <code>3 : 2</code> 完全相同——
+      多余的公约数只让光点多绕几圈。用质数比可保证每个格子都是「新」花样，且周期最短、成像最稳定。</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- 共享滤镜定义（悬停发光） -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none" aria-hidden="true">
+  <defs>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+</svg>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ============ 基本参数 ============ */
+  const PRIMES = [2, 3, 5, 7, 11, 13];   // 行列所用的质数
+
+  /* SVG 的「设计空间」：曲线坐标一律按这套固定尺寸计算，
+     实际显示多大由 CSS 的 --cell-size 决定，浏览器负责等比缩放。
+     两者解耦后，格子随窗口变窄时图形只是整体缩小，比例与留白都不变。 */
+  const SIZE     = 136;                  // viewBox 边长（= --cell-size 的设计上限）
+  const FRAME_RX = 7;                    // 格内绘图框圆角
+  const PAD      = 18;                   // 绘图区内边距
+  const R        = (SIZE - 2 * PAD) / 2; // 振幅
+  const CX       = SIZE / 2;
+  const CY       = SIZE / 2;
+
+  const state = { delta: Math.PI / 2, anim: true, axes: true, sweep: false };
+
+  /* ============ 数学工具 ============ */
+  const gcd = (a, b) => { while (b) { const t = a % b; a = b; b = t; } return a; };
+  const reduce = (p, q) => { const g = gcd(p, q); return [p / g, q / g]; };
+
+  /**
+   * 预采样：把与相位无关的部分一次算好，供后续每帧复用。
+   * 因为 sin(a·t + δ) = sin(a·t)·cosδ + cos(a·t)·sinδ，
+   * 所以只需存 sin(a·t)、cos(a·t)、sin(b·t) 三组数，
+   * 相位动画每帧就只剩两次乘加，不必再做三角函数。
+   * 采样密度随频率提高而增加，保证高频曲线不失真。
+   */
+  function sampleGeometry(a, b) {
+    const n = Math.min(2600, Math.max(560, 120 * Math.max(a, b)));
+    const S = new Float64Array(n + 1);
+    const C = new Float64Array(n + 1);
+    const Y = new Float64Array(n + 1);
+    for (let i = 0; i <= n; i++) {
+      const t = 2 * Math.PI * i / n;
+      S[i] = Math.sin(a * t);
+      C[i] = Math.cos(a * t);
+      Y[i] = Math.sin(b * t);
+    }
+    return { n: n, S: S, C: C, Y: Y };
+  }
+
+  /** 由预采样数据 + 当前相位生成 SVG path 的 d 属性 */
+  function pathFrom(g, delta) {
+    const cd = Math.cos(delta), sd = Math.sin(delta);
+    let d = "";
+    let px = NaN, py = NaN;
+    for (let i = 0; i <= g.n; i++) {
+      const x = CX + R * (g.S[i] * cd + g.C[i] * sd);
+      const y = CY - R * g.Y[i];
+      // 合并几乎重合的相邻点，减小 path 体积
+      if (Math.abs(x - px) < 0.055 && Math.abs(y - py) < 0.055) continue;
+      d += (d ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
+      px = x; py = y;
+    }
+    return d;
+  }
+
+  /* ============ 单元格构造 ============ */
+  let uid = 0;
+
+  function makeCell(a, b, hue, delta, opts) {
+    opts = opts || {};
+    const id = "ls" + (uid++);
+    const geo = sampleGeometry(a, b);
+    const wrap = document.createElement("div");
+    wrap.className = "cell";
+    wrap.innerHTML =
+      '<svg class="fig" viewBox="0 0 ' + SIZE + " " + SIZE + '" style="color:hsl(' + hue + ' 92% 68%)" aria-hidden="true">' +
+        '<rect class="frame" x="' + PAD + '" y="' + PAD + '" width="' + (SIZE - 2 * PAD) + '" height="' + (SIZE - 2 * PAD) + '" rx="' + FRAME_RX + '"/>' +
+        '<path class="axis grid-line" d="M' + CX + " " + PAD + "V" + (SIZE - PAD) + "M" + PAD + " " + CY + "H" + (SIZE - PAD) + '"/>' +
+        '<path class="base" id="' + id + '" pathLength="1" d="' + pathFrom(geo, delta) + '"/>' +
+        '<use class="pulse" href="#' + id + '" style="color:#ffffff"/>' +
+      "</svg>" +
+      '<span class="tag">' + a + " : " + b +
+        (opts.note ? ' <em>· ' + opts.note + "</em>" : "") +
+      "</span>";
+    return { el: wrap, path: wrap.querySelector("path.base"), a: a, b: b, geo: geo };
+  }
+
+  /* ============ 表格骨架 ============ */
+  function fillTable(table, cornerHTML, colHeads) {
+    const thead = document.createElement("thead");
+    const hr = document.createElement("tr");
+    const corner = document.createElement("th");
+    corner.className = "corner";
+    corner.innerHTML = cornerHTML;
+    hr.appendChild(corner);
+    colHeads.forEach(h => {
+      const th = document.createElement("th");
+      th.className = "head";
+      th.innerHTML = h;
+      hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    table.appendChild(tbody);
+    return tbody;
+  }
+
+  /* ============ 渲染：质数比矩阵 ============ */
+  const items = [];               // 所有曲线，供相位滑块统一更新
+
+  (function buildMatrix() {
+    const grid = document.getElementById("grid");
+    const tbody = fillTable(grid, "", PRIMES.map(q => String(q)));
+
+    PRIMES.forEach((p, ri) => {
+      const tr = document.createElement("tr");
+      const th = document.createElement("th");
+      th.className = "rowhead";
+      th.textContent = p;
+      tr.appendChild(th);
+
+      PRIMES.forEach((q, ci) => {
+        const [a, b] = reduce(p, q);
+        const hue = 178 + (ri + ci) * 12.5;   // 青 → 紫 → 品红
+        const td = document.createElement("td");
+        td.className = "cellwrap" + (p === q ? " diag" : "");
+        const bothOdd = p % 2 === 1 && q % 2 === 1;   // 此时 (q,p) 是本格的镜像
+        const cell = makeCell(a, b, hue, state.delta, {
+          note: p === q ? "退化" : (bothOdd ? "⇋ 镜像" : "")
+        });
+        td.appendChild(cell.el);
+        tr.appendChild(td);
+        items.push(cell);
+      });
+
+      tbody.appendChild(tr);
+    });
+  })();
+
+  /* ============ 交互 ============ */
+  const phaseInput = document.getElementById("phase");
+  const phaseOut   = document.getElementById("phaseOut");
+  const animInput  = document.getElementById("anim");
+  const axesInput  = document.getElementById("axes");
+  const sweepInput = document.getElementById("sweep");
+
+  const PI_FRAC = {
+    0: "0", 30: "π/6", 45: "π/4", 60: "π/3", 90: "π/2",
+    120: "2π/3", 135: "3π/4", 150: "5π/6", 180: "π",
+    210: "7π/6", 225: "5π/4", 240: "4π/3", 270: "3π/2",
+    300: "5π/3", 315: "7π/4", 330: "11π/6", 360: "2π"
+  };
+
+  const TAU = Math.PI * 2;
+  const SWEEP_PERIOD = 30;   // 相位走完一整圈所需的秒数
+  const PAINT_MS = 50;       // 自动演化时的重绘间隔（约 20fps，肉眼已足够连续）
+
+  let sweepT = state.delta;  // 自动演化时的当前相位（弧度）
+  let rafId = 0, lastTs = 0, lastPaint = 0;
+
+  /** 用当前相位重绘全部曲线 */
+  function paint(delta) {
+    for (const it of items) it.path.setAttribute("d", pathFrom(it.geo, delta));
+  }
+
+  /** 更新相位：同步滑块、读数，并（可选）重绘曲线 */
+  function setDelta(rad, repaint) {
+    state.delta = rad;
+    const deg = (rad * 180 / Math.PI) % 360;
+    phaseInput.value = Math.round(deg);
+    phaseOut.textContent = (Number.isInteger(deg) && PI_FRAC[deg])
+      ? deg + "° = " + PI_FRAC[deg]
+      : deg.toFixed(1) + "°";
+    if (repaint !== false) paint(rad);
+  }
+
+  function tick(ts) {
+    if (!state.sweep) { rafId = 0; return; }
+    if (!lastTs) { lastTs = ts; lastPaint = ts; }
+    const dt = Math.min(0.12, (ts - lastTs) / 1000);   // 夹住掉帧时的步长
+    lastTs = ts;
+    sweepT = (sweepT + dt * TAU / SWEEP_PERIOD) % TAU;
+    setDelta(sweepT, false);                            // 滑块/读数每帧跟随
+    if (ts - lastPaint >= PAINT_MS) {                   // 曲线按固定间隔重绘
+      lastPaint = ts;
+      paint(sweepT);
+    }
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function startSweep() {
+    sweepT = state.delta;   // 从当前相位接着走，不跳变
+    lastTs = 0;
+    if (!rafId) rafId = requestAnimationFrame(tick);
+  }
+
+  function stopSweep(repaint) {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = 0; lastTs = 0;
+    if (repaint) paint(state.delta);
+  }
+
+  sweepInput.addEventListener("change", () => {
+    state.sweep = sweepInput.checked;
+    if (state.sweep) startSweep(); else stopSweep(true);
+  });
+
+  phaseInput.addEventListener("input", () => {
+    // 手动拖动即接管：停掉自动演化，避免和滑块打架
+    if (state.sweep) {
+      state.sweep = false;
+      sweepInput.checked = false;
+      stopSweep(false);
+    }
+    setDelta(+phaseInput.value * Math.PI / 180);
+  });
+
+  animInput.addEventListener("change", () => {
+    state.anim = animInput.checked;
+    document.body.classList.toggle("noanim", !state.anim);
+  });
+
+  axesInput.addEventListener("change", () => {
+    state.axes = axesInput.checked;
+    document.querySelectorAll(".grid-line").forEach(el => {
+      el.style.display = state.axes ? "" : "none";
+    });
+  });
+
+  // 初始状态：默认让相位缓慢演化；若系统开启了「减少动态效果」则不自动播放
+  const reduceMotion = window.matchMedia
+    && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  state.sweep = sweepInput.checked && !reduceMotion;
+  sweepInput.checked = state.sweep;
+  setDelta(state.delta, false);   // 只刷新读数，曲线在创建时已画好
+  if (state.sweep) startSweep();
+})();
+</script>
+</body>
+</html>

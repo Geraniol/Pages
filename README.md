@@ -28,6 +28,9 @@ A web app that allows users to compare two images and highlight the differences.
 ### [ItemList](ItemList)
 A checklist page with collapsible categories, per-item priority colours and locally stored check-offs, whose entire content is edited in `data.js` rather than in the page.
 
+### [LissajousCurve](LissajousCurve)
+A 6×6 grid of Lissajous curves drawn at prime frequency ratios, with a draggable phase offset, an auto-evolving phase, a light point travelling along each curve and toggleable guide lines.
+
 ### [PolarAxis](PolarAxis)
 A 3D viewfinder simulator that shows how polar alignment errors smear stars into trails, with draggable dials for the polar, mount and camera axes.
 
