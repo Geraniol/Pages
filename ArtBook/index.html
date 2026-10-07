@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>搬过来，搬过去 · 绘本</title>
+<style>
+  :root{
+    --paper:#faf5ec;
+    --paper-2:#f3ead9;
+    --ink:#3a3228;
+    --ink-soft:#7a6c58;
+    --rule:#dccdb4;
+    --accent:#c8722c;
+    --measure:44rem;
+    --story-size:1.22rem;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    margin:0;
+    background:
+      radial-gradient(120% 90% at 50% 0%, #fffbf4 0%, var(--paper) 55%, var(--paper-2) 100%) fixed;
+    color:var(--ink);
+    font-family:"Noto Serif SC","Source Han Serif SC","Songti SC","STSong",
+                "SimSun",Georgia,serif;
+    line-height:1.9;
+    letter-spacing:.02em;
+  }
+
+  /* ---------- reading controls ---------- */
+  .controls{
+    position:fixed; z-index:20; right:1rem; bottom:1rem;
+    display:flex; gap:.35rem;
+    background:rgba(255,253,248,.92);
+    border:1px solid var(--rule); border-radius:999px;
+    padding:.3rem .45rem;
+    box-shadow:0 6px 20px rgba(90,70,45,.14);
+    backdrop-filter:blur(6px);
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  .controls button{
+    min-width:2.3rem; height:2.3rem; padding:0 .6rem;
+    border:0; border-radius:999px; cursor:pointer;
+    background:transparent; color:var(--ink-soft);
+    font-size:.95rem; line-height:1;
+  }
+  .controls button:hover{background:var(--paper-2); color:var(--accent)}
+
+  /* ---------- title page ---------- */
+  .cover{
+    min-height:100svh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:1.6rem; padding:3rem 1.25rem 4rem; text-align:center;
+  }
+  .cover figure{margin:0; max-width:min(28rem,82vw)}
+  .cover img{
+    display:block; width:100%; height:auto;
+    border-radius:.5rem;
+    box-shadow:0 18px 44px rgba(90,70,45,.22), 0 2px 0 rgba(255,255,255,.6) inset;
+  }
+  h1{
+    margin:0; font-size:clamp(2rem,7vw,3.1rem);
+    font-weight:600; letter-spacing:.16em; text-indent:.16em;
+  }
+  .byline{
+    margin:0; color:var(--ink-soft); font-size:.95rem;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    letter-spacing:.06em;
+  }
+  .byline b{color:var(--ink); font-weight:600}
+  .scroll-hint{
+    color:var(--ink-soft); font-size:.8rem; letter-spacing:.28em;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  .scroll-hint::after{content:"▾"; display:block; margin-top:.2rem; animation:bob 1.8s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0); opacity:.4} 50%{transform:translateY(5px); opacity:1}}
+
+  /* ---------- story ---------- */
+  main{max-width:var(--measure); margin:0 auto; padding:0 1.25rem 2rem}
+  .beat{padding:2.6rem 0; border-top:1px solid var(--rule)}
+  .beat:first-child{border-top:0}
+  figure{margin:0}
+  .beat img{
+    display:block; margin:0 auto;
+    max-width:100%; max-height:82svh; width:auto; height:auto;
+    border-radius:.4rem;
+    box-shadow:0 10px 26px rgba(90,70,45,.16);
+  }
+  .beat.twoup img{max-height:58svh}
+  .beat.twoup .pair{display:flex; flex-wrap:wrap; gap:1.2rem; justify-content:center; align-items:flex-end}
+  .beat.twoup .pair img{flex:0 1 auto; min-width:0}
+
+  .story{
+    margin:1.7rem auto 0; max-width:34rem;
+    font-size:var(--story-size); line-height:2.05;
+    text-align:justify; text-justify:inter-character;
+  }
+  .story.above{margin:0 auto 1.7rem}
+  .story p{margin:0 0 1.05em}
+  .story p:last-child{margin-bottom:0}
+  .story .label{display:block}
+
+  .ornament{
+    text-align:center; color:var(--rule); font-size:1.1rem;
+    letter-spacing:.6em; padding:2.2rem 0 0; user-select:none;
+  }
+
+  /* ---------- end matter ---------- */
+  .colophon{
+    max-width:var(--measure); margin:0 auto; padding:2.5rem 1.25rem 5rem;
+    border-top:1px solid var(--rule);
+    color:var(--ink-soft); font-size:.9rem;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+    line-height:1.85;
+  }
+  .colophon h2{
+    margin:0 0 .8rem; font-size:.8rem; letter-spacing:.22em;
+    text-transform:uppercase; color:var(--ink-soft); font-weight:600;
+  }
+  .colophon p{margin:0 0 .6rem}
+  details{margin-top:1.2rem}
+  summary{cursor:pointer; color:var(--accent); letter-spacing:.04em}
+  summary:hover{text-decoration:underline}
+  .table-wrap{overflow-x:auto; -webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse; width:100%; margin-top:.9rem; font-size:.82rem}
+  th,td{text-align:left; padding:.35rem .5rem; border-bottom:1px solid var(--rule)}
+  th{color:var(--ink); font-weight:600; white-space:nowrap}
+  td:first-child{white-space:nowrap}
+  @media (max-width:640px){
+    table{min-width:32rem}
+    td{white-space:nowrap}
+  }
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.9em}
+
+  @media (max-width:640px){
+    :root{--story-size:1.15rem}
+    .beat{padding:2rem 0}
+    .story{text-align:left}
+  }
+  @media print{
+    body{background:#fff}
+    .controls,.scroll-hint{display:none}
+    .cover{min-height:auto; page-break-after:always}
+    .beat{page-break-inside:avoid; border-top:0}
+    .beat img{max-height:16cm; box-shadow:none}
+    .colophon{page-break-before:always}
+  }
+</style>
+</head>
+<body>
+
+<div class="controls" role="group" aria-label="字号">
+  <button type="button" data-step="-1" aria-label="缩小字号">A−</button>
+  <button type="button" data-step="1" aria-label="放大字号">A＋</button>
+</div>
+
+<header class="cover">
+  <figure>
+    <img src="images/00-cover.png" alt="长颈鹿和鳄鱼一起躺在地上，头上冒着金星" width="484" height="545">
+  </figure>
+  <h1>搬过来，搬过去</h1>
+  <p class="byline">［德］<b>达妮拉·库洛特</b>（Daniela Kulot）　著　·　“麦田精选图画书”</p>
+  <p class="scroll-hint">开始阅读</p>
+</header>
+
+<main>
+
+  <section class="beat">
+    <figure><img src="images/01.png" alt="长颈鹿站在卷尺旁，比身旁的鳄鱼高出一大截，中间标着 2.43m" loading="lazy"></figure>
+    <div class="story">
+      <p>这是长颈鹿。她非常高大。</p>
+      <p>这是鳄鱼。他非常矮小。</p>
+      <p>他们的身高整整差了两米又四十三厘米。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <div class="story above">
+      <p>尽管如此，他们是一对真正的爱人。</p>
+    </div>
+    <figure><img src="images/02.png" alt="长颈鹿背着鳄鱼走在乡间小路上" loading="lazy"></figure>
+    <div class="story">
+      <p>他们是怎么认识的？这写在另一本书里。对于这段相识，鳄鱼和长颈鹿都非常高兴。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/03.png" alt="鳄鱼推开自家小门，长颈鹿拎着包站在写着 UMZUG 的搬家箱旁" loading="lazy"></figure>
+    <div class="story">
+      <p>当然，真心相爱的人都希望有一幢房子，这样他们才能够生活在一起。于是，他们搬到城市的边缘，搬进鳄鱼的小房子。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/04.png" alt="长颈鹿弯着腰钻进鳄鱼的拱形小屋，鳄鱼仰头看着她" loading="lazy"></figure>
+    <div class="story">
+      <p>不过，那儿并不理想，一点也不理想。长颈鹿走到哪儿都会撞到头。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/05.png" alt="长颈鹿睡在小屋里，身子伸出门外，一直伸到院子里" loading="lazy"></figure>
+    <div class="story">
+      <p>当她睡觉时，只要伸展一下身体，她就完全看不到鳄鱼了。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/06.png" alt="长颈鹿坐在小板凳上，头顶从屋顶伸了出去" loading="lazy"></figure>
+    <div class="story">
+      <p>当她想要坐得舒服一点时，同样的事又发生了！</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/07.png" alt="鳄鱼扶着小梯子，对从屋顶探出头来的长颈鹿说话" loading="lazy"></figure>
+    <div class="story">
+      <p>“要不，我们搬到你家去吧。”鳄鱼对长颈鹿说，“小鳄鱼住大房子总比大长颈鹿住小房子要好得多。”</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/08.png" alt="长颈鹿扛着 UMZUG 搬家箱走在前面，鳄鱼拉着小车跟在后面" loading="lazy"></figure>
+    <div class="story">
+      <p>于是，他们搬到城市的另一边，搬进长颈鹿的大房子。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <div class="story above">
+      <p>但是，住在那里也有很多困难，而且非常困难。</p>
+    </div>
+    <figure><img src="images/09.png" alt="长颈鹿坐在高高的椅子上吃饭，鳄鱼坐在旁边的小板凳上" loading="lazy"></figure>
+    <div class="story">
+      <p>鳄鱼怎么在这张桌子旁边吃东西呢？也许他需要一把高高的椅子吧！</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/10.png" alt="鳄鱼手脚并用地往高脚凳上爬" loading="lazy"></figure>
+    <div class="story">
+      <p>但是，鳄鱼又怎么坐上去呢？</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/11.png" alt="长颈鹿弯腰趴在矮凳上吃饭，鳄鱼坐在小桌旁" loading="lazy"></figure>
+    <div class="story">
+      <p>他们可以改用一张比较矮的桌子，但是那又不适合长颈鹿。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/12.png" alt="长颈鹿坐在地下室，头从地板洞里伸上来，和鳄鱼隔着一层楼对望" loading="lazy"></figure>
+    <div class="story">
+      <p>他们也可以在地板上锯一个洞，长颈鹿坐在地下室，只需把头伸到地板上面来。但是，长颈鹿的脚会冻得冰凉冰凉的，这样对她可不好。</p>
+    </div>
+  </section>
+
+  <section class="beat twoup">
+    <div class="pair">
+      <figure><img src="images/14.png" alt="鳄鱼踮起脚伸长了手，还是够不到门把手" loading="lazy"></figure>
+      <figure><img src="images/13.png" alt="鳄鱼扑在又高又陡的楼梯上往上爬" loading="lazy"></figure>
+    </div>
+    <div class="story">
+      <p>还有许多麻烦事呢。门把手太高了！</p>
+      <p>楼梯太陡了！</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/15.png" alt="鳄鱼躺在巨大的马桶里，旁边垂下一把小梯子" loading="lazy"></figure>
+    <div class="story">
+      <p>马桶太大了！</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/16.png" alt="鳄鱼在高高的晾衣绳上走绳索，长颈鹿的裤子挂在绳上" loading="lazy"></figure>
+    <div class="story">
+      <p>甚至晾衣服都有困难！即使鳄鱼已经学会了走绳索。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <div class="story above">
+      <p>鳄鱼和长颈鹿越来越难过。</p>
+    </div>
+    <figure><img src="images/17.png" alt="长颈鹿靠着树干低头不语，鳄鱼抱着手臂站在她脚边" loading="lazy"></figure>
+    <div class="story">
+      <p>事情不能再这样继续下去了，鳄鱼不能忍受这一切，长颈鹿也是！</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <div class="story above">
+      <p>唯一没有问题的地方就是床。当他们躺在床上时，高度才会相同。</p>
+    </div>
+    <figure><img src="images/18.png" alt="鳄鱼和长颈鹿并排躺在床上，互相望着对方" loading="lazy"></figure>
+    <div class="story">
+      <p>这时候，他们才可以望着彼此的眼睛，给对方一个最甜蜜的微笑，就像当初一样的快乐。于是，他们想出了一个解决问题的好办法。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/19.png" alt="鳄鱼和长颈鹿趴在草地上，对着一张图纸商量" loading="lazy"></figure>
+    <div class="story">
+      <p>第二天一早，阳光灿烂，鳄鱼和长颈鹿在花园里制订了一项伟大的计划。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/20.png" alt="长颈鹿挥着铁锹，鳄鱼拿着小铲子，一起挖一个巨大的坑" loading="lazy"></figure>
+    <div class="story">
+      <p>他们开始挖一个巨大的坑。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/21.png" alt="鳄鱼站在长颈鹿头顶用电钻，长颈鹿在地上钻孔，旁边堆着木板和树干" loading="lazy"></figure>
+    <div class="story">
+      <p>他们敲啊！钻啊！凿啊！他们拿来了木板、树干和玻璃。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/22.png" alt="长颈鹿把自己当成滑梯，鳄鱼顺着她的身体滑下去" loading="lazy"></figure>
+    <div class="story">
+      <p>长颈鹿还把自己当做滑梯呢！</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/23.png" alt="长颈鹿擦着高处的墙，鳄鱼在地上拖地" loading="lazy"></figure>
+    <div class="story">
+      <p>终于，每件东西都洗干净、擦亮了。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/24.png" alt="红色的水罐车开过来，长颈鹿和鳄鱼趴在罐顶上，软管伸进坑里" loading="lazy"></figure>
+    <div class="story">
+      <p>最后，巨大的水罐车开过来，往坑里装满水。</p>
+    </div>
+  </section>
+
+  <section class="beat">
+    <figure><img src="images/25.png" alt="改造后的家：客厅中央是一个游泳池，鳄鱼和长颈鹿泡在水里对望" loading="lazy"></figure>
+    <div class="story">
+      <p>现在，鳄鱼和长颈鹿住在游泳池里。在水中，他们的高度相同。他们可以一直互相对望，并且给对方一个最甜蜜的微笑。所有的问题，都被洗掉啦！</p>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var size = 1.22;
+  function apply() {
+    root.style.setProperty('--story-size', size.toFixed(2) + 'rem');
+  }
+  document.querySelectorAll('.controls button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      size = Math.min(1.9, Math.max(0.95, size + 0.1 * Number(b.dataset.step)));
+      apply();
+    });
+  });
+  document.querySelector('.scroll-hint').addEventListener('click', function () {
+    document.querySelector('main').scrollIntoView({ behavior: 'smooth' });
+  });
+})();
+</script>
+
+</body>
+</html>
