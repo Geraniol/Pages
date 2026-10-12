@@ -7,6 +7,9 @@ A collection of static web pages hosted and deployed with GitHub Pages.
 ### [AIConversation](AIConversation)
 A static web app that lets two OpenAI-compatible models take turns in one conversation, with per-topic system prompts, streaming replies and Markdown / JSON export.
 
+### [ArtBook](ArtBook)
+A scroll-through picture-book reader: every page of Daniela Kulot's 搬过来，搬过去 shown with its text, plus adjustable type size, a two-up spread and a print stylesheet.
+
 ### [Background](Background)
 A set of interactive animated wallpapers — an illustrated girl, chocolate, a silent planet and a mini planet — made to run full screen as a screensaver or inside Wallpaper Engine.
 
