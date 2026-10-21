@@ -13,6 +13,9 @@ A scroll-through picture-book reader: every page of Daniela Kulot's 搬过来，
 ### [Background](Background)
 A set of interactive animated wallpapers — an illustrated girl, chocolate, a silent planet and a mini planet — made to run full screen as a screensaver or inside Wallpaper Engine.
 
+### [Calendar](Calendar)
+An importable iCalendar (.ics) file of the 2026-2027 term 1 class timetable: each course repeats weekly until the end of term in the Asia/Shanghai time zone, ready to import into a phone or desktop calendar.
+
 ### [Color565](Color565)
 An RGB565 color picker: R/G/B sliders in 5/6/5 bits, with the packed 16-bit value, its bit-by-bit layout and the 8-bit approximation shown live, plus a hex round-trip comparison against the original color.
 
@@ -38,7 +41,7 @@ A 6×6 grid of Lissajous curves drawn at prime frequency ratios, with a draggabl
 A 3D viewfinder simulator that shows how polar alignment errors smear stars into trails, with draggable dials for the polar, mount and camera axes.
 
 ### [PriceClock](PriceClock)
-A live clock that tells whether the current period is peak or off-peak, counts down to the next switch, and lists the matching prices.
+A 24-hour ring clock for Beijing peak pricing: orange segments mark the peak windows converted to local time and grey the off-peak, with a pointer on local time and the current Beijing time inside. Installable and works offline.
 
 ### [TimeTable](TimeTable)
 A TimeTable for 2026-2027S1 Preschool Education Students of GDUE.

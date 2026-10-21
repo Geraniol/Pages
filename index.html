@@ -288,7 +288,7 @@ footer a:hover{color:var(--fg);border-bottom-color:rgba(124,152,196,.65)}
       </a>
 
       <a class="card" href="./PriceClock/" style="--a:#ff6a3d;--a-rgb:255,106,61"
-         data-keywords="价格 时钟 价格时钟 高峰 空闲 峰谷 计费 倒计时 北京时间 flash pro price clock peak off-peak 模型 价格表 tokens">
+         data-keywords="价格 时钟 价格时钟 高峰 空闲 峰谷 计费 北京时间 时区 本地 gmt 环形 圆环 时段 指针 一天 离线 主屏幕 安装 pwa price clock peak off-peak timezone">
         <div class="card-top">
           <span class="icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
@@ -304,9 +304,9 @@ footer a:hover{color:var(--fg);border-bottom-color:rgba(124,152,196,.65)}
         <div>
           <h2>价格时钟</h2>
           <span class="path">/PriceClock</span>
-          <p class="desc">实时显示当前处于高峰还是空闲时段，并倒计时到下一次切换。同时对照 flash / pro 两档模型在各时段的价格，附北京时间与全天时间轴。</p>
+          <p class="desc">环形时段钟：外圈 24 格代表一天，橙色是换算到本地时间后的北京高峰窗口，灰色为空闲，白色指针按本地时间走。环内显示当前北京时刻、本地大字时刻与日期，以及本地时区与 GMT 偏移。可添加到主屏幕离线使用。</p>
         </div>
-        <div class="tags"><span>峰谷时段实时判定</span><span>切换倒计时</span><span>价格对照表</span></div>
+        <div class="tags"><span>环形时段钟</span><span>高峰窗口着色</span><span>可安装 / 离线</span></div>
       </a>
 
       <a class="card" href="./AIConversation/" style="--a:#ff5f7e;--a-rgb:255,95,126"
@@ -506,6 +506,28 @@ footer a:hover{color:var(--fg);border-bottom-color:rgba(124,152,196,.65)}
           <p class="desc">把达妮拉·库洛特（Daniela Kulot）的绘本《搬过来，搬过去》做成长滚动阅读页：长颈鹿与鳄鱼的每张插图配着原文，往下滚就能读完；右下角 A− / A＋ 调正文字号，原书跨页的两张图并排显示，样式表里还带了打印规则，可以直接印成书页。图片全部在本地，断网也能看。</p>
         </div>
         <div class="tags"><span>逐页图文</span><span>字号可调</span><span>可打印</span></div>
+      </a>
+
+      <a class="card" href="./Calendar/2026-2027-1.ics" style="--a:#2dd4bf;--a-rgb:45,212,191"
+         data-keywords="课表 课程表 日历 校历 日程 时间表 ics icalendar ical 订阅 导入 提醒 学期 2026 2027 s1 第一学期 学前教育 大学英语 音乐技能 舞蹈 儿童发展 军事理论 timetable calendar schedule">
+        <div class="card-top">
+          <span class="icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="4.5" width="18" height="16" rx="2.5"/>
+              <path d="M3 9.5h18M8 3v3M16 3v3"/>
+              <path d="M12 12.6v4.6M9.7 14.9h4.6"/>
+            </svg>
+          </span>
+          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 17L17 7M9 7h8v8"/>
+          </svg>
+        </div>
+        <div>
+          <h2>课表日历</h2>
+          <span class="path">/Calendar/2026-2027-1.ics</span>
+          <p class="desc">把 2026-2027 学年第一学期的课表做成一份 iCalendar（.ics）文件：每门课按周次重复到学期末，时区标为 Asia/Shanghai，下载后导入手机或电脑的日历应用即可按时提醒，也能用订阅链接长期同步。覆盖大学英语、音乐技能、舞蹈技能、学前教育原理、儿童发展、中国近现代史纲要等课程。</p>
+        </div>
+        <div class="tags"><span>ICS 日历文件</span><span>按周重复</span><span>可导入日历</span></div>
       </a>
 
     </section>

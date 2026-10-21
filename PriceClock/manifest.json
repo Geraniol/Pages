@@ -1,0 +1,18 @@
+{
+  "name": "价格时钟",
+  "short_name": "价格时钟",
+  "description": "北京时间高峰 / 空闲时段与 DeepSeek 价格的实时时钟。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#232323",
+  "theme_color": "#232323",
+  "categories": ["utilities", "productivity"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
