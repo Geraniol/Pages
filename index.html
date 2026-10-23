@@ -2,588 +2,380 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pages · Navigation</title>
-<meta name="description" content="Geraniol/Pages">
-<meta name="theme-color" content="#080b12">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pages</title>
+<meta name="description" content="geraniol.github.io/Pages">
+<meta name="theme-color" content="#000000">
 <meta name="color-scheme" content="dark">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230c1119'/%3E%3Cg fill='none' stroke='%234a7dff' stroke-width='2' stroke-linejoin='round'%3E%3Cpath d='M16 6l9 5-9 5-9-5z'/%3E%3Cpath d='M7 16.5L16 21.5l9-5'/%3E%3C/g%3E%3C/svg%3E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Pages">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23000'/%3E%3Cg transform='translate(2.6,2.6) scale(.783)' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect width='7' height='7' x='3' y='3' rx='1'/%3E%3Crect width='7' height='7' x='14' y='3' rx='1'/%3E%3Crect width='7' height='7' x='14' y='14' rx='1'/%3E%3Crect width='7' height='7' x='3' y='14' rx='1'/%3E%3C/g%3E%3C/svg%3E">
 <style>
+/* 尺寸全部由一个变量 --w 推导：设计稿可见页宽 451 / 画布 551，所以正文列宽取 82vw，
+   方砖 4 列、砖间距 0.0871 * 列宽（= 稿子的 39.3 / 451），字号一律按砖宽的比例给。
+   手机上因此正好复现稿子的比例（390 宽 -> 四列 59px 的砖、12px 说明字），
+   桌面端把列宽封在 520px，整体等比放大而不是换一种排法。 */
 :root{
-  --bg:#080b12;
-  --card:#0d131d;
-  --line:rgba(124,152,196,.14);
-  --fg:#e7eefa;
-  --fg-2:#94a4bd;
-  --fg-3:#5e6f88;
-  --radius:16px;
-  --font:"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",system-ui,-apple-system,"Segoe UI",sans-serif;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Consolas,"Liberation Mono",monospace;
+  --bg:#000;
+  --fg:#fff;
+  --line:#fff;
+  --muted:rgba(255,255,255,.55);
+  --hover:rgba(255,255,255,.12);
+  --w:clamp(296px,82vw,520px);
+  --gap:calc(var(--w) * .0871);
+  --tile:calc((var(--w) - 3 * var(--gap)) / 4);
+  --hair:clamp(2px,calc(var(--w) * .0088),4px);
+  --cap:calc(var(--w) * .0368);
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"PingFang SC","Microsoft YaHei","Hiragino Sans GB","Source Han Sans SC","Noto Sans CJK SC",sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{
   -webkit-text-size-adjust:100%;
-  /* 搜索过滤后页面变短、滚动条消失会让整页横向跳一下：滚动条槽位常驻 */
-  scrollbar-gutter:stable;
+  /* 滚动条隐藏，但槽位钉住：筛选到只剩一两个项目时页面变短、滚动条会消失，
+     整页跟着横跳一下。所以常驻滚动容器，只把滚动条本身画成全透明。
+     （实测：不钉槽位时 900px 宽视口下会横跳约 8px，钉住后为 0） */
+  overflow-y:scroll;
+  scrollbar-color:transparent transparent;          /* Firefox：轨道与滑块全透明 */
 }
-/* 不支持 scrollbar-gutter 的旧版浏览器回退：滚动条一直显示 */
-@supports not (scrollbar-gutter:stable){
-  html{overflow-y:scroll}
-}
+html::-webkit-scrollbar{width:12px;height:12px}
+html::-webkit-scrollbar-track,html::-webkit-scrollbar-thumb{background:transparent;border:0}
+html::-webkit-scrollbar-button{display:none}
 body{
   min-height:100vh;
   background:var(--bg);
   color:var(--fg);
-  font:15px/1.6 var(--font);
+  font:400 15px/1.5 var(--font);
   -webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
 }
-/* 背景光晕与网格 */
-body::before,body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0}
-body::before{
-  background:
-    radial-gradient(680px 380px at 18% -8%, rgba(74,125,255,.20), transparent 68%),
-    radial-gradient(620px 360px at 84% -12%, rgba(168,85,247,.18), transparent 68%),
-    radial-gradient(700px 420px at 50% 108%, rgba(14,165,164,.10), transparent 70%);
+.wrap{
+  width:var(--w);margin:0 auto;
+  padding:clamp(56px,19.4vh,170px) 0 64px;
 }
-body::after{
-  background-image:
-    linear-gradient(rgba(124,152,196,.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(124,152,196,.055) 1px, transparent 1px);
-  background-size:56px 56px;
-  -webkit-mask-image:radial-gradient(circle at 50% 22%, #000 0%, transparent 76%);
-  mask-image:radial-gradient(circle at 50% 22%, #000 0%, transparent 76%);
-}
-.wrap{position:relative;z-index:1;max-width:1060px;margin:0 auto;padding:0 22px}
 
-/* 顶部 */
-header{padding:76px 0 40px}
-.brand{display:flex;align-items:center;gap:14px}
-.logo{
-  width:46px;height:46px;flex:none;border-radius:13px;
-  display:grid;place-items:center;color:#7ba4ff;
-  background:linear-gradient(160deg, rgba(74,125,255,.20), rgba(74,125,255,.05));
-  border:1px solid rgba(74,125,255,.30);
-  box-shadow:0 0 28px -8px rgba(74,125,255,.55);
+/* 题头 */
+.brand{display:flex;align-items:center;gap:calc(var(--w) * .042)}
+.mark{
+  flex:none;display:grid;place-items:center;
+  width:var(--tile);height:var(--tile);
+  border:var(--hair) solid var(--line);border-radius:25.6%;
 }
-.logo svg{width:24px;height:24px}
-h1{font-size:26px;font-weight:600;letter-spacing:.3px}
-.tagline{margin-top:3px;font-size:13.5px;color:var(--fg-3);font-family:var(--mono)}
+.mark svg{width:44%;height:44%}
+h1{font-size:calc(var(--w) * .1023);font-weight:400;line-height:1.1;letter-spacing:.01em}
+.host{margin-top:2px;font-size:calc(var(--w) * .0412);color:var(--muted)}
 
-/* 工具栏 */
-.tools{margin-top:30px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
-.search{position:relative;flex:1;min-width:230px;max-width:340px}
-.search svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:15px;height:15px;color:var(--fg-3);pointer-events:none}
-.search input{
-  width:100%;padding:11px 62px 11px 37px;font:inherit;font-size:14px;color:var(--fg);
-  background:rgba(13,19,29,.86);border:1px solid var(--line);border-radius:11px;outline:none;
-  transition:border-color .2s, box-shadow .2s, background .2s;
+/* 分类 */
+.chips{
+  display:flex;flex-wrap:wrap;
+  gap:calc(var(--w) * .029) calc(var(--w) * .0623);
+  margin-top:clamp(40px,9.6vh,96px);
 }
-.search input::placeholder{color:var(--fg-3)}
-.search input:focus{border-color:rgba(74,125,255,.55);background:rgba(13,19,29,1);box-shadow:0 0 0 3px rgba(74,125,255,.14)}
-.search kbd{
-  position:absolute;right:11px;top:50%;transform:translateY(-50%);
-  font:11px/1 var(--mono);color:var(--fg-3);padding:4px 6px;border-radius:5px;
-  border:1px solid var(--line);background:rgba(124,152,196,.07);
+.chip{
+  display:inline-flex;align-items:center;
+  gap:calc(var(--tile) * .108);
+  padding:calc(var(--tile) * .051) calc(var(--tile) * .1325);
+  border:clamp(2px,calc(var(--w) * .0088),3px) solid var(--line);
+  border-radius:999px;
+  background:none;color:inherit;cursor:pointer;
+  font:400 var(--cap)/1.2 var(--font);
+  transition:background-color .18s,color .18s;
 }
-/* 卡片网格 */
+.chip svg{width:calc(var(--tile) * .289);height:calc(var(--tile) * .289)}
+.chip:hover{background:var(--hover)}
+.chip[aria-pressed="true"]{background:var(--fg);color:var(--bg)}
+.chip:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
+
+/* 网格 */
 .grid{
-  display:grid;gap:18px;padding-bottom:14px;
-  grid-template-columns:repeat(auto-fill,minmax(272px,1fr));
+  list-style:none;display:grid;grid-template-columns:repeat(4,1fr);gap:var(--gap);
+  margin-top:clamp(32px,6.2vh,64px);
 }
-.card{
-  position:relative;display:flex;flex-direction:column;gap:16px;
-  padding:22px;border-radius:var(--radius);overflow:hidden;
-  background:linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.008)), var(--card);
-  border:1px solid var(--line);
-  color:inherit;text-decoration:none;
-  transition:transform .26s cubic-bezier(.2,.7,.3,1), border-color .26s, box-shadow .26s;
+.tile{display:block;color:inherit;text-decoration:none;border-radius:calc(var(--tile) * .256)}
+.box{
+  display:grid;place-items:center;aspect-ratio:1;
+  border:var(--hair) solid var(--line);border-radius:25.6%;
+  transition:background-color .18s;
 }
-.card::before{
-  content:"";position:absolute;inset:-1px -1px auto -1px;height:1px;
-  background:linear-gradient(90deg, transparent, rgba(var(--a-rgb),.75), transparent);
-  opacity:0;transition:opacity .26s;
-}
-.card:hover,.card:focus-visible{
-  transform:translateY(-4px);
-  border-color:rgba(var(--a-rgb),.42);
-  box-shadow:0 18px 40px -20px rgba(0,0,0,.9), 0 0 34px -18px rgba(var(--a-rgb),.85);
-}
-.card:hover::before,.card:focus-visible::before{opacity:1}
-.card:focus-visible{outline:2px solid rgba(var(--a-rgb),.85);outline-offset:3px}
+.box svg{width:44%;height:44%}
+.cap{display:block;margin-top:calc(var(--tile) * .123);text-align:center;font-size:var(--cap);line-height:1.3}
+.tile:hover .box,.tile:focus-visible .box{background:var(--hover)}
+.tile:focus-visible{outline:2px solid var(--fg);outline-offset:3px}
 
-.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.icon{
-  width:44px;height:44px;flex:none;border-radius:12px;display:grid;place-items:center;
-  color:var(--a);
-  background:rgba(var(--a-rgb),.13);
-  border:1px solid rgba(var(--a-rgb),.26);
-  transition:transform .26s, box-shadow .26s;
-}
-.card:hover .icon{transform:scale(1.06);box-shadow:0 0 22px -6px rgba(var(--a-rgb),.95)}
-.icon svg{width:23px;height:23px}
-.arrow{width:18px;height:18px;color:var(--fg-3);transition:transform .26s, color .26s}
-.card:hover .arrow{transform:translate(3px,-3px);color:var(--a)}
-
-.card h2{font-size:16.5px;font-weight:600;letter-spacing:.2px}
-.path{
-  display:block;margin-top:5px;font:11.5px/1 var(--mono);color:var(--fg-3);
-  overflow-wrap:anywhere;
-}
-.desc{margin-top:11px;font-size:13.5px;line-height:1.7;color:var(--fg-2)}
-
-.tags{display:flex;flex-wrap:wrap;gap:7px;margin-top:auto}
-.tags span{
-  font-size:11.5px;padding:4px 9px;border-radius:99px;
-  color:var(--fg-2);background:rgba(124,152,196,.09);border:1px solid var(--line);
-}
-
-/* 空状态 */
-.empty{
-  padding:64px 0 88px;text-align:center;color:var(--fg-3);font-size:14px;
-}
-.empty strong{display:block;margin-bottom:6px;color:var(--fg-2);font-weight:500;font-size:15px}
+.empty{margin-top:clamp(32px,6.2vh,64px);font-size:var(--cap);color:var(--muted)}
 [hidden]{display:none!important}
 
-/* 页脚 */
-footer{
-  margin-top:52px;padding:26px 0 40px;border-top:1px solid var(--line);
-  display:flex;align-items:center;justify-content:center;
-  font-size:13px;color:var(--fg-3);
-}
-footer a{color:var(--fg-2);text-decoration:none;border-bottom:1px solid rgba(124,152,196,.3);padding-bottom:1px}
-footer a:hover{color:var(--fg);border-bottom-color:rgba(124,152,196,.65)}
-
-@media (max-width:600px){
-  header{padding:52px 0 32px}
-  h1{font-size:22px}
-  .search{max-width:none}
-  .grid{grid-template-columns:1fr;gap:14px}
-}
 @media (prefers-reduced-motion:reduce){
-  *{transition:none!important;animation:none!important}
+  *{transition:none!important}
 }
 </style>
+<noscript><style>.chips{display:none}</style></noscript>
 </head>
 <body>
 <div class="wrap">
 
-  <header>
-    <div class="brand">
-      <span class="logo" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
-          <path d="M12 3l8.5 4.6L12 12.2 3.5 7.6z"/>
-          <path d="M3.5 12L12 16.6l8.5-4.6"/>
-          <path d="M3.5 16.4L12 21l8.5-4.6"/>
-        </svg>
-      </span>
-      <div>
-        <h1>Pages</h1>
-        <p class="tagline">geraniol.github.io/Pages</p>
-      </div>
-    </div>
-
-    <div class="tools">
-      <label class="search">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-          <circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>
-        </svg>
-        <input id="q" type="search" placeholder="搜索项目…" aria-label="搜索项目" autocomplete="off" spellcheck="false">
-        <kbd>/</kbd>
-      </label>
+  <header class="brand">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
+      </svg>
+    </span>
+    <div>
+      <h1>Pages</h1>
+      <p class="host">geraniol.github.io/Pages</p>
     </div>
   </header>
 
+  <nav class="chips" aria-label="按分类筛选">
+    <button class="chip" type="button" data-cat="ai" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/>
+      </svg>AI
+    </button>
+    <button class="chip" type="button" data-cat="photo" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>
+      </svg>摄影
+    </button>
+    <button class="chip" type="button" data-cat="img" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+      </svg>图像
+    </button>
+    <button class="chip" type="button" data-cat="time" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h5"/><path d="M17.5 17.5 16 16.3V14"/><circle cx="16" cy="16" r="6"/>
+      </svg>时间
+    </button>
+    <button class="chip" type="button" data-cat="mood" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/>
+      </svg>氛围
+    </button>
+    <button class="chip" type="button" data-cat="read" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="m16 6 4 14"/><path d="M12 6v14"/><path d="M8 8v12"/><path d="M4 4v16"/>
+      </svg>读物
+    </button>
+    <button class="chip" type="button" data-cat="tool" aria-pressed="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
+      </svg>工具
+    </button>
+  </nav>
+
   <main>
-    <section class="grid" id="grid" aria-label="项目列表">
+    <ul class="grid" id="grid" aria-label="项目列表">
 
-      <a class="card" href="./CUHKSZPASSPORT/" style="--a:#a855f7;--a-rgb:168,85,247"
-         data-keywords="中大通行证 cuhksz passport 香港中文大学 深圳 离线 pwa 主屏幕 自定义 信息 通行證">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2.5" y="5" width="19" height="14" rx="2.5"/>
-              <circle cx="8.5" cy="10.6" r="1.9"/>
-              <path d="M5.3 16.1c.6-1.3 1.8-2 3.2-2s2.6.7 3.2 2"/>
-              <path d="M15 10.2h4M15 13.6h4"/>
+      <li data-cat="tool">
+        <a class="tile" href="./CUHKSZPASSPORT/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M16 10h2"/><path d="M16 14h2"/><path d="M6.17 15a3 3 0 0 1 5.66 0"/><circle cx="9" cy="11" r="2"/><rect x="2" y="5" width="20" height="14" rx="2"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>中大通行证</h2>
-          <span class="path">/CUHKSZPASSPORT</span>
-          <p class="desc">模拟香港中文大学（深圳）电子通行证。填写的信息保存在本地，下次打开自动加载，并可添加到手机主屏幕离线使用。</p>
-        </div>
-        <div class="tags"><span>离线可用</span><span>Web App</span><span>信息可自定义</span></div>
-      </a>
+          <span class="cap">通行证</span>
+        </a>
+      </li>
 
-      <a class="card" href="./ImgDiff/" style="--a:#4a7dff;--a-rgb:74,125,255"
-         data-keywords="ab 图片对比器 imgdiff image diff 比较 差异 高亮 拖拽 粘贴 像素">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2.5" y="5" width="19" height="14" rx="2.5"/>
-              <path d="M12 5v14" stroke-dasharray="2.4 2.6"/>
-              <path d="M5 15.6l2.5-3 2.5 2.5"/>
-              <path d="M14 15.6l2.6-3.2 2.4 2.7"/>
+      <li data-cat="img">
+        <a class="tile" href="./ImgDiff/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>AB 图片对比器</h2>
-          <span class="path">/ImgDiff</span>
-          <p class="desc">载入两张图片进行比对，高亮标出两者的差异。支持拖拽或直接粘贴图片，多张图片以标签页管理。</p>
-        </div>
-        <div class="tags"><span>图片差异高亮</span><span>拖拽 / 粘贴</span><span>多标签管理</span></div>
-      </a>
+          <span class="cap">图片对比</span>
+        </a>
+      </li>
 
-      <a class="card" href="./TimeTable/" style="--a:#0ea5a4;--a-rgb:14,165,164"
-         data-keywords="课表 timetable 2026 2027 s1 学前教育 gdue 周次 课程 深色">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4.5" width="18" height="16" rx="2.5"/>
-              <path d="M3 9.5h18M8 3v3M16 3v3"/>
-              <path d="M7.3 13h2.2M11 13h2.2M14.7 13h2.2M7.3 16.4h2.2M11 16.4h2.2"/>
+      <li data-cat="time">
+        <a class="tile" href="./TimeTable/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 3v18"/><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>2026-2027S1 课表</h2>
-          <span class="path">/TimeTable</span>
-          <p class="desc">面向 GDUE 26 级学前教育专业学生的第一学期课表。按周次查看课程安排，支持深色模式。</p>
-        </div>
-        <div class="tags"><span>按周次查看</span><span>深浅色切换</span></div>
-      </a>
+          <span class="cap">课表</span>
+        </a>
+      </li>
 
-      <a class="card" href="./PolarAxis/" style="--a:#4fd6ff;--a-rgb:79,214,255"
-         data-keywords="极轴 极轴校对 对极轴 星点 拖线 漂移 拉线 赤道仪 相机 天文 摄影 深空 焦距 曝光 polar axis alignment star trail drift mount 模拟">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="8.2" stroke-dasharray="2.6 2.8"/>
-              <circle cx="12" cy="12" r="1.5"/>
-              <path d="M12 3.4v2.3M12 18.3v2.3M3.4 12h2.3M18.3 12h2.3"/>
+      <li data-cat="photo">
+        <a class="tile" href="./PolarAxis/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m10.065 12.493-6.18 1.318a.934.934 0 0 1-1.108-.702l-.537-2.15a1.07 1.07 0 0 1 .691-1.265l13.504-4.44"/><path d="m13.56 11.747 4.332-.924"/><path d="m16 21-3.105-6.21"/><path d="M16.485 5.94a2 2 0 0 1 1.455-2.425l1.09-.272a1 1 0 0 1 1.212.727l1.515 6.06a1 1 0 0 1-.727 1.213l-1.09.272a2 2 0 0 1-2.425-1.455z"/><path d="m6.158 8.633 1.114 4.456"/><path d="m8 21 3.105-6.21"/><circle cx="12" cy="13" r="2"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>极轴校对</h2>
-          <span class="path">/PolarAxis</span>
-          <p class="desc">三维星点漂移模拟：用表盘设定极轴指向，以及赤道仪、相机轴相对前者的偏差，直观看出星点拖线的方向与长度。另可调等效焦距、旋转速度、曝光时长与星点密度。</p>
-        </div>
-        <div class="tags"><span>星点漂移模拟</span><span>表盘拖动调参</span><span>需联网加载 three.js</span></div>
-      </a>
+          <span class="cap">极轴校对</span>
+        </a>
+      </li>
 
-      <a class="card" href="./PriceClock/" style="--a:#ff6a3d;--a-rgb:255,106,61"
-         data-keywords="价格 时钟 价格时钟 高峰 空闲 峰谷 计费 北京时间 时区 本地 gmt 环形 圆环 时段 指针 一天 离线 主屏幕 安装 pwa price clock peak off-peak timezone">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="8.5"/>
-              <path d="M12 6.8V12l3.4 2.1"/>
-              <path d="M12 3.5v1.4M12 19.1v1.4"/>
+      <li data-cat="time">
+        <a class="tile" href="./PriceClock/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>价格时钟</h2>
-          <span class="path">/PriceClock</span>
-          <p class="desc">环形时段钟：外圈 24 格代表一天，橙色是换算到本地时间后的北京高峰窗口，灰色为空闲，白色指针按本地时间走。环内显示当前北京时刻、本地大字时刻与日期，以及本地时区与 GMT 偏移。可添加到主屏幕离线使用。</p>
-        </div>
-        <div class="tags"><span>环形时段钟</span><span>高峰窗口着色</span><span>可安装 / 离线</span></div>
-      </a>
+          <span class="cap">价格时钟</span>
+        </a>
+      </li>
 
-      <a class="card" href="./AIConversation/" style="--a:#ff5f7e;--a-rgb:255,95,126"
-         data-keywords="ai 对话 双模型 辩论 对谈 轮流 聊天 discussion conversation 大模型 接口 api key endpoint 提示词 system prompt 流式 sse 思考过程 导出 markdown json 话题 多话题">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/>
-              <path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>
+      <li data-cat="ai">
+        <a class="tile" href="./AIConversation/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>AI 双模型对话</h2>
-          <span class="path">/AIConversation</span>
-          <p class="desc">让两个 OpenAI 兼容的模型围绕同一段 System 提示词轮流发言，各自把对方的输出当作输入。支持多话题、流式回复、最大轮数与暂停，可导出 Markdown / JSON，配置只存在浏览器本地。</p>
-        </div>
-        <div class="tags"><span>双模型轮流对话</span><span>流式输出</span><span>配置仅存本地</span></div>
-      </a>
+          <span class="cap">AI 对话</span>
+        </a>
+      </li>
 
-      <a class="card" href="./Gitiverse/" style="--a:#e8542f;--a-rgb:232,84,47"
-         data-keywords="gitiverse git 入门 教程 课程 版本控制 版本管理 初学者 新手 github 互动 教学 第一章 为什么需要 adventure guide beginners version control tutorial chapter 逐步解锁 解锁 ai 助教 问答 答疑 设置 playground 沙盒 模拟 终端 命令 提交图 分支 合并 双语">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M6 3v12"/>
-              <circle cx="18" cy="6" r="3"/>
-              <circle cx="6" cy="18" r="3"/>
-              <path d="M18 9a9 9 0 0 1-9 9"/>
+      <li data-cat="read">
+        <a class="tile" href="./Gitiverse/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>Gitiverse</h2>
-          <span class="path">/Gitiverse</span>
-          <p class="desc">分两条线的 Git 学习站。Git Adventure 是互动课程，做完一节才解锁下一节，右下角有能看懂当前屏幕的 AI 助教；Git Playground 是沙盒，真敲 git 命令、实时看提交图与目录快照。课程内容为英文，沙盒界面可切中英文。</p>
-        </div>
-        <div class="tags"><span>互动课程</span><span>Git 沙盒</span><span>AI 助教答疑</span></div>
-      </a>
+          <span class="cap">Gitiverse</span>
+        </a>
+      </li>
 
-      <a class="card" href="./Background/" style="--a:#22c55e;--a-rgb:34,197,94"
-         data-keywords="动态壁纸 动态桌面 背景 壁纸 屏保 锁屏 插画少女 巧克力 星球 寂静星球 迷你星球 wallpaper engine 全屏 live wallpaper background 交互 视差">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M18 22H4a2 2 0 0 1-2-2V6"/>
-              <path d="m22 13-1.3-1.3a2.4 2.4 0 0 0-3.4 0L11 18"/>
-              <circle cx="12" cy="8" r="2"/>
-              <rect x="6" y="2" width="16" height="16" rx="2"/>
+      <li data-cat="mood">
+        <a class="tile" href="./Background/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="8" cy="9" r="2"/><path d="m9 17 6.1-6.1a2 2 0 0 1 2.81.01L22 15V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2"/><path d="M8 21h8"/><path d="M12 17v4"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>动态桌面</h2>
-          <span class="path">/Background</span>
-          <p class="desc">四款可交互的动态背景：插画少女、巧克力、寂静星球、迷你星球，鼠标移上去会有反应。直接全屏就是屏保，也能导入 Wallpaper Engine 当桌面动态壁纸。</p>
-        </div>
-        <div class="tags"><span>四款场景</span><span>鼠标交互</span><span>可作屏保</span></div>
-      </a>
+          <span class="cap">动态壁纸</span>
+        </a>
+      </li>
 
-      <a class="card" href="./Daydream/" style="--a:#818cf8;--a-rgb:129,140,248"
-         data-keywords="daydream 堕落的咏叹调 氛围 插画 打字机 音乐 配乐 点击 叙事 短篇 mood 全屏">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 18V5l12-2v13"/>
-              <circle cx="6" cy="18" r="3"/>
-              <circle cx="18" cy="16" r="3"/>
+      <li data-cat="mood">
+        <a class="tile" href="./Daydream/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>堕落的咏叹调</h2>
-          <span class="path">/Daydream</span>
-          <p class="desc">全屏插画打底的氛围小品：载入后就着打字机效果一字一字打出一句话，之后每次点击都会重打一遍，并从三段配乐里随机播一段。取材自同名游戏 Daydream。</p>
-        </div>
-        <div class="tags"><span>点击触发</span><span>打字机文字</span><span>随机配乐</span></div>
-      </a>
+          <span class="cap">Daydream</span>
+        </a>
+      </li>
 
-      <a class="card" href="./Color565/" style="--a:#d946ef;--a-rgb:217,70,239"
-         data-keywords="color565 rgb565 颜色 取色 调色 色值 转换 16位 二进制 位分解 5位 6位 量化 误差 精度 8位 rgb hex 预设 色板 复制 滑块 嵌入式 屏幕 lcd tft">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/>
-              <circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/>
-              <circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/>
-              <circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/>
-              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
+      <li data-cat="img">
+        <a class="tile" href="./Color565/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>Color565 取色器</h2>
-          <span class="path">/Color565</span>
-          <p class="desc">RGB565 取色器：R/G/B 三个滑块按 5/6/5 位取值，实时给出打包后的 16 位色值、逐位二进制拆解与对应的 8 位 RGB 近似色。粘贴一个 #RRGGBB，就能看出量化成 RGB565 后丢了哪些细节。单文件、离线可用。</p>
-        </div>
-        <div class="tags"><span>5/6/5 位拆解</span><span>8位与16位对比</span><span>离线单文件</span></div>
-      </a>
+          <span class="cap">Color565</span>
+        </a>
+      </li>
 
-      <a class="card" href="./ItemList/" style="--a:#eab308;--a-rgb:234,179,8"
-         data-keywords="物品清单 开学 清单 列表 checklist todo 待办 大学 新生 宿舍 行李 打包 收纳 准备 分类 折叠 勾选 进度 优先级 颜色 图例 日夜模式 本地存储 data.js">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m3 17 2 2 4-4"/>
-              <path d="m3 7 2 2 4-4"/>
-              <path d="M13 6h8M13 12h8M13 18h8"/>
+      <li data-cat="tool">
+        <a class="tile" href="./ItemList/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>大学开学物品清单</h2>
-          <span class="path">/ItemList</span>
-          <p class="desc">把开学要带的东西按证件、床品、洗漱、数码等分类收纳，每项用颜色标出准备优先级。勾选后自动沉到分类底部，整类勾完会自己折叠，进度与主题都存在本地。清单内容全写在 data.js 里，改物品不必动页面代码。</p>
-        </div>
-        <div class="tags"><span>分类折叠</span><span>优先级四色</span><span>数据在 data.js</span></div>
-      </a>
+          <span class="cap">物品清单</span>
+        </a>
+      </li>
 
-      <a class="card" href="./TravelMap/" style="--a:#84cc16;--a-rgb:132,204,22"
-         data-keywords="travelmap 地图 城市 旅行 旅游 攻略 兴趣点 地点 打卡 逛 路线 广州 gz 深圳 sz 香港 hk 上海 sh shanghai 外滩 豫园 陆家嘴 东方明珠 迪士尼 朱家角 二次元 谷子 吃谷 漫展 动漫 主题乐园 澳大利亚 澳洲 australia 悉尼 墨尔本 布里斯班 珀斯 塔斯马尼亚 乌鲁鲁 大堡礁 袋鼠 新西兰 nz new zealand 奥克兰 皇后镇 米尔福德 库克山 特卡波 罗托鲁瓦 推荐景点 精选 标签 筛选 高德 esri 瓦片 leaflet 详情 票价 开放时间 交通 评价 优缺点 来源 锚点 map poi">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3z"/>
-              <path d="M9 3v15"/>
-              <path d="M15 6v15"/>
+      <li data-cat="read">
+        <a class="tile" href="./TravelMap/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15"/><path d="M9 3.236v15"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>TravelMap 城市地图</h2>
-          <span class="path">/TravelMap</span>
-          <p class="desc">把广州、深圳、香港、上海与澳新两国值得一去的地方摊在地图上，按标签或「推荐景点」筛选，点卡片或图钉弹出详情——开放时间、票价、交通、优缺点与来源链接。上海是双主题：二次元向的谷子店与漫展场馆，加外滩、豫园、陆家嘴这类经典景点。切换城市走 URL 锚点，不刷新页面，加一份新数据只需在 data.js 添一行。境内用高德瓦片、澳新用 Esri 街道图，均需联网。</p>
-        </div>
-        <div class="tags"><span>四城 + 澳新两国</span><span>标签与推荐筛选</span><span>需联网加载地图</span></div>
-      </a>
+          <span class="cap">旅行地图</span>
+        </a>
+      </li>
 
-      <a class="card" href="./LissajousCurve/" style="--a:#5ae04a;--a-rgb:90,224,74"
-         data-keywords="李萨如 李萨如图形 lissajous 曲线 图形 质数 素数 频率比 频率 矩阵 示波器 振动 简谐 参数方程 相位 相位差 互质 闭合 周期 镜像 对角 退化 对称 数学 几何 可视化 动画 光点 单文件 离线">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 12c-1.9-2.6-3.9-3.9-5.9-3.9a3.9 3.9 0 1 0 0 7.8c2 0 4-1.3 5.9-3.9Z"/>
-              <path d="M12 12c1.9 2.6 3.9 3.9 5.9 3.9a3.9 3.9 0 0 0 0-7.8c-2 0-4 1.3-5.9 3.9Z"/>
+      <li data-cat="img">
+        <a class="tile" href="./LissajousCurve/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><path d="M5 17A12 12 0 0 1 17 5"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>李萨如图形</h2>
-          <span class="path">/LissajousCurve</span>
-          <p class="desc">把 2、3、5、7、11、13 六个质数两两配对，画成 6×6 的李萨如曲线矩阵。任意两个不同质数互质，每条曲线的最小正周期都恰为 2π，图形严格闭合，在示波器上显得干净稳定。相位差可手动定格或自动演化，另有光点运动与辅助线开关，单文件离线。</p>
-        </div>
-        <div class="tags"><span>6×6 质数比矩阵</span><span>相位可调 / 自动演化</span><span>单文件离线</span></div>
-      </a>
+          <span class="cap">李萨如图</span>
+        </a>
+      </li>
 
-      <a class="card" href="./ArtBook/" style="--a:#c8722c;--a-rgb:200,114,44"
-         data-keywords="绘本 图画书 童书 儿童 亲子 长颈鹿 鳄鱼 搬过来搬过去 达妮拉 库洛特 daniela kulot 麦田精选 德国 德语 翻译 阅读 在线阅读 滚动 翻页 字号 跨页 打印 打印样式 图片 离线 picture book">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 7v14"/>
-              <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>
+      <li data-cat="read">
+        <a class="tile" href="./ArtBook/">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>绘本 · 搬过来，搬过去</h2>
-          <span class="path">/ArtBook</span>
-          <p class="desc">把达妮拉·库洛特（Daniela Kulot）的绘本《搬过来，搬过去》做成长滚动阅读页：长颈鹿与鳄鱼的每张插图配着原文，往下滚就能读完；右下角 A− / A＋ 调正文字号，原书跨页的两张图并排显示，样式表里还带了打印规则，可以直接印成书页。图片全部在本地，断网也能看。</p>
-        </div>
-        <div class="tags"><span>逐页图文</span><span>字号可调</span><span>可打印</span></div>
-      </a>
+          <span class="cap">绘本</span>
+        </a>
+      </li>
 
-      <a class="card" href="./Calendar/2026-2027-1.ics" style="--a:#2dd4bf;--a-rgb:45,212,191"
-         data-keywords="课表 课程表 日历 校历 日程 时间表 ics icalendar ical 订阅 导入 提醒 学期 2026 2027 s1 第一学期 学前教育 大学英语 音乐技能 舞蹈 儿童发展 军事理论 timetable calendar schedule">
-        <div class="card-top">
-          <span class="icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="4.5" width="18" height="16" rx="2.5"/>
-              <path d="M3 9.5h18M8 3v3M16 3v3"/>
-              <path d="M12 12.6v4.6M9.7 14.9h4.6"/>
+      <li data-cat="time">
+        <a class="tile" href="./Calendar/2026-2027-1.ics">
+          <span class="box" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 2v4"/><path d="M16 2v4"/><path d="M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h8"/><path d="M3 10h18"/><path d="M16 19h6"/><path d="M19 16v6"/>
             </svg>
           </span>
-          <svg class="arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M7 17L17 7M9 7h8v8"/>
-          </svg>
-        </div>
-        <div>
-          <h2>课表日历</h2>
-          <span class="path">/Calendar/2026-2027-1.ics</span>
-          <p class="desc">把 2026-2027 学年第一学期的课表做成一份 iCalendar（.ics）文件：每门课按周次重复到学期末，时区标为 Asia/Shanghai，下载后导入手机或电脑的日历应用即可按时提醒，也能用订阅链接长期同步。覆盖大学英语、音乐技能、舞蹈技能、学前教育原理、儿童发展、中国近现代史纲要等课程。</p>
-        </div>
-        <div class="tags"><span>ICS 日历文件</span><span>按周重复</span><span>可导入日历</span></div>
-      </a>
+          <span class="cap">课表日历</span>
+        </a>
+      </li>
 
-    </section>
+    </ul>
 
-    <div class="empty" id="empty" hidden>
-      <strong>没有找到匹配的项目</strong>
-      换个关键词试试，或按 Esc 清空搜索。
-    </div>
+    <p class="empty" id="empty" hidden>该分类下暂无项目</p>
   </main>
-
-  <footer>
-    <a href="https://github.com/Geraniol/Pages" target="_blank" rel="noopener">GitHub 仓库</a>
-  </footer>
 
 </div>
 
 <script>
 (function () {
-  var input = document.getElementById('q');
-  var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+  var items = Array.prototype.slice.call(document.querySelectorAll('#grid > li'));
   var empty = document.getElementById('empty');
+  var active = '';
 
   function render() {
-    var q = input.value.trim().toLowerCase();
     var shown = 0;
-
-    cards.forEach(function (card) {
-      var haystack = (card.dataset.keywords + ' ' + card.textContent).toLowerCase();
-      var hit = !q || haystack.indexOf(q) !== -1;
-      card.hidden = !hit;
+    items.forEach(function (li) {
+      var hit = !active || li.dataset.cat === active;
+      li.hidden = !hit;
       if (hit) shown++;
     });
-
     empty.hidden = shown > 0;
+    chips.forEach(function (chip) {
+      chip.setAttribute('aria-pressed', String(chip.dataset.cat === active));
+    });
   }
 
-  input.addEventListener('input', render);
-
-  input.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      input.value = '';
+  chips.forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var cat = chip.dataset.cat;
+      active = active === cat ? '' : cat;
       render();
-      input.blur();
-    }
-  });
-
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
-    var tag = (e.target.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
-    e.preventDefault();
-    input.focus();
-    input.select();
+    });
   });
 
   render();
+
+  if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+    addEventListener('load', function () {
+      navigator.serviceWorker.register('./sw.js').catch(function () {});
+    });
+  }
 })();
 </script>
 </body>
