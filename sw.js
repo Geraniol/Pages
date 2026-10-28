@@ -2,7 +2,7 @@
    the way of every sub-app.  A service worker registered here has scope over
    /Pages/, so it sees requests for /Pages/<sub-app>/... too: those are left
    alone (the sub-apps have their own workers).  Bump CACHE to ship a new shell. */
-const CACHE = 'pages-v1';
+const CACHE = 'pages-v3';
 const BASE = new URL('./', self.location).pathname;   // e.g. '/Pages/'
 const ROOT = BASE.replace(/\/$/, '');                 // e.g. '/Pages'
 

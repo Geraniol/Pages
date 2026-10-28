@@ -25,9 +25,6 @@ A static, offline-ready web app that simulates the CUHKSZ Passport, installable 
 ### [Daydream](Daydream)
 A click-to-advance mood piece: a full-screen illustration, typewriter text and one of three music tracks, after the game of the same name.
 
-### [Gitiverse](Gitiverse)
-A two-part Git learning site: Git Adventure, a guided interactive course whose steps unlock one at a time, and Git Playground, a sandbox where real git commands drive a live commit graph.
-
 ### [ImgDiff](ImgDiff)
 A web app that allows users to compare two images and highlight the differences.
 
@@ -48,3 +45,6 @@ A TimeTable for 2026-2027S1 Preschool Education Students of GDUE.
 
 ### [TravelMap](TravelMap)
 A Leaflet map of hand-picked places in Guangzhou, Shenzhen, Hong Kong, Shanghai, Australia and New Zealand: filter by tag or by the recommended-spots chip, then click a pin or a card for opening hours, tickets, transport, sourced pros and cons, and official links. Shanghai is a themed sheet — anime and manga shopping plus the classic sights.
+
+### [Tree](Tree)
+A Three.js 3D tree with orbit controls and seven seasonal and themed colour palettes, from cherry blossom to jacaranda; a companion page renders a whole grove and adds a random-colour option.

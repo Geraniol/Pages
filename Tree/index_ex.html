@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>树林 · Three.js</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #111111;
+    --muted: #a0a0a0;
+    --line: 2px solid var(--ink);
+    --panel-bg: #ffffff;
+    --panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    --panel-width: 238px;
+    --panel-max-width: 520px;
+    --panel-radius: 30px;
+    --panel-pad: 14px 18px;
+    --panel-offset: 20px;
+    --row-radius: 14px;
+    --row-gap: 16px;
+    --row-pad: 10px 2px;
+    --swatch-size: 40px;
+    --name-size: 20px;
+    --hex-size: 11px;
+    --ring-offset: 3px;
+    --hover-bg: #f6f7f4;
+    --font-ui: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    -webkit-tap-highlight-color: transparent;
+  }
+  #app { position: fixed; inset: 0; }
+  #app canvas { display: block; cursor: grab; touch-action: none; }
+  #app canvas:active { cursor: grabbing; }
+
+  .palette {
+    position: fixed;
+    top: var(--panel-offset);
+    left: var(--panel-offset);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    width: var(--panel-width);
+    padding: var(--panel-pad);
+    border: var(--line);
+    border-radius: var(--panel-radius);
+    background: var(--panel-bg);
+    box-shadow: var(--panel-shadow);
+    font-family: var(--font-ui);
+  }
+  .palette-item {
+    display: flex;
+    align-items: center;
+    gap: var(--row-gap);
+    width: 100%;
+    padding: var(--row-pad);
+    border: 0;
+    border-radius: var(--row-radius);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .palette-item:hover { background: var(--hover-bg); }
+  .palette-item:focus-visible {
+    outline: var(--line);
+    outline-offset: 1px;
+  }
+  .swatch {
+    width: var(--swatch-size);
+    height: var(--swatch-size);
+    flex: 0 0 auto;
+    border: var(--line);
+    border-radius: 50%;
+    background: var(--swatch);
+  }
+  .swatch-random {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel-bg);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: calc(var(--swatch-size) * 0.46);
+    font-weight: 600;
+    line-height: 1;
+  }
+  .palette-item.is-active .swatch {
+    outline: var(--line);
+    outline-offset: var(--ring-offset);
+  }
+  .palette-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .palette-name {
+    font-size: var(--name-size);
+    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+  .palette-hex {
+    font-family: var(--font-mono);
+    font-size: var(--hex-size);
+    line-height: 1.2;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+
+  @media (max-width: 560px) {
+    :root {
+      --panel-offset: 16px;
+      --panel-radius: 999px;
+      --panel-pad: 14px 16px;
+      --swatch-size: 32px;
+      --ring-offset: 1px;
+    }
+    .palette {
+      top: auto;
+      left: 50%;
+      bottom: calc(var(--panel-offset) + env(safe-area-inset-bottom, 0px));
+      width: calc(100% - var(--panel-offset) * 2);
+      max-width: var(--panel-max-width);
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      transform: translateX(-50%);
+      box-shadow: none;
+    }
+    .palette-item {
+      width: auto;
+      padding: 0;
+      border-radius: 50%;
+      background: transparent;
+    }
+    .palette-item:hover { background: transparent; }
+    .palette-text { display: none; }
+  }
+
+  @media (max-width: 380px) {
+    :root {
+      --panel-offset: 12px;
+      --panel-pad: 12px 14px;
+      --swatch-size: 30px;
+      --ring-offset: 0px;
+    }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<section class="palette" aria-label="颜色选择">
+  <button type="button" class="palette-item" data-color="#ffbbbb" aria-label="樱花" title="樱花" aria-pressed="false">
+    <span class="swatch" style="--swatch: #ffbbbb"></span>
+    <span class="palette-text">
+      <span class="palette-name">樱花</span>
+      <span class="palette-hex">#FFBBBB</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-color="#ff4444" aria-label="火焰木" title="火焰木" aria-pressed="false">
+    <span class="swatch" style="--swatch: #ff4444"></span>
+    <span class="palette-text">
+      <span class="palette-name">火焰木</span>
+      <span class="palette-hex">#FF4444</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-color="#ff8822" aria-label="枫树" title="枫树" aria-pressed="false">
+    <span class="swatch" style="--swatch: #ff8822"></span>
+    <span class="palette-text">
+      <span class="palette-name">枫树</span>
+      <span class="palette-hex">#FF8822</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-color="#ffcc00" aria-label="银桦" title="银桦" aria-pressed="false">
+    <span class="swatch" style="--swatch: #ffcc00"></span>
+    <span class="palette-text">
+      <span class="palette-name">银桦</span>
+      <span class="palette-hex">#FFCC00</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item is-active" data-color="#44aa22" aria-label="盛夏" title="盛夏" aria-pressed="true">
+    <span class="swatch" style="--swatch: #44aa22"></span>
+    <span class="palette-text">
+      <span class="palette-name">盛夏</span>
+      <span class="palette-hex">#44AA22</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-color="#39c5bb" aria-label="初音未来" title="初音未来" aria-pressed="false">
+    <span class="swatch" style="--swatch: #39c5bb"></span>
+    <span class="palette-text">
+      <span class="palette-name">初音未来</span>
+      <span class="palette-hex">#39C5BB</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-color="#cc88ff" aria-label="蓝花楹" title="蓝花楹" aria-pressed="false">
+    <span class="swatch" style="--swatch: #cc88ff"></span>
+    <span class="palette-text">
+      <span class="palette-name">蓝花楹</span>
+      <span class="palette-hex">#CC88FF</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-random="true" aria-label="随机颜色" title="随机颜色" aria-pressed="false">
+    <span class="swatch swatch-random">?</span>
+    <span class="palette-text">
+      <span class="palette-name">随机</span>
+      <span class="palette-hex">RANDOM</span>
+    </span>
+  </button>
+</section>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+const TIERS = {
+  top: { y: 2.77, radius: 1.39 },
+  shoulder: { y: 2.21, radius: 0.86, spread: 1.24, count: 7 },
+  bottom: { y: 1.77, radius: 0.58, spread: 1.29, count: 12 },
+};
+
+const TRUNK = {
+  height: 2.0,
+  topRadius: 0.24,
+  bottomRadius: 0.34,
+};
+
+const SEED = 20261028;
+const VARIANT_COUNT = 12;
+const TWO_PI = Math.PI * 2;
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), 1 | t);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* ============================================================
+   渲染器 / 场景 / 相机
+   ============================================================ */
+const app = document.getElementById('app');
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xffffff, 38, 78);
+
+const camera = new THREE.PerspectiveCamera(38, window.innerWidth / window.innerHeight, 0.1, 200);
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+} catch (error) {
+  document.querySelector('.palette')?.remove();
+  app.innerHTML = '<p style="font:14px/1.6 sans-serif;color:#555;padding:24px">当前浏览器无法启用 WebGL，请更换浏览器后重试。</p>';
+  throw error;
+}
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.shadowMap.autoUpdate = false;
+app.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.enablePan = false;
+controls.minDistance = 8;
+controls.maxDistance = 90;
+controls.minPolarAngle = 0.22;
+controls.maxPolarAngle = Math.PI / 2;
+const MIN_CAMERA_HEIGHT = 0.25;
+controls.rotateSpeed = 0.6;
+controls.zoomSpeed = 0.85;
+
+/* ============================================================
+   动漫风材质
+   ============================================================ */
+function createToonGradient() {
+  const data = new Uint8Array([
+    135, 135, 135, 255,
+    205, 205, 205, 255,
+    255, 255, 255, 255,
+  ]);
+  const texture = new THREE.DataTexture(data, 3, 1, THREE.RGBAFormat);
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+const gradientMap = createToonGradient();
+
+const foliageMaterial = new THREE.MeshToonMaterial({
+  color: 0xffffff,
+  gradientMap,
+});
+
+const trunkMaterial = new THREE.MeshToonMaterial({
+  color: 0x9b6a3f,
+  gradientMap,
+});
+
+const foliageOutlineMaterial = new THREE.MeshBasicMaterial({
+  color: 0xffffff,
+  side: THREE.BackSide,
+});
+
+const trunkOutlineMaterial = new THREE.MeshBasicMaterial({
+  color: 0x35210f,
+  side: THREE.BackSide,
+});
+
+/* ============================================================
+   灯光 / 阴影地面
+   ============================================================ */
+scene.add(new THREE.AmbientLight(0xffffff, 0.62));
+
+const sun = new THREE.DirectionalLight(0xfff6e8, 2.4);
+sun.position.set(18, 30, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 110;
+sun.shadow.camera.left = -42;
+sun.shadow.camera.right = 42;
+sun.shadow.camera.top = 42;
+sun.shadow.camera.bottom = -42;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.02;
+sun.shadow.camera.updateProjectionMatrix();
+sun.target.position.set(0, 0, 0);
+scene.add(sun);
+scene.add(sun.target);
+
+const fill = new THREE.DirectionalLight(0xffffff, 0.42);
+fill.position.set(-15, 12, -12);
+scene.add(fill);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(200, 200),
+  new THREE.ShadowMaterial({ color: 0x34412d, opacity: 0.09 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+/* ============================================================
+   描边辅助
+   ============================================================ */
+function createOutlineGeometry(source, thickness) {
+  const geometry = source.clone();
+  const position = geometry.attributes.position;
+  const normal = geometry.attributes.normal;
+  const n = new THREE.Vector3();
+
+  for (let i = 0; i < position.count; i++) {
+    n.fromBufferAttribute(normal, i);
+    position.setXYZ(
+      i,
+      position.getX(i) + n.x * thickness,
+      position.getY(i) + n.y * thickness,
+      position.getZ(i) + n.z * thickness
+    );
+  }
+
+  position.needsUpdate = true;
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+/* ============================================================
+   单个树冠几何体
+   ============================================================ */
+function createCanopyGeometry(seed) {
+  const rnd = mulberry32(seed);
+  const rr = (min, max) => min + (max - min) * rnd();
+
+  const topRadius = TIERS.top.radius * rr(0.95, 1.05);
+  const topY = TIERS.top.y + rr(-0.05, 0.05);
+  const blobs = [{
+    x: rr(-0.03, 0.03),
+    y: topY,
+    z: rr(-0.03, 0.03),
+    r: topRadius,
+  }];
+
+  const shoulderStart = rnd() * TWO_PI;
+  const shoulderY = TIERS.shoulder.y + rr(-0.04, 0.04);
+  const shoulderSpread = TIERS.shoulder.spread * rr(0.96, 1.04);
+  const shoulderRadius = TIERS.shoulder.radius * rr(0.94, 1.06);
+
+  for (let i = 0; i < TIERS.shoulder.count; i++) {
+    const angle = shoulderStart + (i / TIERS.shoulder.count) * TWO_PI + rr(-0.09, 0.09);
+    const ring = shoulderSpread * rr(0.95, 1.05);
+    blobs.push({
+      x: Math.cos(angle) * ring,
+      y: shoulderY + rr(-0.06, 0.06),
+      z: Math.sin(angle) * ring,
+      r: shoulderRadius * rr(0.92, 1.08),
+    });
+  }
+
+  const bottomStart = shoulderStart + rr(0.1, 0.3);
+  const bottomY = TIERS.bottom.y + rr(-0.04, 0.04);
+  const bottomSpread = TIERS.bottom.spread * rr(0.96, 1.04);
+  const bottomRadius = TIERS.bottom.radius * rr(0.94, 1.06);
+
+  for (let i = 0; i < TIERS.bottom.count; i++) {
+    const angle = bottomStart + (i / TIERS.bottom.count) * TWO_PI + rr(-0.07, 0.07);
+    const ring = bottomSpread * rr(0.96, 1.04);
+    blobs.push({
+      x: Math.cos(angle) * ring,
+      y: bottomY + rr(-0.06, 0.06),
+      z: Math.sin(angle) * ring,
+      r: bottomRadius * rr(0.92, 1.08),
+    });
+  }
+
+  const geometries = blobs.map((blob) => {
+    const geometry = new THREE.SphereGeometry(blob.r, 12, 8);
+    geometry.translate(blob.x, blob.y, blob.z);
+    return geometry;
+  });
+
+  const merged = mergeGeometries(geometries, false);
+  geometries.forEach((geometry) => geometry.dispose());
+  return merged;
+}
+
+/* ============================================================
+   树冠变体
+   ============================================================ */
+const canopyVariants = [];
+let maxCanopyRadius = 0;
+let maxCanopyTop = 0;
+
+for (let i = 0; i < VARIANT_COUNT; i++) {
+  const geometry = createCanopyGeometry(SEED + i * 97);
+  const outline = createOutlineGeometry(geometry, 0.022);
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+
+  maxCanopyRadius = Math.max(
+    maxCanopyRadius,
+    Math.max(box.max.x - box.min.x, box.max.z - box.min.z) * 0.5
+  );
+  maxCanopyTop = Math.max(maxCanopyTop, box.max.y);
+
+  canopyVariants.push({ geometry, outline });
+}
+
+/* ============================================================
+   树干
+   ============================================================ */
+const trunkGeometry = new THREE.CylinderGeometry(
+  TRUNK.topRadius,
+  TRUNK.bottomRadius,
+  TRUNK.height,
+  10,
+  1,
+  false
+);
+trunkGeometry.translate(0, TRUNK.height / 2, 0);
+const trunkOutlineGeometry = createOutlineGeometry(trunkGeometry, 0.016);
+
+/* ============================================================
+   树林布局
+   ============================================================ */
+const rnd = mulberry32(SEED + 700);
+const rr = (min, max) => min + (max - min) * rnd();
+
+const trees = [];
+const HEX_RADIUS = 11;
+const SPACING = 2.1;
+const JITTER = 0.55;
+const FOREST_INRADIUS = SPACING * HEX_RADIUS * Math.sqrt(3) / 2;
+
+// 正三角网格：相邻点等距，外围构成一个六边相等的正六边形
+for (let q = -HEX_RADIUS; q <= HEX_RADIUS; q++) {
+  const rMin = Math.max(-HEX_RADIUS, -q - HEX_RADIUS);
+  const rMax = Math.min(HEX_RADIUS, -q + HEX_RADIUS);
+
+  for (let r = rMin; r <= rMax; r++) {
+    trees.push({
+      x: SPACING * (q + r / 2) + rr(-JITTER, JITTER),
+      z: SPACING * (r * Math.sqrt(3) / 2) + rr(-JITTER, JITTER),
+      scale: rr(0.34, 0.62),
+      rotation: rnd() * TWO_PI,
+      variant: Math.floor(rnd() * VARIANT_COUNT),
+    });
+  }
+}
+
+const dummy = new THREE.Object3D();
+trees.forEach((tree, index) => {
+  tree.index = index;
+  dummy.position.set(tree.x, 0, tree.z);
+  dummy.rotation.set(0, tree.rotation, 0);
+  dummy.scale.setScalar(tree.scale);
+  dummy.updateMatrix();
+  tree.matrix = dummy.matrix.clone();
+});
+
+/* ============================================================
+   实例化树冠 / 描边 / 树干
+   ============================================================ */
+const trunkMesh = new THREE.InstancedMesh(
+  trunkGeometry,
+  trunkMaterial,
+  trees.length
+);
+const trunkOutlineMesh = new THREE.InstancedMesh(
+  trunkOutlineGeometry,
+  trunkOutlineMaterial,
+  trees.length
+);
+
+trees.forEach((tree, index) => {
+  trunkMesh.setMatrixAt(index, tree.matrix);
+  trunkOutlineMesh.setMatrixAt(index, tree.matrix);
+});
+
+trunkMesh.instanceMatrix.needsUpdate = true;
+trunkOutlineMesh.instanceMatrix.needsUpdate = true;
+trunkMesh.castShadow = true;
+trunkMesh.receiveShadow = true;
+trunkMesh.frustumCulled = false;
+trunkOutlineMesh.frustumCulled = false;
+scene.add(trunkMesh);
+scene.add(trunkOutlineMesh);
+
+const variantMeshes = [];
+
+for (let i = 0; i < VARIANT_COUNT; i++) {
+  const list = trees.filter((tree) => tree.variant === i);
+  if (!list.length) continue;
+
+  const canopyMesh = new THREE.InstancedMesh(
+    canopyVariants[i].geometry,
+    foliageMaterial,
+    list.length
+  );
+  const outlineMesh = new THREE.InstancedMesh(
+    canopyVariants[i].outline,
+    foliageOutlineMaterial,
+    list.length
+  );
+
+  list.forEach((tree, index) => {
+    canopyMesh.setMatrixAt(index, tree.matrix);
+    outlineMesh.setMatrixAt(index, tree.matrix);
+  });
+
+  canopyMesh.instanceMatrix.needsUpdate = true;
+  outlineMesh.instanceMatrix.needsUpdate = true;
+  canopyMesh.castShadow = true;
+  canopyMesh.frustumCulled = false;
+  outlineMesh.frustumCulled = false;
+  scene.add(canopyMesh);
+  scene.add(outlineMesh);
+  variantMeshes.push({ canopyMesh, outlineMesh, list });
+}
+
+/* ============================================================
+   树下落叶
+   ============================================================ */
+const LEAVES_PER_TREE = 56;
+const leafGeometry = new THREE.CylinderGeometry(0.11, 0.11, 0.018, 8);
+const leafCount = trees.length * LEAVES_PER_TREE;
+const leafMesh = new THREE.InstancedMesh(leafGeometry, foliageMaterial, leafCount);
+const leafOwners = new Int32Array(leafCount);
+const leafDummy = new THREE.Object3D();
+let leafIndex = 0;
+
+trees.forEach((tree) => {
+  for (let i = 0; i < LEAVES_PER_TREE; i++) {
+    const angle = rnd() * TWO_PI;
+    const distance = (0.3 + Math.pow(rnd(), 0.8) * 2.6) * tree.scale;
+    const size = 0.7 + rnd() * 0.25;
+
+    leafDummy.position.set(
+      tree.x + Math.cos(angle) * distance,
+      0.012,
+      tree.z + Math.sin(angle) * distance
+    );
+    leafDummy.rotation.set(
+      (rnd() - 0.5) * 0.16,
+      rnd() * TWO_PI,
+      (rnd() - 0.5) * 0.16
+    );
+    leafDummy.scale.set(size, 1, size * (1.4 + rnd() * 0.5));
+    leafDummy.updateMatrix();
+    leafMesh.setMatrixAt(leafIndex, leafDummy.matrix);
+    leafOwners[leafIndex] = tree.index;
+    leafIndex += 1;
+  }
+});
+
+leafMesh.instanceMatrix.needsUpdate = true;
+leafMesh.castShadow = false;
+leafMesh.receiveShadow = true;
+leafMesh.frustumCulled = false;
+scene.add(leafMesh);
+
+/* ============================================================
+   颜色面板
+   ============================================================ */
+const paletteItems = Array.from(document.querySelectorAll('.palette-item'));
+const colorItems = paletteItems.filter((item) => item.dataset.color);
+const initialPaletteItem = document.querySelector('.palette-item.is-active');
+const treeColors = trees.map(() => new THREE.Color(initialPaletteItem.dataset.color));
+const outlineScratch = new THREE.Color();
+
+function refreshFoliageColors() {
+  variantMeshes.forEach(({ canopyMesh, outlineMesh, list }) => {
+    list.forEach((tree, index) => {
+      const color = treeColors[tree.index];
+      canopyMesh.setColorAt(index, color);
+      outlineScratch.copy(color).multiplyScalar(0.16);
+      outlineMesh.setColorAt(index, outlineScratch);
+    });
+    canopyMesh.instanceColor.needsUpdate = true;
+    outlineMesh.instanceColor.needsUpdate = true;
+  });
+
+  for (let i = 0; i < leafCount; i++) {
+    leafMesh.setColorAt(i, treeColors[leafOwners[i]]);
+  }
+  leafMesh.instanceColor.needsUpdate = true;
+}
+
+function setActivePaletteItem(item) {
+  paletteItems.forEach((other) => {
+    const active = other === item;
+    other.classList.toggle('is-active', active);
+    other.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function applyUniformColor(hex) {
+  treeColors.forEach((color) => color.set(hex));
+  refreshFoliageColors();
+}
+
+function applyRandomTreeColors() {
+  treeColors.forEach((color) => {
+    const pick = colorItems[Math.floor(Math.random() * colorItems.length)];
+    color.set(pick.dataset.color);
+  });
+  refreshFoliageColors();
+}
+
+paletteItems.forEach((item) => {
+  item.addEventListener('click', () => {
+    if (item.dataset.random) {
+      applyRandomTreeColors();
+    } else {
+      applyUniformColor(item.dataset.color);
+    }
+    setActivePaletteItem(item);
+  });
+});
+
+setActivePaletteItem(initialPaletteItem);
+refreshFoliageColors();
+
+/* ============================================================
+   自动取景 / 交互 / 渲染
+   ============================================================ */
+const forestBounds = new THREE.Box3();
+
+trees.forEach((tree) => {
+  const radius = maxCanopyRadius * tree.scale;
+  forestBounds.expandByPoint(new THREE.Vector3(
+    tree.x - radius,
+    0,
+    tree.z - radius
+  ));
+  forestBounds.expandByPoint(new THREE.Vector3(
+    tree.x + radius,
+    maxCanopyTop * tree.scale,
+    tree.z + radius
+  ));
+});
+
+function updateCameraLimit() {
+  const distance = camera.position.distanceTo(controls.target);
+  if (distance <= 0) return;
+  const ratio = (MIN_CAMERA_HEIGHT - controls.target.y) / distance;
+  controls.maxPolarAngle = Math.acos(THREE.MathUtils.clamp(ratio, -1, 1));
+}
+
+function frameForest() {
+  const center = forestBounds.getCenter(new THREE.Vector3());
+  const size = forestBounds.getSize(new THREE.Vector3());
+
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+  const distanceForHeight = size.y / 2 / Math.tan(verticalFov / 2);
+  const distanceForWidth =
+    Math.max(size.x, size.z) / 2 / Math.tan(horizontalFov / 2);
+
+  const compact = window.matchMedia('(max-width: 560px)').matches;
+  const padding = compact ? 0.27 : 0.42;
+  const distance = Math.min(
+    Math.max(distanceForHeight, distanceForWidth) * padding,
+    FOREST_INRADIUS
+  );
+
+  scene.fog.near = distance * 1.2;
+  scene.fog.far = distance * 2.6;
+
+  const viewDirection = new THREE.Vector3(0.55, 0.55, 0.8).normalize();
+  controls.target.copy(center);
+  camera.position.copy(center).addScaledVector(viewDirection, distance);
+  controls.maxDistance = FOREST_INRADIUS;
+  controls.update();
+}
+
+let hasInteracted = false;
+
+controls.addEventListener('start', () => {
+  hasInteracted = true;
+}, { once: true });
+
+function resize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  if (!hasInteracted) frameForest();
+}
+
+window.addEventListener('resize', resize);
+frameForest();
+renderer.shadowMap.needsUpdate = true;
+
+renderer.setAnimationLoop(() => {
+  updateCameraLimit();
+  controls.update();
+
+  if (camera.position.y < MIN_CAMERA_HEIGHT) {
+    camera.position.y = MIN_CAMERA_HEIGHT;
+    camera.lookAt(controls.target);
+  }
+
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
