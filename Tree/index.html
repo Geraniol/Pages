@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <link rel="icon" href="data:,">
-<title>一棵树 · Three.js</title>
+<title>Tree</title>
 <style>
   :root {
     --bg: #ffffff;
@@ -169,11 +169,11 @@
 <div id="app"></div>
 
 <section class="palette" aria-label="颜色选择">
-  <button type="button" class="palette-item" data-color="#ffbbbb" aria-label="樱花" title="樱花" aria-pressed="false">
-    <span class="swatch" style="--swatch: #ffbbbb"></span>
+  <button type="button" class="palette-item" data-color="#ff9999" aria-label="樱花" title="樱花" aria-pressed="false">
+    <span class="swatch" style="--swatch: #ff9999"></span>
     <span class="palette-text">
       <span class="palette-name">樱花</span>
-      <span class="palette-hex">#FFBBBB</span>
+      <span class="palette-hex">#FF9999</span>
     </span>
   </button>
   <button type="button" class="palette-item" data-color="#ff4444" aria-label="火焰木" title="火焰木" aria-pressed="false">
@@ -590,9 +590,53 @@ function frameTree() {
 
 let hasInteracted = false;
 
+const AUTO_ROTATE_DELAY = 10000;
+const AUTO_ROTATE_SPEED = 0.8;
+let autoRotateTimer = null;
+let lastDragDirection = 1;
+let dragStartX = null;
+
+function stopAutoRotate() {
+  controls.autoRotate = false;
+  if (autoRotateTimer !== null) {
+    window.clearTimeout(autoRotateTimer);
+    autoRotateTimer = null;
+  }
+}
+
+function scheduleAutoRotate() {
+  stopAutoRotate();
+  autoRotateTimer = window.setTimeout(() => {
+    controls.autoRotateSpeed = AUTO_ROTATE_SPEED * lastDragDirection;
+    controls.autoRotate = true;
+    autoRotateTimer = null;
+  }, AUTO_ROTATE_DELAY);
+}
+
+renderer.domElement.addEventListener('pointerdown', (event) => {
+  dragStartX = event.clientX;
+  stopAutoRotate();
+});
+
+window.addEventListener('pointerup', (event) => {
+  if (dragStartX === null) return;
+  const travel = event.clientX - dragStartX;
+  if (Math.abs(travel) >= 8) {
+    lastDragDirection = travel > 0 ? 1 : -1;
+  }
+  dragStartX = null;
+});
+
+window.addEventListener('pointercancel', () => {
+  dragStartX = null;
+});
+
 controls.addEventListener('start', () => {
   hasInteracted = true;
-}, { once: true });
+  stopAutoRotate();
+});
+
+controls.addEventListener('end', scheduleAutoRotate);
 
 function fitPalette() {
   const palette = document.querySelector('.palette');
@@ -632,11 +676,19 @@ function resize() {
 window.addEventListener('resize', resize);
 frameTree();
 fitPalette();
+scheduleAutoRotate();
 renderer.shadowMap.needsUpdate = true;
 
-renderer.setAnimationLoop(() => {
+let lastFrameTime = 0;
+
+renderer.setAnimationLoop((time) => {
+  const deltaTime = lastFrameTime === 0
+    ? 0
+    : Math.min((time - lastFrameTime) / 1000, 0.1);
+  lastFrameTime = time;
+
   updateCameraLimit();
-  controls.update();
+  controls.update(deltaTime);
 
   if (camera.position.y < MIN_CAMERA_HEIGHT) {
     camera.position.y = MIN_CAMERA_HEIGHT;
