@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <link rel="icon" href="data:,">
 <title>一棵树 · Three.js</title>
 <style>
@@ -13,8 +13,7 @@
     --line: 2px solid var(--ink);
     --panel-bg: #ffffff;
     --panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
-    --panel-width: 238px;
-    --panel-max-width: 520px;
+    --panel-width: max-content;
     --panel-radius: 30px;
     --panel-pad: 14px 18px;
     --panel-offset: 20px;
@@ -30,7 +29,13 @@
     --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   }
 
-  * { box-sizing: border-box; }
+  * {
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
   html, body {
     margin: 0;
     width: 100%;
@@ -38,6 +43,13 @@
     overflow: hidden;
     background: var(--bg);
     -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    overscroll-behavior: none;
   }
   #app { position: fixed; inset: 0; }
   #app canvas { display: block; cursor: grab; touch-action: none; }
@@ -57,6 +69,8 @@
     background: var(--panel-bg);
     box-shadow: var(--panel-shadow);
     font-family: var(--font-ui);
+    transform-origin: top left;
+    touch-action: manipulation;
   }
   .palette-item {
     display: flex;
@@ -115,7 +129,7 @@
     :root {
       --panel-offset: 16px;
       --panel-radius: 999px;
-      --panel-pad: 14px 16px;
+      --panel-pad: 16px;
       --swatch-size: 36px;
       --ring-offset: 1px;
     }
@@ -123,12 +137,12 @@
       top: auto;
       left: 50%;
       bottom: calc(var(--panel-offset) + env(safe-area-inset-bottom, 0px));
-      width: calc(100% - var(--panel-offset) * 2);
-      max-width: var(--panel-max-width);
       flex-direction: row;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
+      gap: var(--row-gap);
       transform: translateX(-50%);
+      transform-origin: bottom center;
       box-shadow: none;
     }
     .palette-item {
@@ -144,8 +158,9 @@
   @media (max-width: 380px) {
     :root {
       --panel-offset: 12px;
-      --panel-pad: 12px 14px;
+      --panel-pad: 12px;
       --swatch-size: 32px;
+      --row-gap: 12px;
     }
   }
 </style>
@@ -579,16 +594,44 @@ controls.addEventListener('start', () => {
   hasInteracted = true;
 }, { once: true });
 
+function fitPalette() {
+  const palette = document.querySelector('.palette');
+  if (!palette) return;
+
+  palette.style.transform = '';
+  const style = getComputedStyle(palette);
+  const offset = parseFloat(style.getPropertyValue('--panel-offset')) || 16;
+
+  if (window.matchMedia('(max-width: 560px)').matches) {
+    const naturalWidth = palette.offsetWidth;
+    const available = Math.max(window.innerWidth - offset * 2, 1);
+    const scale = Math.min(1, available / naturalWidth);
+    palette.style.transform = scale < 1
+      ? `translateX(-50%) scale(${scale})`
+      : 'translateX(-50%)';
+    return;
+  }
+
+  const naturalHeight = palette.offsetHeight;
+  const available = Math.max(window.innerHeight - offset * 2, 1);
+
+  if (naturalHeight > available) {
+    palette.style.transform = `scale(${available / naturalHeight})`;
+  }
+}
+
 function resize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
+  fitPalette();
   if (!hasInteracted) frameTree();
 }
 
 window.addEventListener('resize', resize);
 frameTree();
+fitPalette();
 renderer.shadowMap.needsUpdate = true;
 
 renderer.setAnimationLoop(() => {
