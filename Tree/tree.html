@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<link rel="icon" href="data:,">
+<title>Tree</title>
+<style>
+  :root {
+    /* Typography */
+    --font-ui: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+    /* Day theme */
+    --bg: #ffffff;
+    --ink: #111111;
+    --muted: #a0a0a0;
+    --line-width: 2px;
+    --line: var(--line-width) solid var(--ink);
+    --panel-bg: #ffffff;
+    --panel-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    --hover-bg: #f6f7f4;
+
+    /* Night theme */
+    --night-bg: #050a13;
+    --night-bg-0: #0c182b;
+    --night-bg-1: #060d18;
+    --night-bg-2: #020409;
+    --night-ink: #e7efff;
+    --night-muted: #8ea4c8;
+    --night-line-color: rgba(211, 229, 255, 0.68);
+    --night-panel-bg: rgba(8, 17, 32, 0.82);
+    --night-panel-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+    --night-hover-bg: rgba(125, 165, 255, 0.12);
+    --night-blur: 14px;
+    --night-filter-color: #000022;
+    --night-filter-opacity: 0.7;
+
+    /* Palette component */
+    --panel-width: max-content;
+    --panel-radius: 30px;
+    --panel-pad: 14px 18px;
+    --panel-offset: 20px;
+    --row-radius: 14px;
+    --row-gap: 16px;
+    --row-pad: 10px 2px;
+    --swatch-size: 40px;
+    --name-size: 20px;
+    --hex-size: 11px;
+    --ring-offset: 3px;
+  }
+
+  /* Base */
+  * {
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
+  html, body {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  #app { position: fixed; inset: 0; }
+  #app canvas { display: block; cursor: grab; touch-action: none; }
+  #app canvas:active { cursor: grabbing; }
+  /* WebGL fallback */
+  .webgl-error {
+    margin: 0;
+    padding: 24px;
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .night-filter-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
+    overflow: hidden;
+  }
+
+  /* Palette */
+  .palette {
+    position: fixed;
+    top: var(--panel-offset);
+    left: var(--panel-offset);
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    width: var(--panel-width);
+    padding: var(--panel-pad);
+    border: var(--line);
+    border-radius: var(--panel-radius);
+    background: var(--panel-bg);
+    box-shadow: var(--panel-shadow);
+    font-family: var(--font-ui);
+    transform-origin: top left;
+    touch-action: manipulation;
+  }
+  .palette-item {
+    display: flex;
+    align-items: center;
+    gap: var(--row-gap);
+    width: 100%;
+    padding: var(--row-pad);
+    border: 0;
+    border-radius: var(--row-radius);
+    background: transparent;
+    color: var(--ink);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  .palette-item:hover { background: var(--hover-bg); }
+  .palette-item:focus-visible {
+    outline: var(--line);
+    outline-offset: 1px;
+  }
+  .swatch {
+    width: var(--swatch-size);
+    height: var(--swatch-size);
+    flex: 0 0 auto;
+    border: var(--line);
+    border-radius: 50%;
+    background: var(--swatch);
+  }
+  .swatch-random {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel-bg);
+    color: var(--ink);
+    font-family: var(--font-ui);
+    font-size: calc(var(--swatch-size) * 0.46);
+    font-weight: 600;
+    line-height: 1;
+  }
+  .palette-item.is-active .swatch {
+    outline: var(--line);
+    outline-offset: var(--ring-offset);
+  }
+  .palette-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .palette-name {
+    font-size: var(--name-size);
+    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+  .palette-hex {
+    font-family: var(--font-mono);
+    font-size: var(--hex-size);
+    line-height: 1.2;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+
+  @media (max-width: 560px) {
+    :root {
+      --panel-offset: 16px;
+      --panel-radius: 999px;
+      --panel-pad: 16px;
+      --swatch-size: 36px;
+      --ring-offset: 1px;
+    }
+    .palette {
+      top: auto;
+      left: 50%;
+      bottom: calc(var(--panel-offset) + env(safe-area-inset-bottom, 0px));
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: var(--row-gap);
+      transform: translateX(-50%);
+      transform-origin: bottom center;
+      box-shadow: none;
+    }
+    .palette-item {
+      width: auto;
+      padding: 0;
+      border-radius: 50%;
+      background: transparent;
+    }
+    .palette-item:hover { background: transparent; }
+    .palette-text { display: none; }
+  }
+
+  @media (max-width: 380px) {
+    :root {
+      --panel-offset: 12px;
+      --panel-pad: 12px;
+      --swatch-size: 32px;
+      --row-gap: 12px;
+    }
+  }
+
+  /* Night theme overrides */
+  body.night {
+    --bg: var(--night-bg);
+    --ink: var(--night-ink);
+    --muted: var(--night-muted);
+    --line: var(--line-width) solid var(--night-line-color);
+    --panel-bg: var(--night-panel-bg);
+    --panel-shadow: var(--night-panel-shadow);
+    --hover-bg: var(--night-hover-bg);
+    background-color: var(--night-bg);
+    background-image: radial-gradient(
+      ellipse at 50% 38%,
+      var(--night-bg-0) 0%,
+      var(--night-bg-1) 40%,
+      var(--night-bg-2) 100%
+    );
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-attachment: fixed;
+  }
+  body.night #app canvas {
+    filter: url(#night-grade);
+  }
+  body.night .palette {
+    -webkit-backdrop-filter: blur(var(--night-blur));
+    backdrop-filter: blur(var(--night-blur));
+  }
+  #filter-flood {
+    flood-color: var(--night-filter-color);
+    flood-opacity: var(--night-filter-opacity);
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<svg class="night-filter-defs" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="night-grade" color-interpolation-filters="sRGB">
+      <feFlood id="filter-flood" result="flood" />
+      <feColorMatrix
+        in="SourceGraphic"
+        type="matrix"
+        values="
+          0 0 0 0 0
+          0 0 0 0 0
+          0 0 0 0 0
+          0.2126 0.7152 0.0722 0 0"
+        result="luma"
+      />
+      <feComponentTransfer in="luma" result="lumaMask">
+        <feFuncA type="linear" slope="6" intercept="-0.12" />
+      </feComponentTransfer>
+      <feComposite
+        in="flood"
+        in2="lumaMask"
+        operator="in"
+        result="litTint"
+      />
+      <feComposite
+        in="litTint"
+        in2="SourceGraphic"
+        operator="in"
+        result="tint"
+      />
+      <feBlend
+        in="SourceGraphic"
+        in2="tint"
+        mode="overlay"
+      />
+    </filter>
+  </defs>
+</svg>
+
+<section class="palette" aria-label="颜色选择">
+  <button type="button" class="palette-item" data-color="#ff9999" aria-label="樱花" title="樱花" aria-pressed="false" data-en="Sakura">
+    <span class="swatch" style="--swatch: #ff9999"></span>
+    <span class="palette-text">
+      <span class="palette-name">樱花</span>
+      <span class="palette-hex">#FF9999</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-color="#ff4444" aria-label="火焰木" title="火焰木" aria-pressed="false" data-en="Illawarra Flame Tree">
+    <span class="swatch" style="--swatch: #ff4444"></span>
+    <span class="palette-text">
+      <span class="palette-name">火焰木</span>
+      <span class="palette-hex">#FF4444</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-color="#ff8822" aria-label="枫树" title="枫树" aria-pressed="false" data-en="Maple Tree">
+    <span class="swatch" style="--swatch: #ff8822"></span>
+    <span class="palette-text">
+      <span class="palette-name">枫树</span>
+      <span class="palette-hex">#FF8822</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-color="#ffcc00" aria-label="银桦" title="银桦" aria-pressed="false" data-en="Silky Oak">
+    <span class="swatch" style="--swatch: #ffcc00"></span>
+    <span class="palette-text">
+      <span class="palette-name">银桦</span>
+      <span class="palette-hex">#FFCC00</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item is-active" data-color="#44aa22" aria-label="盛夏" title="盛夏" aria-pressed="true" data-en="Summer">
+    <span class="swatch" style="--swatch: #44aa22"></span>
+    <span class="palette-text">
+      <span class="palette-name">盛夏</span>
+      <span class="palette-hex">#44AA22</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-color="#39c5bb" aria-label="初音未来" title="初音未来" aria-pressed="false" data-en="Miku">
+    <span class="swatch" style="--swatch: #39c5bb"></span>
+    <span class="palette-text">
+      <span class="palette-name">初音未来</span>
+      <span class="palette-hex">#39C5BB</span>
+    </span>
+  </button>
+  <button type="button" class="palette-item" data-color="#cc88ff" aria-label="蓝花楹" title="蓝花楹" aria-pressed="false" data-en="Jacaranda">
+    <span class="swatch" style="--swatch: #cc88ff"></span>
+    <span class="palette-text">
+      <span class="palette-name">蓝花楹</span>
+      <span class="palette-hex">#CC88FF</span>
+    </span>
+  </button>
+</section>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+/* URL parameters */
+const rawParams = new URLSearchParams(window.location.search);
+const rawSeason = (rawParams.get('season') || '').trim().toLowerCase();
+const rawMode = (rawParams.get('mode') || '').trim().toLowerCase();
+const rawForest = (rawParams.get('forest') || '').trim().toLowerCase();
+const rawLang = (rawParams.get('lang') || '').trim().toLowerCase();
+const rawColor = rawParams.get('color') || '';
+
+const isWinter = rawSeason === 'winter';
+const isNight = rawMode === 'night';
+const isForest = rawForest === 'true';
+const isEnglish = rawLang === 'en';
+const hasCustomColor = /^[0-9a-fA-F]{6}$/.test(rawColor);
+const customColor = hasCustomColor ? `#${rawColor.toUpperCase()}` : null;
+
+const cleanParams = new URLSearchParams();
+if (isWinter) cleanParams.set('season', 'winter');
+if (isNight) cleanParams.set('mode', 'night');
+if (isForest) cleanParams.set('forest', 'true');
+if (hasCustomColor) cleanParams.set('color', rawColor.toUpperCase());
+if (isEnglish) cleanParams.set('lang', 'en');
+
+function replaceQuery(params) {
+  const search = params.toString();
+  const url = `${window.location.pathname}${search ? `?${search}` : ''}${window.location.hash}`;
+  try {
+    window.history.replaceState(null, '', url);
+  } catch {}
+}
+
+replaceQuery(cleanParams);
+
+document.body.classList.toggle('night', isNight);
+document.documentElement.lang = isEnglish ? 'en' : 'zh-CN';
+document.title = isForest ? 'Trees' : 'Tree';
+
+/* Tree proportions */
+const TIERS = {
+  top: { y: 2.77, radius: 1.39 },
+  shoulder: { y: 2.21, radius: 0.86, spread: 1.24, count: 7 },
+  bottom: { y: 1.77, radius: 0.58, spread: 1.29, count: 12 },
+};
+
+const TRUNK = {
+  height: 2.0,
+  topRadius: 0.24,
+  bottomRadius: 0.34,
+};
+
+const SEED = 20261028;
+const TWO_PI = Math.PI * 2;
+const COMPACT_LAYOUT_QUERY = window.matchMedia('(max-width: 560px)');
+const FOREST_HEX_RADIUS = 11;
+const FOREST_SPACING = 2.1;
+const FOREST_JITTER = 0.55;
+const FOREST_INRADIUS = FOREST_SPACING * FOREST_HEX_RADIUS * Math.sqrt(3) / 2;
+
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), 1 | t);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* Renderer, scene, camera */
+const app = document.getElementById('app');
+const scene = new THREE.Scene();
+if (isForest) {
+  scene.fog = new THREE.Fog(isNight ? 0x060b14 : 0xffffff, 38, 78);
+}
+const camera = new THREE.PerspectiveCamera(
+  isForest ? 38 : 35,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  300
+);
+
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+} catch (error) {
+  const message = document.createElement('p');
+  message.className = 'webgl-error';
+  message.textContent = isEnglish
+    ? 'WebGL is unavailable in this browser.'
+    : '当前浏览器无法启用 WebGL，请更换浏览器后重试。';
+  document.querySelector('.palette')?.remove();
+  app.replaceChildren(message);
+  throw error;
+}
+
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;
+app.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.075;
+controls.enablePan = false;
+controls.minDistance = 4;
+controls.maxDistance = 24;
+controls.minPolarAngle = 0.22;
+controls.maxPolarAngle = Math.PI / 2;
+const MIN_CAMERA_HEIGHT = 0.25;
+controls.rotateSpeed = 0.6;
+controls.zoomSpeed = 0.85;
+
+/* Anime materials */
+function createToonGradient() {
+  const data = new Uint8Array([
+    135, 135, 135, 255,
+    205, 205, 205, 255,
+    255, 255, 255, 255,
+  ]);
+  const texture = new THREE.DataTexture(data, 3, 1, THREE.RGBAFormat);
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+const gradientMap = createToonGradient();
+
+const foliageMaterial = new THREE.MeshToonMaterial({
+  color: '#44aa22',
+  gradientMap,
+});
+
+const trunkMaterial = new THREE.MeshToonMaterial({
+  color: 0x9b6a3f,
+  gradientMap,
+});
+
+const foliageOutlineMaterial = new THREE.MeshBasicMaterial({
+  color: 0x1b3d0c,
+  side: THREE.BackSide,
+});
+
+const snowMaterial = new THREE.MeshToonMaterial({
+  color: 0xddeeff,
+  gradientMap,
+  polygonOffset: true,
+  polygonOffsetFactor: -1,
+  polygonOffsetUnits: -1,
+});
+
+const trunkOutlineMaterial = new THREE.MeshBasicMaterial({
+  color: 0x35210f,
+  side: THREE.BackSide,
+});
+
+/* Lights and shadow ground */
+scene.add(new THREE.AmbientLight(
+  isNight ? 0x6279a8 : 0xffffff,
+  isNight ? (isForest ? 0.82 : 0.55) : 0.62
+));
+
+const sun = new THREE.DirectionalLight(
+  isNight ? 0xb4ccff : 0xfff6e8,
+  isForest
+    ? (isNight ? 3.1 : 2.4)
+    : (isNight ? 2.2 : 2.5)
+);
+sun.position.set(
+  isForest ? 18 : (isNight ? 6 : 5),
+  isForest ? 30 : 9,
+  isForest ? 14 : 5
+);
+sun.castShadow = true;
+sun.shadow.mapSize.set(isForest ? 2048 : 4096, isForest ? 2048 : 4096);
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = isForest ? 110 : 30;
+const shadowExtent = isForest ? 42 : 6;
+sun.shadow.camera.left = -shadowExtent;
+sun.shadow.camera.right = shadowExtent;
+sun.shadow.camera.top = shadowExtent;
+sun.shadow.camera.bottom = -shadowExtent;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = isForest ? 0.02 : 0.03;
+sun.shadow.camera.updateProjectionMatrix();
+sun.target.position.set(0, isForest ? 0 : 1.8, 0);
+scene.add(sun);
+scene.add(sun.target);
+
+const fill = new THREE.DirectionalLight(
+  isNight ? 0x5573e8 : 0xffffff,
+  isForest
+    ? (isNight ? 1.05 : 0.42)
+    : (isNight ? 0.75 : 0.45)
+);
+fill.position.set(isForest ? -15 : -6, isForest ? 12 : 4, isForest ? -12 : -7);
+scene.add(fill);
+
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(isForest ? 200 : 80, isForest ? 200 : 80),
+  new THREE.ShadowMaterial({
+    color: isNight ? 0x000000 : 0x34412d,
+    opacity: isNight ? 0.45 : (isForest ? 0.09 : 0.1),
+  })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+let starMaterial = null;
+
+if (isNight) {
+  const starRnd = mulberry32(SEED + 811);
+  const starPositions = [];
+  const starColors = [];
+  const starColor = new THREE.Color();
+
+  for (let i = 0; i < 650; i++) {
+    const phi = Math.acos(0.08 + starRnd() * 0.9);
+    const theta = starRnd() * TWO_PI;
+    const radius = 58 + starRnd() * 22;
+    const sinPhi = Math.sin(phi);
+
+    starPositions.push(
+      radius * sinPhi * Math.cos(theta),
+      radius * Math.cos(phi),
+      radius * sinPhi * Math.sin(theta)
+    );
+
+    if (starRnd() < 0.08) {
+      starColor.setHSL(0.1, 0.35, 0.72 + starRnd() * 0.2);
+    } else {
+      starColor.setHSL(0.56 + starRnd() * 0.08, 0.25, 0.65 + starRnd() * 0.3);
+    }
+
+    starColors.push(starColor.r, starColor.g, starColor.b);
+  }
+
+  const starGeometry = new THREE.BufferGeometry();
+  starGeometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(starPositions, 3)
+  );
+  starGeometry.setAttribute(
+    'color',
+    new THREE.Float32BufferAttribute(starColors, 3)
+  );
+
+  starMaterial = new THREE.PointsMaterial({
+    size: 0.15,
+    sizeAttenuation: true,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false,
+    fog: false,
+    blending: THREE.AdditiveBlending,
+  });
+
+  const stars = new THREE.Points(starGeometry, starMaterial);
+  stars.frustumCulled = false;
+  scene.add(stars);
+}
+
+/* Outline helper */
+function createOutlineGeometry(source, thickness) {
+  const geometry = source.clone();
+  const position = geometry.attributes.position;
+  const normal = geometry.attributes.normal;
+  const n = new THREE.Vector3();
+
+  for (let i = 0; i < position.count; i++) {
+    n.fromBufferAttribute(normal, i);
+    position.setXYZ(
+      i,
+      position.getX(i) + n.x * thickness,
+      position.getY(i) + n.y * thickness,
+      position.getZ(i) + n.z * thickness
+    );
+  }
+
+  position.needsUpdate = true;
+  geometry.computeBoundingSphere();
+  return geometry;
+}
+
+/* Trunk */
+const trunkGeometry = new THREE.CylinderGeometry(
+  TRUNK.topRadius,
+  TRUNK.bottomRadius,
+  TRUNK.height,
+  12,
+  1,
+  false
+);
+trunkGeometry.translate(0, TRUNK.height / 2, 0);
+
+const singleTreeGroup = new THREE.Group();
+singleTreeGroup.visible = !isForest;
+scene.add(singleTreeGroup);
+
+const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+trunk.castShadow = true;
+trunk.receiveShadow = true;
+singleTreeGroup.add(trunk);
+
+const trunkOutlineGeometry = createOutlineGeometry(trunkGeometry, 0.018);
+singleTreeGroup.add(new THREE.Mesh(
+  trunkOutlineGeometry,
+  trunkOutlineMaterial
+));
+
+/* Canopy */
+function createCanopyBlobs() {
+  const rnd = mulberry32(SEED);
+  const rr = (min, max) => min + (max - min) * rnd();
+  const blobs = [{
+    x: rr(-0.03, 0.03),
+    y: TIERS.top.y + rr(-0.03, 0.03),
+    z: rr(-0.03, 0.03),
+    r: TIERS.top.radius * rr(0.98, 1.03),
+    snowFraction: 2 / 3,
+  }];
+
+  const shoulderStart = rnd() * TWO_PI;
+  for (let i = 0; i < TIERS.shoulder.count; i++) {
+    const angle = shoulderStart + (i / TIERS.shoulder.count) * TWO_PI + rr(-0.09, 0.09);
+    const ring = TIERS.shoulder.spread * rr(0.94, 1.06);
+    blobs.push({
+      x: Math.cos(angle) * ring,
+      y: TIERS.shoulder.y + rr(-0.07, 0.07),
+      z: Math.sin(angle) * ring,
+      r: TIERS.shoulder.radius * rr(0.9, 1.1),
+      snowFraction: 1 / 2,
+    });
+  }
+
+  const bottomStart = shoulderStart + rr(0.1, 0.3);
+  for (let i = 0; i < TIERS.bottom.count; i++) {
+    const angle = bottomStart + (i / TIERS.bottom.count) * TWO_PI + rr(-0.07, 0.07);
+    const ring = TIERS.bottom.spread * rr(0.95, 1.05);
+    blobs.push({
+      x: Math.cos(angle) * ring,
+      y: TIERS.bottom.y + rr(-0.07, 0.07),
+      z: Math.sin(angle) * ring,
+      r: TIERS.bottom.radius * rr(0.9, 1.1),
+    });
+  }
+
+  return blobs;
+}
+
+const canopyBlobs = createCanopyBlobs();
+const canopyGeometries = canopyBlobs.map((blob) => {
+  const geometry = new THREE.SphereGeometry(blob.r, 24, 16);
+  geometry.translate(blob.x, blob.y, blob.z);
+  return geometry;
+});
+const canopyGeometry = mergeGeometries(canopyGeometries, false);
+canopyGeometries.forEach((geometry) => geometry.dispose());
+
+const canopy = new THREE.Mesh(canopyGeometry, foliageMaterial);
+canopy.castShadow = true;
+singleTreeGroup.add(canopy);
+
+const canopyOutlineGeometry = createOutlineGeometry(canopyGeometry, 0.023);
+singleTreeGroup.add(new THREE.Mesh(
+  canopyOutlineGeometry,
+  foliageOutlineMaterial
+));
+
+function createSnowCapGeometry(blob, phase, amplitude) {
+  const segments = 40;
+  const rings = 10;
+  const baseRadius = blob.r * 1.012;
+  const baseTheta = Math.acos(1 - 2 * blob.snowFraction);
+  const positions = [];
+  const normals = [];
+  const indices = [];
+
+  for (let ring = 0; ring <= rings; ring++) {
+    const edge = ring / rings;
+    const radius = baseRadius * (1 + 0.025 * Math.pow(edge, 8));
+
+    for (let segment = 0; segment <= segments; segment++) {
+      const angle = (segment / segments) * TWO_PI;
+      const wave =
+        0.42 * Math.sin(3 * angle + phase) +
+        0.26 * Math.sin(5 * angle + phase * 1.7) +
+        0.18 * Math.sin(8 * angle + phase * 2.3) +
+        0.14 * Math.sin(13 * angle + phase * 3.1);
+      const lobes =
+        Math.pow(Math.max(0, Math.sin(2 * angle + phase * 1.3)), 6) * 0.7 +
+        Math.pow(Math.max(0, Math.sin(3 * angle + phase * 2.1)), 8) * 0.5;
+      const thetaMax = baseTheta + amplitude * (wave + lobes);
+      const theta = edge * thetaMax;
+      const sinTheta = Math.sin(theta);
+      const x = radius * sinTheta * Math.cos(angle);
+      const y = radius * Math.cos(theta);
+      const z = radius * sinTheta * Math.sin(angle);
+
+      positions.push(blob.x + x, blob.y + y, blob.z + z);
+      normals.push(x / radius, y / radius, z / radius);
+    }
+  }
+
+  const stride = segments + 1;
+  for (let ring = 0; ring < rings; ring++) {
+    for (let segment = 0; segment < segments; segment++) {
+      const a = ring * stride + segment;
+      const b = a + 1;
+      const c = a + stride;
+      const d = c + 1;
+      indices.push(a, b, c, b, d, c);
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  geometry.setIndex(indices);
+  return geometry;
+}
+
+let snow = null;
+let snowGeometry = null;
+
+if (isWinter) {
+  const snowRnd = mulberry32(SEED + 421);
+  const snowGeometries = canopyBlobs
+    .filter((blob) => blob.snowFraction > 0)
+    .map((blob) => {
+      const amplitude = blob.snowFraction >= 2 / 3
+        ? 0.055
+        : 0.15 + snowRnd() * 0.045;
+      return createSnowCapGeometry(blob, snowRnd() * TWO_PI, amplitude);
+    });
+
+  snowGeometry = mergeGeometries(snowGeometries, false);
+  snowGeometries.forEach((geometry) => geometry.dispose());
+
+  if (!isForest) {
+    snow = new THREE.Mesh(snowGeometry, snowMaterial);
+    snow.castShadow = false;
+    snow.receiveShadow = true;
+    singleTreeGroup.add(snow);
+  }
+}
+
+canopyGeometry.computeBoundingBox();
+const canopyBox = canopyGeometry.boundingBox;
+const canopyRadius = Math.max(
+  canopyBox.max.x - canopyBox.min.x,
+  canopyBox.max.z - canopyBox.min.z
+) * 0.5;
+
+/* Fallen leaves */
+function buildFallenLeaves(radius) {
+  const rnd = mulberry32(SEED + 71);
+  const spots = [];
+  const count = 170;
+
+  for (let i = 0; i < count; i++) {
+    const angle = rnd() * TWO_PI;
+    let distance = 0.55 + Math.pow(rnd(), 1.35) * radius * 0.88;
+    if (rnd() < 0.09) distance += 0.35 + rnd() * 0.45;
+    spots.push({
+      x: Math.cos(angle) * distance,
+      z: Math.sin(angle) * distance,
+    });
+  }
+
+  const geometry = new THREE.CylinderGeometry(0.13, 0.13, 0.022, 10);
+  const mesh = new THREE.InstancedMesh(geometry, foliageMaterial, spots.length);
+  const dummy = new THREE.Object3D();
+
+  spots.forEach((spot, index) => {
+    const size = 0.62 + rnd() * 0.38;
+    dummy.position.set(spot.x, 0.012 + rnd() * 0.008, spot.z);
+    dummy.rotation.set(
+      (rnd() - 0.5) * 0.14,
+      rnd() * TWO_PI,
+      (rnd() - 0.5) * 0.14
+    );
+    dummy.scale.set(size, 1, size * (1.35 + rnd() * 0.55));
+    dummy.updateMatrix();
+    mesh.setMatrixAt(index, dummy.matrix);
+  });
+
+  mesh.instanceMatrix.needsUpdate = true;
+  mesh.castShadow = false;
+  mesh.receiveShadow = true;
+  mesh.frustumCulled = false;
+  singleTreeGroup.add(mesh);
+}
+
+if (!isForest) {
+  buildFallenLeaves(canopyRadius);
+}
+
+/* Snowfall */
+function createSnowflakeTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 64;
+  canvas.height = 64;
+  const context = canvas.getContext('2d');
+  context.translate(32, 32);
+
+  const glow = context.createRadialGradient(0, 0, 0, 0, 0, 30);
+  glow.addColorStop(0, 'rgba(205, 226, 250, 0.85)');
+  glow.addColorStop(0.55, 'rgba(180, 210, 244, 0.22)');
+  glow.addColorStop(1, 'rgba(180, 210, 244, 0)');
+  context.fillStyle = glow;
+  context.beginPath();
+  context.arc(0, 0, 30, 0, TWO_PI);
+  context.fill();
+
+  context.strokeStyle = 'rgba(132, 172, 220, 0.95)';
+  context.lineWidth = 2;
+  context.lineCap = 'round';
+
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * TWO_PI;
+    const dx = Math.cos(angle);
+    const dy = Math.sin(angle);
+
+    context.beginPath();
+    context.moveTo(0, 0);
+    context.lineTo(dx * 24, dy * 24);
+    context.stroke();
+
+    for (const branch of [12, 18]) {
+      const px = dx * branch;
+      const py = dy * branch;
+      const branchAngle = angle + Math.PI / 3;
+      const branchLength = branch === 12 ? 6 : 4.5;
+
+      context.beginPath();
+      context.moveTo(px, py);
+      context.lineTo(
+        px + Math.cos(branchAngle) * branchLength,
+        py + Math.sin(branchAngle) * branchLength
+      );
+      context.stroke();
+
+      context.beginPath();
+      context.moveTo(px, py);
+      context.lineTo(
+        px + Math.cos(angle - Math.PI / 3) * branchLength,
+        py + Math.sin(angle - Math.PI / 3) * branchLength
+      );
+      context.stroke();
+    }
+  }
+
+  context.fillStyle = 'rgba(241, 248, 255, 0.95)';
+  context.beginPath();
+  context.arc(0, 0, 2.2, 0, TWO_PI);
+  context.fill();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+let snowTexture = null;
+const snowfallLayers = [];
+
+function addSnowfallLayer({
+  count,
+  size,
+  extent,
+  height,
+  seed,
+  speedMin,
+  speedMax,
+  driftMin,
+  driftMax,
+}) {
+  const rnd = mulberry32(seed);
+  const positions = new Float32Array(count * 3);
+  const flakes = [];
+
+  for (let i = 0; i < count; i++) {
+    const baseX = (rnd() - 0.5) * extent * 2;
+    const baseZ = (rnd() - 0.5) * extent * 2;
+    const y = 0.2 + rnd() * height;
+    const flake = {
+      baseX,
+      baseZ,
+      y,
+      speed: speedMin + rnd() * (speedMax - speedMin),
+      drift: driftMin + rnd() * (driftMax - driftMin),
+      phase: rnd() * TWO_PI,
+      swaySpeed: 0.35 + rnd() * 0.55,
+    };
+
+    flakes.push(flake);
+    positions[i * 3] = baseX;
+    positions[i * 3 + 1] = y;
+    positions[i * 3 + 2] = baseZ;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+  const material = new THREE.PointsMaterial({
+    map: snowTexture,
+    color: 0xffffff,
+    size,
+    sizeAttenuation: true,
+    transparent: true,
+    opacity: 0.9,
+    alphaTest: 0.02,
+    depthWrite: false,
+    fog: false,
+  });
+
+  const points = new THREE.Points(geometry, material);
+  points.frustumCulled = false;
+  scene.add(points);
+
+  snowfallLayers.push({
+    flakes,
+    positions,
+    geometry,
+    rnd,
+    extent,
+    height,
+  });
+}
+
+if (isWinter) {
+  snowTexture = createSnowflakeTexture();
+
+  if (isForest) {
+    addSnowfallLayer({
+      count: 9000,
+      size: 0.2,
+      extent: 28,
+      height: 32,
+      seed: SEED + 907,
+      speedMin: 0.5,
+      speedMax: 1.0,
+      driftMin: 0.3,
+      driftMax: 0.8,
+    });
+    addSnowfallLayer({
+      count: 4500,
+      size: 0.36,
+      extent: 28,
+      height: 32,
+      seed: SEED + 908,
+      speedMin: 0.4,
+      speedMax: 0.85,
+      driftMin: 0.25,
+      driftMax: 0.7,
+    });
+  } else {
+    addSnowfallLayer({
+      count: 6000,
+      size: 0.18,
+      extent: 28,
+      height: 32,
+      seed: SEED + 907,
+      speedMin: 0.4,
+      speedMax: 0.85,
+      driftMin: 0.2,
+      driftMax: 0.6,
+    });
+    addSnowfallLayer({
+      count: 3000,
+      size: 0.32,
+      extent: 28,
+      height: 32,
+      seed: SEED + 908,
+      speedMin: 0.35,
+      speedMax: 0.75,
+      driftMin: 0.18,
+      driftMax: 0.55,
+    });
+  }
+}
+
+function updateSnowfall(deltaTime, elapsed) {
+  if (!isWinter) return;
+
+  for (const layer of snowfallLayers) {
+    const { flakes, positions, geometry, rnd, extent, height } = layer;
+
+    for (let i = 0; i < flakes.length; i++) {
+      const flake = flakes[i];
+      flake.y -= flake.speed * deltaTime;
+
+      if (flake.y < 0.05) {
+        flake.y = height;
+        flake.baseX = (rnd() - 0.5) * extent * 2;
+        flake.baseZ = (rnd() - 0.5) * extent * 2;
+      }
+
+      positions[i * 3] = flake.baseX +
+        Math.sin(elapsed * flake.swaySpeed + flake.phase) * flake.drift;
+      positions[i * 3 + 1] = Math.min(flake.y, height);
+      positions[i * 3 + 2] = flake.baseZ +
+        Math.cos(elapsed * flake.swaySpeed * 0.73 + flake.phase * 1.3) * flake.drift * 0.65;
+    }
+
+    geometry.attributes.position.needsUpdate = true;
+  }
+}
+
+/* Forest mode */
+const forestFoliageMaterial = new THREE.MeshToonMaterial({
+  color: 0xffffff,
+  gradientMap,
+});
+const forestOutlineMaterial = new THREE.MeshBasicMaterial({
+  color: 0xffffff,
+  side: THREE.BackSide,
+});
+const forestTrees = [];
+const forestTreeColors = [];
+const forestLeafOwners = [];
+const forestBounds = new THREE.Box3();
+let forestCanopyMesh = null;
+let forestOutlineMesh = null;
+let forestLeafMesh = null;
+
+if (isForest) {
+  const forestGroup = new THREE.Group();
+  scene.add(forestGroup);
+
+  const forestRnd = mulberry32(SEED + 700);
+  const fr = (min, max) => min + (max - min) * forestRnd();
+
+  for (let q = -FOREST_HEX_RADIUS; q <= FOREST_HEX_RADIUS; q++) {
+    const rMin = Math.max(-FOREST_HEX_RADIUS, -q - FOREST_HEX_RADIUS);
+    const rMax = Math.min(FOREST_HEX_RADIUS, -q + FOREST_HEX_RADIUS);
+
+    for (let r = rMin; r <= rMax; r++) {
+      forestTrees.push({
+        x: FOREST_SPACING * (q + r / 2) + fr(-FOREST_JITTER, FOREST_JITTER),
+        z: FOREST_SPACING * (r * Math.sqrt(3) / 2) + fr(-FOREST_JITTER, FOREST_JITTER),
+        scale: fr(0.34, 0.62),
+        rotation: forestRnd() * TWO_PI,
+      });
+      forestTreeColors.push(new THREE.Color(0x44aa22));
+    }
+  }
+
+  const dummy = new THREE.Object3D();
+
+  forestTrees.forEach((tree) => {
+    dummy.position.set(tree.x, 0, tree.z);
+    dummy.rotation.set(0, tree.rotation, 0);
+    dummy.scale.setScalar(tree.scale);
+    dummy.updateMatrix();
+    tree.matrix = dummy.matrix.clone();
+
+    const radius = canopyRadius * tree.scale;
+    const top = canopyBox.max.y * tree.scale;
+
+    forestBounds.expandByPoint(new THREE.Vector3(
+      tree.x - radius,
+      0,
+      tree.z - radius
+    ));
+    forestBounds.expandByPoint(new THREE.Vector3(
+      tree.x + radius,
+      top,
+      tree.z + radius
+    ));
+  });
+
+  forestCanopyMesh = new THREE.InstancedMesh(
+    canopyGeometry,
+    forestFoliageMaterial,
+    forestTrees.length
+  );
+  forestOutlineMesh = new THREE.InstancedMesh(
+    canopyOutlineGeometry,
+    forestOutlineMaterial,
+    forestTrees.length
+  );
+  const trunkMesh = new THREE.InstancedMesh(
+    trunkGeometry,
+    trunkMaterial,
+    forestTrees.length
+  );
+  const trunkOutlineMesh = new THREE.InstancedMesh(
+    trunkOutlineGeometry,
+    trunkOutlineMaterial,
+    forestTrees.length
+  );
+
+  forestTrees.forEach((tree, index) => {
+    forestCanopyMesh.setMatrixAt(index, tree.matrix);
+    forestOutlineMesh.setMatrixAt(index, tree.matrix);
+    trunkMesh.setMatrixAt(index, tree.matrix);
+    trunkOutlineMesh.setMatrixAt(index, tree.matrix);
+  });
+
+  forestCanopyMesh.instanceMatrix.needsUpdate = true;
+  forestOutlineMesh.instanceMatrix.needsUpdate = true;
+  trunkMesh.instanceMatrix.needsUpdate = true;
+  trunkOutlineMesh.instanceMatrix.needsUpdate = true;
+
+  forestCanopyMesh.castShadow = true;
+  forestCanopyMesh.receiveShadow = true;
+  trunkMesh.castShadow = true;
+  trunkMesh.receiveShadow = true;
+  forestCanopyMesh.frustumCulled = false;
+  forestOutlineMesh.frustumCulled = false;
+  trunkMesh.frustumCulled = false;
+  trunkOutlineMesh.frustumCulled = false;
+
+  forestGroup.add(forestCanopyMesh);
+  forestGroup.add(forestOutlineMesh);
+  forestGroup.add(trunkMesh);
+  forestGroup.add(trunkOutlineMesh);
+
+  if (isWinter && snowGeometry) {
+    const snowMesh = new THREE.InstancedMesh(
+      snowGeometry,
+      snowMaterial,
+      forestTrees.length
+    );
+    forestTrees.forEach((tree, index) => {
+      snowMesh.setMatrixAt(index, tree.matrix);
+    });
+    snowMesh.instanceMatrix.needsUpdate = true;
+    snowMesh.castShadow = false;
+    snowMesh.receiveShadow = true;
+    snowMesh.frustumCulled = false;
+    forestGroup.add(snowMesh);
+  }
+
+  const FOREST_LEAVES_PER_TREE = 56;
+  const forestLeafGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.018, 6);
+  forestLeafMesh = new THREE.InstancedMesh(
+    forestLeafGeometry,
+    forestFoliageMaterial,
+    forestTrees.length * FOREST_LEAVES_PER_TREE
+  );
+  const leafDummy = new THREE.Object3D();
+  let leafIndex = 0;
+
+  forestTrees.forEach((tree, treeIndex) => {
+    for (let i = 0; i < FOREST_LEAVES_PER_TREE; i++) {
+      const angle = forestRnd() * TWO_PI;
+      const distance = (0.3 + Math.pow(forestRnd(), 0.8) * 2.4) * tree.scale;
+      const size = 0.7 + forestRnd() * 0.25;
+
+      leafDummy.position.set(
+        tree.x + Math.cos(angle) * distance,
+        0.012,
+        tree.z + Math.sin(angle) * distance
+      );
+      leafDummy.rotation.set(
+        (forestRnd() - 0.5) * 0.16,
+        forestRnd() * TWO_PI,
+        (forestRnd() - 0.5) * 0.16
+      );
+      leafDummy.scale.set(size, 1, size * (1.4 + forestRnd() * 0.5));
+      leafDummy.updateMatrix();
+      forestLeafMesh.setMatrixAt(leafIndex, leafDummy.matrix);
+      forestLeafOwners.push(treeIndex);
+      leafIndex += 1;
+    }
+  });
+
+  forestLeafMesh.instanceMatrix.needsUpdate = true;
+  forestLeafMesh.castShadow = false;
+  forestLeafMesh.receiveShadow = true;
+  forestLeafMesh.frustumCulled = false;
+  forestGroup.add(forestLeafMesh);
+}
+
+function refreshForestColors() {
+  if (!forestCanopyMesh || !forestOutlineMesh || !forestLeafMesh) return;
+
+  const outlineColor = new THREE.Color();
+
+  forestTrees.forEach((tree, index) => {
+    const color = forestTreeColors[index];
+    forestCanopyMesh.setColorAt(index, color);
+    outlineColor.copy(color).multiplyScalar(0.16);
+    forestOutlineMesh.setColorAt(index, outlineColor);
+  });
+
+  forestCanopyMesh.instanceColor.needsUpdate = true;
+  forestOutlineMesh.instanceColor.needsUpdate = true;
+
+  for (let i = 0; i < forestLeafOwners.length; i++) {
+    forestLeafMesh.setColorAt(i, forestTreeColors[forestLeafOwners[i]]);
+  }
+  forestLeafMesh.instanceColor.needsUpdate = true;
+}
+
+function applyForestUniformColor(hex) {
+  forestTreeColors.forEach((color) => color.set(hex));
+  refreshForestColors();
+}
+
+/* Color palette */
+function updateColorParam(color) {
+  const params = new URLSearchParams(window.location.search);
+
+  if (color) {
+    const value = color.replace('#', '').toUpperCase();
+    if (params.get('color') === value) return;
+    params.set('color', value);
+  } else {
+    if (!params.has('color')) return;
+    params.delete('color');
+  }
+
+  replaceQuery(params);
+}
+
+function createPaletteButton({ color = null, label, hex, custom = false, random = false }) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'palette-item';
+  button.setAttribute('aria-pressed', 'false');
+  button.setAttribute('aria-label', label);
+  button.setAttribute('title', label);
+
+  if (color) button.dataset.color = color;
+  if (custom) button.dataset.custom = 'true';
+  if (random) button.dataset.random = 'true';
+
+  const swatch = random
+    ? '<span class="swatch swatch-random">?</span>'
+    : `<span class="swatch" style="--swatch: ${color}"></span>`;
+
+  button.innerHTML = `
+    ${swatch}
+    <span class="palette-text">
+      <span class="palette-name">${label}</span>
+      <span class="palette-hex">${hex}</span>
+    </span>
+  `;
+
+  return button;
+}
+
+const paletteElement = document.querySelector('.palette');
+let customPaletteItem = null;
+
+if (isForest) {
+  paletteElement.appendChild(createPaletteButton({
+    label: isEnglish ? 'Random' : '随机',
+    hex: 'RANDOM',
+    random: true,
+  }));
+}
+
+if (hasCustomColor) {
+  customPaletteItem = createPaletteButton({
+    color: customColor,
+    label: isEnglish ? 'Custom' : '自定义',
+    hex: customColor,
+    custom: true,
+  });
+  paletteElement.appendChild(customPaletteItem);
+}
+
+const paletteItems = Array.from(document.querySelectorAll('.palette-item'));
+const fixedColorItems = paletteItems.filter(
+  (item) => item.dataset.color && item.dataset.custom !== 'true'
+);
+
+function applyFoliageColor(color) {
+  foliageMaterial.color.set(color);
+  foliageOutlineMaterial.color
+    .set(color)
+    .multiplyScalar(0.16);
+}
+
+function applyColorEverywhere(color) {
+  if (isForest) {
+    applyForestUniformColor(color);
+  } else {
+    applyFoliageColor(color);
+  }
+}
+
+function setActivePaletteItem(activeItem) {
+  paletteItems.forEach((item) => {
+    const active = item === activeItem;
+    item.classList.toggle('is-active', active);
+    item.setAttribute('aria-pressed', String(active));
+  });
+}
+
+paletteItems.forEach((item) => {
+  item.addEventListener('click', () => {
+    if (item.dataset.random === 'true') {
+      setActivePaletteItem(item);
+      updateColorParam(null);
+
+      forestTreeColors.forEach((color) => {
+        const pick = fixedColorItems[Math.floor(Math.random() * fixedColorItems.length)];
+        color.set(pick.dataset.color);
+      });
+      refreshForestColors();
+      return;
+    }
+
+    setActivePaletteItem(item);
+    applyColorEverywhere(item.dataset.color);
+
+    if (item.dataset.custom === 'true') {
+      updateColorParam(item.dataset.color);
+    } else {
+      updateColorParam(null);
+    }
+  });
+});
+
+if (isEnglish) {
+  paletteElement.setAttribute('aria-label', 'Color palette');
+  paletteItems.forEach((item) => {
+    const englishName = item.dataset.en;
+    if (!englishName) return;
+    item.setAttribute('aria-label', englishName);
+    item.setAttribute('title', englishName);
+    const name = item.querySelector('.palette-name');
+    if (name) name.textContent = englishName;
+  });
+}
+
+if (hasCustomColor) {
+  setActivePaletteItem(customPaletteItem);
+  applyColorEverywhere(customColor);
+} else {
+  const initialPaletteItem = document.querySelector('.palette-item.is-active');
+  if (initialPaletteItem) applyColorEverywhere(initialPaletteItem.dataset.color);
+}
+
+/* Framing, controls, render loop */
+function updateCameraLimit() {
+  const distance = camera.position.distanceTo(controls.target);
+  if (distance <= 0) return;
+  const ratio = (MIN_CAMERA_HEIGHT - controls.target.y) / distance;
+  controls.maxPolarAngle = Math.acos(THREE.MathUtils.clamp(ratio, -1, 1));
+}
+
+function getFitDistance(size, factor) {
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+  const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+  const distanceForHeight = size.y / 2 / Math.tan(verticalFov / 2);
+  const distanceForWidth =
+    Math.max(size.x, size.z) / 2 / Math.tan(horizontalFov / 2);
+  return Math.max(distanceForHeight, distanceForWidth) * factor;
+}
+
+function frameTree() {
+  const bounds = new THREE.Box3();
+  bounds.expandByObject(trunk);
+  bounds.expandByObject(canopy);
+  if (snow) bounds.expandByObject(snow);
+
+  const center = bounds.getCenter(new THREE.Vector3());
+  const size = bounds.getSize(new THREE.Vector3());
+  const distance = getFitDistance(
+    size,
+    COMPACT_LAYOUT_QUERY.matches ? 1.28 : 1.74
+  );
+
+  const viewDirection = new THREE.Vector3(0.5, 0.2, 0.82).normalize();
+  controls.target.copy(center);
+  camera.position.copy(center).addScaledVector(viewDirection, distance);
+  controls.maxDistance = Math.max(24, distance * 2.2);
+  controls.update();
+}
+
+function frameForest() {
+  const center = forestBounds.getCenter(new THREE.Vector3());
+  const size = forestBounds.getSize(new THREE.Vector3());
+  const distance = Math.min(
+    getFitDistance(size, COMPACT_LAYOUT_QUERY.matches ? 0.27 : 0.42),
+    FOREST_INRADIUS
+  );
+
+  if (scene.fog) {
+    scene.fog.near = distance * 1.2;
+    scene.fog.far = distance * 2.6;
+  }
+
+  const viewDirection = new THREE.Vector3(0.55, 0.55, 0.8).normalize();
+  controls.target.copy(center);
+  camera.position.copy(center).addScaledVector(viewDirection, distance);
+  controls.minDistance = 8;
+  controls.maxDistance = FOREST_INRADIUS;
+  controls.update();
+}
+
+let hasInteracted = false;
+
+const AUTO_ROTATE_DELAY = 10000;
+const AUTO_ROTATE_SPEED = 0.8;
+let autoRotateTimer = null;
+let lastDragDirection = 1;
+let dragStartX = null;
+
+function stopAutoRotate() {
+  controls.autoRotate = false;
+  if (autoRotateTimer !== null) {
+    window.clearTimeout(autoRotateTimer);
+    autoRotateTimer = null;
+  }
+}
+
+function scheduleAutoRotate() {
+  stopAutoRotate();
+  autoRotateTimer = window.setTimeout(() => {
+    controls.autoRotateSpeed = AUTO_ROTATE_SPEED * lastDragDirection;
+    controls.autoRotate = true;
+    autoRotateTimer = null;
+  }, AUTO_ROTATE_DELAY);
+}
+
+renderer.domElement.addEventListener('pointerdown', (event) => {
+  dragStartX = event.clientX;
+  stopAutoRotate();
+});
+
+window.addEventListener('pointerup', (event) => {
+  if (dragStartX === null) return;
+  const travel = event.clientX - dragStartX;
+  if (Math.abs(travel) >= 8) {
+    lastDragDirection = travel > 0 ? 1 : -1;
+  }
+  dragStartX = null;
+});
+
+window.addEventListener('pointercancel', () => {
+  dragStartX = null;
+});
+
+controls.addEventListener('start', () => {
+  hasInteracted = true;
+  stopAutoRotate();
+});
+
+controls.addEventListener('end', scheduleAutoRotate);
+
+function fitPalette() {
+  const palette = paletteElement;
+  if (!palette) return;
+
+  palette.style.transform = '';
+  const style = getComputedStyle(palette);
+  const offset = parseFloat(style.getPropertyValue('--panel-offset')) || 16;
+
+  if (COMPACT_LAYOUT_QUERY.matches) {
+    const naturalWidth = palette.offsetWidth;
+    const available = Math.max(window.innerWidth - offset * 2, 1);
+    const scale = Math.min(1, available / naturalWidth);
+    palette.style.transform = scale < 1
+      ? `translateX(-50%) scale(${scale})`
+      : 'translateX(-50%)';
+    return;
+  }
+
+  const naturalHeight = palette.offsetHeight;
+  const available = Math.max(window.innerHeight - offset * 2, 1);
+
+  if (naturalHeight > available) {
+    palette.style.transform = `scale(${available / naturalHeight})`;
+  }
+}
+
+function resize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  fitPalette();
+  if (!hasInteracted) {
+    if (isForest) frameForest();
+    else frameTree();
+  }
+}
+
+window.addEventListener('resize', resize);
+if (isForest) frameForest();
+else frameTree();
+fitPalette();
+scheduleAutoRotate();
+renderer.shadowMap.needsUpdate = true;
+
+let lastFrameTime = 0;
+
+renderer.setAnimationLoop((time) => {
+  const deltaTime = lastFrameTime === 0
+    ? 0
+    : Math.min((time - lastFrameTime) / 1000, 0.1);
+  lastFrameTime = time;
+
+  updateCameraLimit();
+  controls.update(deltaTime);
+  updateSnowfall(deltaTime, time * 0.001);
+
+  if (starMaterial) {
+    starMaterial.opacity = 0.78 + Math.sin(time * 0.0008) * 0.08;
+  }
+
+  if (camera.position.y < MIN_CAMERA_HEIGHT) {
+    camera.position.y = MIN_CAMERA_HEIGHT;
+    camera.lookAt(controls.target);
+  }
+
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

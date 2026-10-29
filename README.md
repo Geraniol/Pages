@@ -47,4 +47,4 @@ A TimeTable for 2026-2027S1 Preschool Education Students of GDUE.
 A Leaflet map of hand-picked places in Guangzhou, Shenzhen, Hong Kong, Shanghai, Australia and New Zealand: filter by tag or by the recommended-spots chip, then click a pin or a card for opening hours, tickets, transport, sourced pros and cons, and official links. Shanghai is a themed sheet — anime and manga shopping plus the classic sights.
 
 ### [Tree](Tree)
-A Three.js 3D tree with orbit controls and seven seasonal and themed colour palettes, from cherry blossom to jacaranda; a companion page renders a whole grove and adds a random-colour option.
+A Three.js 3D tree with orbit controls and seven seasonal and themed colour palettes, from cherry blossom to jacaranda.
