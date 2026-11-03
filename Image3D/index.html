@@ -1,0 +1,2353 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<title>Stereo Lab · 2D 照片转左右 3D</title>
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --panel: #111419;
+    --panel-2: #161a21;
+    --panel-3: #1b2029;
+    --line: #242b35;
+    --line-2: #303a47;
+    --text: #e9edf2;
+    --muted: #98a2b3;
+    --muted-2: #6f7a8b;
+    --accent: #f2a33c;
+    --accent-2: #5fd4c4;
+    --danger: #f07178;
+    --radius: 14px;
+    --mono: "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    --sans: "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1100px 600px at 8% -10%, rgba(242, 163, 60, 0.07), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(95, 212, 196, 0.05), transparent 55%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button, input, select { font-family: inherit; }
+
+  .app {
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(11, 14, 18, 0.72);
+    backdrop-filter: blur(14px);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(145deg, #2a2118, #16191e);
+    border: 1px solid #3a3225;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    flex: none;
+  }
+  .brand h1 {
+    margin: 0;
+    font-size: 16px;
+    letter-spacing: 0.02em;
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  .brand p {
+    margin: 1px 0 0;
+    font-size: 11.5px;
+    color: var(--muted-2);
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .top-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .badge {
+    font-size: 11px;
+    line-height: 1;
+    padding: 7px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    background: rgba(255, 255, 255, 0.015);
+    white-space: nowrap;
+  }
+  .badge.ok {
+    color: var(--accent-2);
+    border-color: rgba(95, 212, 196, 0.3);
+    background: rgba(95, 212, 196, 0.07);
+  }
+  .badge.warn {
+    color: var(--accent);
+    border-color: rgba(242, 163, 60, 0.32);
+    background: rgba(242, 163, 60, 0.07);
+  }
+  .badge.err {
+    color: var(--danger);
+    border-color: rgba(240, 113, 120, 0.32);
+    background: rgba(240, 113, 120, 0.07);
+  }
+
+  /* ---------- 主区 ---------- */
+  .workspace {
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 340px minmax(0, 1fr);
+    gap: 14px;
+    padding: 14px 18px;
+  }
+
+  .panel {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-right: 4px;
+  }
+  .panel::-webkit-scrollbar { width: 8px; }
+  .panel::-webkit-scrollbar-thumb { background: #2a313b; border-radius: 99px; }
+  .panel::-webkit-scrollbar-track { background: transparent; }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 11px;
+  }
+  .card-head h2 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.09em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* ---------- 上传 ---------- */
+  .dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 9px;
+    padding: 24px 14px 20px;
+    border: 1.5px dashed #2d3541;
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.012), transparent);
+    cursor: pointer;
+    transition: border-color 0.18s, background 0.18s, transform 0.18s;
+    user-select: none;
+  }
+  .dropzone:hover, .dropzone.drag {
+    border-color: rgba(242, 163, 60, 0.68);
+    background: rgba(242, 163, 60, 0.045);
+  }
+  .dropzone:active { transform: scale(0.995); }
+  .dz-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: #191e26;
+    border: 1px solid var(--line);
+    color: var(--accent);
+  }
+  .dz-title { font-size: 13.5px; font-weight: 600; }
+  .dz-hint { font-size: 11.5px; color: var(--muted-2); line-height: 1.45; }
+  .dz-btn {
+    margin-top: 3px;
+    pointer-events: none;
+  }
+
+  .file-info {
+    display: none;
+    margin-top: 10px;
+    padding: 9px 11px;
+    border-radius: 9px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    font-size: 11.5px;
+    color: var(--muted);
+    gap: 8px;
+    align-items: center;
+  }
+  .file-info.show { display: flex; }
+  .file-info .name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text);
+    font-weight: 550;
+  }
+  .file-info .dims { font-family: var(--mono); font-size: 10.5px; color: var(--muted-2); }
+
+  /* ---------- 控件 ---------- */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field + .field { margin-top: 11px; }
+  .field label, .field-label {
+    font-size: 11.5px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .field-label .val {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  select {
+    width: 100%;
+    height: 36px;
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    background-color: var(--panel-2);
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8'><path d='M1 1l5 5 5-5' stroke='%238a94a3' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 11px center;
+    color: var(--text);
+    padding: 0 32px 0 11px;
+    font-size: 12.5px;
+    appearance: none;
+    outline: none;
+    cursor: pointer;
+  }
+  select:focus { border-color: rgba(242, 163, 60, 0.55); }
+  select option { background: #161a21; color: var(--text); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    height: 38px;
+    padding: 0 15px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background: var(--panel-3);
+    color: var(--text);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, filter 0.15s, opacity 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #222936; border-color: var(--line-2); }
+  .btn:active { transform: translateY(0.5px); }
+  .btn:disabled { opacity: 0.42; cursor: not-allowed; }
+  .btn.primary {
+    background: linear-gradient(180deg, #f7b65d, #e89a2f);
+    border-color: #c88222;
+    color: #241705;
+    box-shadow: 0 2px 12px rgba(242, 163, 60, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  }
+  .btn.primary:hover { filter: brightness(1.06); }
+  .btn.ghost { background: transparent; }
+  .btn.small { height: 30px; padding: 0 10px; font-size: 11px; border-radius: 8px; }
+  .btn.block { width: 100%; }
+  .btn svg { flex: none; }
+
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+    padding: 3px 0;
+  }
+  .check input {
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 5px;
+    border: 1px solid var(--line-2);
+    background: var(--panel-2);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    flex: none;
+    margin: 0;
+  }
+  .check input:checked {
+    background: linear-gradient(180deg, #f2a33c, #dd8c25);
+    border-color: #c88222;
+  }
+  .check input:checked::after {
+    content: "";
+    width: 4px;
+    height: 7px;
+    border: solid #241705;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) translate(-0.5px, -1px);
+  }
+
+  /* ---------- 滑块 ---------- */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 28px;
+    background: transparent;
+    cursor: pointer;
+    margin: 0;
+    display: block;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 8px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #2b333f, #333d4a);
+    border: 1px solid #202730;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 26px;
+    height: 26px;
+    margin-top: -10px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 28%, #ffe3b6 0%, #f5b355 34%, #e3962b 68%, #a9651a 100%);
+    border: 2px solid #2a1c09;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55), inset 0 1px 1px rgba(255, 255, 255, 0.55);
+    transition: transform 0.12s;
+  }
+  input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.08); }
+  input[type="range"]::-moz-range-track {
+    height: 8px;
+    border-radius: 99px;
+    background: #2b333f;
+    border: 1px solid #202730;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 34% 28%, #ffe3b6 0%, #f5b355 34%, #e3962b 68%, #a9651a 100%);
+    border: 2px solid #2a1c09;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
+  }
+
+  .slider-block {
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 11px 6px;
+  }
+  .slider-block .field-label { margin-bottom: 4px; }
+  .mini-slider input[type="range"] { height: 24px; }
+  .mini-slider input[type="range"]::-webkit-slider-runnable-track { height: 5px; }
+  .mini-slider input[type="range"]::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -7px; }
+  .mini-slider input[type="range"]::-moz-range-track { height: 5px; }
+  .mini-slider input[type="range"]::-moz-range-thumb { width: 16px; height: 16px; }
+
+  /* ---------- 深度缩略图 ---------- */
+  .depth-thumb {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(45deg, #14181e 25%, transparent 25%, transparent 75%, #14181e 75%) 0 0 / 14px 14px,
+      linear-gradient(45deg, #14181e 25%, #0e1116 25%, #0e1116 75%, #14181e 75%) 7px 7px / 14px 14px;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+  }
+  .depth-thumb canvas { max-width: 100%; max-height: 100%; display: block; }
+  .depth-thumb .ph {
+    font-size: 11px;
+    color: var(--muted-2);
+    text-align: center;
+    padding: 12px;
+  }
+
+  /* ---------- 阶段 / 预览 ---------- */
+  .stage {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .canvas-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background:
+      radial-gradient(700px 380px at 50% 40%, rgba(255, 255, 255, 0.025), transparent 70%),
+      #07090c;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+  }
+  #previewCanvas {
+    max-width: calc(100% - 24px);
+    max-height: calc(100% - 24px);
+    display: block;
+    border-radius: 6px;
+    box-shadow: 0 12px 50px rgba(0, 0, 0, 0.5);
+    image-rendering: auto;
+  }
+
+  .empty-state {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    gap: 10px;
+    padding: 30px;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .empty-state.hidden { opacity: 0; }
+  .empty-glyph {
+    width: 72px;
+    height: 56px;
+    position: relative;
+    margin-bottom: 4px;
+    opacity: 0.85;
+  }
+  .empty-glyph .pane {
+    position: absolute;
+    top: 0;
+    width: 34px;
+    height: 54px;
+    border: 1px solid #38414e;
+    border-radius: 5px;
+    background: linear-gradient(160deg, #1b2028, #101318);
+    box-shadow: inset 0 0 18px rgba(0, 0, 0, 0.55);
+  }
+  .empty-glyph .pane.l { left: 0; transform: skewY(3deg); }
+  .empty-glyph .pane.r { right: 0; transform: skewY(-3deg); }
+  .empty-glyph .mid {
+    position: absolute;
+    left: 50%;
+    top: 22px;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    transform: translateX(-50%);
+    box-shadow: 0 0 14px rgba(242, 163, 60, 0.9);
+  }
+  .empty-title { font-size: 15px; font-weight: 600; }
+  .empty-desc { font-size: 12.5px; color: var(--muted-2); max-width: 430px; line-height: 1.6; }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: rgba(7, 9, 12, 0.82);
+    backdrop-filter: blur(6px);
+    z-index: 5;
+    transition: opacity 0.2s;
+  }
+  .overlay.hidden { opacity: 0; pointer-events: none; }
+  .spinner {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 2.5px solid rgba(242, 163, 60, 0.18);
+    border-top-color: var(--accent);
+    animation: spin 0.85s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .overlay-text { font-size: 12.5px; color: var(--muted); }
+  .overlay-sub { font-size: 11px; color: var(--muted-2); max-width: 340px; text-align: center; }
+
+  .stage-tools {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 6px;
+    z-index: 4;
+  }
+  .icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    background: rgba(15, 18, 23, 0.72);
+    color: var(--muted);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: color 0.15s, background 0.15s;
+  }
+  .icon-btn:hover { color: var(--text); background: rgba(30, 36, 45, 0.9); }
+
+  .view-tabs {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    display: flex;
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+    background: rgba(15, 18, 23, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    z-index: 4;
+  }
+  .view-tabs button {
+    border: 0;
+    background: transparent;
+    color: var(--muted-2);
+    font-size: 11px;
+    padding: 6px 9px;
+    border-radius: 7px;
+    cursor: pointer;
+    font-weight: 550;
+  }
+  .view-tabs button.on { background: rgba(242, 163, 60, 0.16); color: var(--accent); }
+
+  /* ---------- 视差条 ---------- */
+  .parallax-bar {
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 40%),
+      var(--panel);
+    padding: 13px 18px 12px;
+    flex: none;
+  }
+  .pb-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 2px;
+  }
+  .pb-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+  .pb-title .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px rgba(242, 163, 60, 0.8);
+  }
+  .pb-readout {
+    display: flex;
+    align-items: baseline;
+    gap: 7px;
+    font-family: var(--mono);
+  }
+  .pb-readout .num {
+    font-size: 26px;
+    line-height: 1;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+  .pb-readout .unit { font-size: 11px; color: var(--muted-2); }
+
+  .parallax-range { margin: 4px 0 2px; }
+  .parallax-range::-webkit-slider-runnable-track {
+    height: 10px;
+    background:
+      linear-gradient(90deg, #242b35 0%, #242b35 50%, #2f3844 50%, #2f3844 100%);
+  }
+  .parallax-range::-webkit-slider-thumb {
+    width: 34px;
+    height: 34px;
+    margin-top: -13px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 0 7px rgba(242, 163, 60, 0.09), inset 0 1px 2px rgba(255, 255, 255, 0.6);
+  }
+  .parallax-range::-moz-range-thumb {
+    width: 32px;
+    height: 32px;
+  }
+
+  .pb-scale {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: #4f5968;
+    padding: 0 2px;
+    margin-top: -1px;
+  }
+  .pb-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 8px;
+    flex-wrap: wrap;
+  }
+  .pb-hint {
+    font-size: 11px;
+    color: var(--muted-2);
+    line-height: 1.45;
+  }
+  .pb-actions { display: flex; gap: 8px; }
+  .pb-secondary {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .pb-secondary .mini {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--muted-2);
+    white-space: nowrap;
+  }
+  .pb-secondary .mini input[type="range"] { width: 92px; }
+  .pb-secondary .mini .v {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+    min-width: 26px;
+    text-align: right;
+  }
+
+  /* ---------- 状态栏 ---------- */
+  .statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 8px 20px;
+    border-top: 1px solid var(--line);
+    font-size: 10.5px;
+    color: var(--muted-2);
+    background: rgba(11, 14, 18, 0.6);
+    flex-wrap: wrap;
+  }
+  .statusbar .left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .statusbar .sep { width: 1px; height: 10px; background: var(--line); }
+  .statusbar b { color: var(--muted); font-weight: 600; }
+  kbd {
+    font-family: var(--mono);
+    font-size: 9.5px;
+    border: 1px solid var(--line-2);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 1px 4px;
+    color: var(--muted);
+    background: #151920;
+  }
+
+  /* ---------- 进度 ---------- */
+  .model-progress { display: none; margin-top: 10px; }
+  .model-progress.show { display: block; }
+  .mp-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 10.5px;
+    color: var(--muted-2);
+    margin-bottom: 5px;
+  }
+  .mp-head .file { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mp-head .pct { font-family: var(--mono); color: var(--accent); flex: none; }
+  .mp-bar {
+    height: 4px;
+    border-radius: 99px;
+    background: #202730;
+    overflow: hidden;
+  }
+  .mp-bar i {
+    display: block;
+    height: 100%;
+    width: 0%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, #d78a24, #f7bb66);
+    transition: width 0.2s ease;
+  }
+  .model-note {
+    font-size: 10.5px;
+    color: var(--muted-2);
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+  .model-note b { color: var(--muted); font-weight: 600; }
+
+  /* ---------- 提示 ---------- */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 26px;
+    transform: translate(-50%, 16px);
+    background: rgba(24, 29, 37, 0.96);
+    border: 1px solid var(--line-2);
+    border-radius: 11px;
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--text);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 50;
+    max-width: min(90vw, 460px);
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.error { border-color: rgba(240, 113, 120, 0.45); color: #ffd7d9; }
+
+  /* ---------- 全屏 ---------- */
+  .canvas-wrap:fullscreen {
+    border-radius: 0;
+    border: 0;
+    background: #000;
+    padding: 0;
+  }
+  .canvas-wrap:fullscreen #previewCanvas {
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* ---------- 响应式 ---------- */
+  @media (max-width: 980px) {
+    body { overflow: auto; }
+    .app { height: auto; min-height: 100%; }
+    .workspace { grid-template-columns: 1fr; padding: 12px; }
+    .stage { order: -1; }
+    .canvas-wrap { min-height: 42vh; }
+    .panel { overflow: visible; }
+    .parallax-bar { position: static; }
+  }
+  @media (max-width: 640px) {
+    .topbar { padding: 10px 14px; }
+    .brand p { display: none; }
+    .badge.hide-mobile { display: none; }
+    .workspace { padding: 10px; gap: 10px; }
+    .parallax-bar { padding: 11px 13px 10px; }
+    .pb-readout .num { font-size: 22px; }
+    .pb-secondary { gap: 10px; }
+    .pb-secondary .mini input[type="range"] { width: 74px; }
+    .statusbar { padding: 7px 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <rect x="2.2" y="4.4" width="8.2" height="15.2" rx="1.6" stroke="#f2a33c" stroke-width="1.5"/>
+          <rect x="13.6" y="4.4" width="8.2" height="15.2" rx="1.6" stroke="#8a94a3" stroke-width="1.5"/>
+          <circle cx="12" cy="12" r="1.5" fill="#f2a33c"/>
+          <path d="M6.3 12h2.6M15.1 12h2.6" stroke="#5fd4c4" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Stereo Lab</h1>
+        <p>单张照片 · 左右视差 3D</p>
+      </div>
+    </div>
+    <div class="top-status">
+      <span class="badge hide-mobile" id="engineBadge">检测引擎中</span>
+      <span class="badge" id="modelBadge">模型未加载</span>
+    </div>
+  </header>
+
+  <main class="workspace">
+    <!-- ================= 左栏 ================= -->
+    <aside class="panel">
+      <section class="card">
+        <div class="card-head">
+          <h2>素材</h2>
+          <button class="btn small ghost" id="replaceBtn" type="button" hidden>更换</button>
+        </div>
+        <label class="dropzone" id="dropzone" for="fileInput">
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/avif,image/bmp" hidden />
+          <span class="dz-icon" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M12 16V5m0 0L7.5 9.5M12 5l4.5 4.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M4 15v2.5A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5V15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+          </span>
+          <span class="dz-title">选择或拖入一张照片</span>
+          <span class="dz-hint">JPG / PNG / WebP · 有前后景层次的照片效果最好</span>
+          <span class="btn primary dz-btn">选择图片</span>
+        </label>
+        <div class="file-info" id="fileInfo">
+          <span class="name" id="fileName">-</span>
+          <span class="dims" id="fileDims">-</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>深度模型</h2>
+          <span class="badge" id="modelSize">-</span>
+        </div>
+        <div class="field">
+          <select id="modelSelect" aria-label="深度模型"></select>
+        </div>
+        <div class="field">
+          <label for="hostSelect">模型源</label>
+          <select id="hostSelect">
+            <option value="https://huggingface.co">Hugging Face 官方</option>
+            <option value="https://hf-mirror.com">hf-mirror 社区镜像</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="deviceSelect">计算后端</label>
+          <select id="deviceSelect">
+            <option value="auto">自动（优先 WebGPU）</option>
+            <option value="webgpu">WebGPU</option>
+            <option value="wasm">WASM（CPU）</option>
+          </select>
+        </div>
+        <div class="model-progress" id="modelProgress">
+          <div class="mp-head">
+            <span class="file" id="mpFile">准备模型</span>
+            <span class="pct" id="mpPct">0%</span>
+          </div>
+          <div class="mp-bar"><i id="mpFill"></i></div>
+        </div>
+        <div class="model-note" id="modelNote"></div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>深度图</h2>
+          <label class="check" style="padding:0">
+            <input type="checkbox" id="invertDepth" />
+            <span>反转</span>
+          </label>
+        </div>
+        <div class="depth-thumb" id="depthThumb">
+          <span class="ph">上传照片后显示<br>估计出的深度图</span>
+          <canvas id="depthCanvas" hidden></canvas>
+        </div>
+        <div class="slider-block mini-slider" style="margin-top:10px">
+          <div class="field-label"><span>深度对比</span><span class="val" id="gainVal">1.0x</span></div>
+          <input type="range" id="depthGain" min="50" max="200" value="100" />
+        </div>
+        <label class="check" style="margin-top:6px">
+          <input type="checkbox" id="smoothDepth" checked />
+          <span>平滑深度边缘</span>
+        </label>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>输出</h2></div>
+        <div class="field">
+          <label for="outputSize">输出尺寸</label>
+          <select id="outputSize">
+            <option value="1280">长边 1280 px</option>
+            <option value="1600" selected>长边 1600 px</option>
+            <option value="2048">长边 2048 px</option>
+            <option value="0">原始尺寸（最高 3200 px）</option>
+          </select>
+        </div>
+        <label class="check">
+          <input type="checkbox" id="swapEyes" />
+          <span>交换左右眼（交叉眼观看）</span>
+        </label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+          <button class="btn primary block" id="downloadBtn" type="button" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            下载左右 3D 图
+          </button>
+          <button class="btn block" id="downloadDepthBtn" type="button" disabled>下载深度图</button>
+        </div>
+      </section>
+    </aside>
+
+    <!-- ================= 右侧舞台 ================= -->
+    <section class="stage">
+      <div class="canvas-wrap" id="canvasWrap">
+        <div class="view-tabs" id="viewTabs">
+          <button type="button" data-view="sbs" class="on">左右并排</button>
+          <button type="button" data-view="anaglyph">红蓝 3D</button>
+          <button type="button" data-view="depth">深度图</button>
+          <button type="button" data-view="source">原图</button>
+        </div>
+        <div class="stage-tools">
+          <button class="icon-btn" id="fullscreenBtn" type="button" title="全屏预览" aria-label="全屏预览">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 4H5.5A1.5 1.5 0 0 0 4 5.5V9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15M15 20h3.5a1.5 1.5 0 0 0 1.5-1.5V15" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </button>
+          <button class="icon-btn" id="redoBtn" type="button" title="重新估计深度" aria-label="重新估计深度" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M20 11a8 8 0 1 0-2.3 6.3M20 5v6h-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+
+        <canvas id="previewCanvas" hidden></canvas>
+
+        <div class="empty-state" id="emptyState">
+          <div class="empty-glyph" aria-hidden="true">
+            <span class="pane l"></span>
+            <span class="pane r"></span>
+            <span class="mid"></span>
+          </div>
+          <div class="empty-title">把一张平面照片变成左右 3D</div>
+          <div class="empty-desc">选择照片后，浏览器会在本机估计深度、生成左右眼视图，并自动补全被前景遮住的背景。拖动下方把手即可调节立体强度。</div>
+        </div>
+
+        <div class="overlay hidden" id="overlay">
+          <div class="spinner"></div>
+          <div class="overlay-text" id="overlayText">正在处理</div>
+          <div class="overlay-sub" id="overlaySub"></div>
+        </div>
+      </div>
+
+      <div class="parallax-bar">
+        <div class="pb-top">
+          <div class="pb-title"><span class="dot"></span>视差调节</div>
+          <div class="pb-readout">
+            <span class="num" id="parallaxNum">0</span>
+            <span class="unit">px · 最大位移</span>
+          </div>
+        </div>
+        <input type="range" class="parallax-range" id="parallax" min="0" max="100" value="45" aria-label="视差强度" />
+        <div class="pb-scale"><span>0</span><span>25</span><span>50</span><span>75</span><span>100</span></div>
+        <div class="pb-bottom">
+          <div class="pb-hint">左右方向键微调，按住 Shift 加速。数值越大立体感越强，过大时边缘会被拉伸。</div>
+          <div class="pb-actions">
+            <button class="btn small" id="resetBtn" type="button">复位</button>
+          </div>
+        </div>
+        <div class="pb-secondary" style="margin-top:8px">
+          <div class="mini">
+            <span>零视差面</span>
+            <input type="range" id="focus" min="0" max="100" value="50" aria-label="零视差面" />
+            <span class="v" id="focusVal">50</span>
+          </div>
+          <div class="mini">
+            <span>补全质量</span>
+            <select id="fillMode" style="width:auto;height:26px;font-size:10.5px;padding:0 26px 0 8px;border-radius:7px">
+              <option value="bg" selected>背景延展</option>
+              <option value="blend">线性混合</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="statusbar">
+    <div class="left">
+      <span>所有处理均在本地浏览器完成，图片不会上传。</span>
+      <span class="sep"></span>
+      <span id="engineStatus">正在加载推理库…</span>
+    </div>
+    <div class="left">
+      <span><kbd>←</kbd><kbd>→</kbd> 调视差</span>
+      <span class="sep"></span>
+      <span>参考 Depth Anything V2 · MiDaS · DIBR</span>
+    </div>
+  </footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+/* =====================================================================
+   Stereo Lab
+   单张 2D 照片 -> 左右视差 3D
+   流程: 深度估计 (Depth Anything V2 / MiDaS)
+         -> 深度引导前向变形 (DIBR)
+         -> 深度感知遮挡补全 (背景延展 / 线性混合)
+         -> 左右眼 SBS / 红蓝立体输出
+   ===================================================================== */
+
+const CDN_URLS = [
+  'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2/+esm',
+  'https://esm.sh/@huggingface/transformers@4.3.2',
+];
+
+const MODELS = [
+  {
+    id: 'onnx-community/depth-anything-v2-small',
+    name: 'Depth Anything V2 Small',
+    size: '约 27 MB',
+    note: 'Apache-2.0 许可，体积小、边缘锐利，日常照片的首选。',
+    dtypes: { webgpu: 'fp16', wasm: 'q8' },
+  },
+  {
+    id: 'onnx-community/depth-anything-v2-base',
+    name: 'Depth Anything V2 Base',
+    size: '约 100 MB',
+    note: 'CC-BY-NC-4.0，仅限非商业用途。细节更丰富，首次加载更慢。',
+    dtypes: { webgpu: 'fp16', wasm: 'q8' },
+  },
+  {
+    id: 'Xenova/dpt-hybrid-midas',
+    name: 'MiDaS DPT-Hybrid',
+    size: '约 130 MB',
+    note: 'MIT 许可的经典模型，对建筑和风景稳健，速度略慢。',
+    dtypes: { webgpu: 'fp16', wasm: 'q8' },
+  },
+];
+
+const SETTINGS_KEY = 'stereolab.settings.v1';
+const MAX_WORK_SIDE = 3200;
+const PREVIEW_SCALE = 0.56;
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+const els = {
+  fileInput: $('#fileInput'),
+  dropzone: $('#dropzone'),
+  replaceBtn: $('#replaceBtn'),
+  fileInfo: $('#fileInfo'),
+  fileName: $('#fileName'),
+  fileDims: $('#fileDims'),
+
+  modelSelect: $('#modelSelect'),
+  hostSelect: $('#hostSelect'),
+  deviceSelect: $('#deviceSelect'),
+  modelSize: $('#modelSize'),
+  modelNote: $('#modelNote'),
+  modelProgress: $('#modelProgress'),
+  mpFile: $('#mpFile'),
+  mpPct: $('#mpPct'),
+  mpFill: $('#mpFill'),
+  engineBadge: $('#engineBadge'),
+  modelBadge: $('#modelBadge'),
+  engineStatus: $('#engineStatus'),
+
+  invertDepth: $('#invertDepth'),
+  depthGain: $('#depthGain'),
+  gainVal: $('#gainVal'),
+  smoothDepth: $('#smoothDepth'),
+  depthCanvas: $('#depthCanvas'),
+  depthThumb: $('#depthThumb'),
+
+  outputSize: $('#outputSize'),
+  swapEyes: $('#swapEyes'),
+  downloadBtn: $('#downloadBtn'),
+  downloadDepthBtn: $('#downloadDepthBtn'),
+  redoBtn: $('#redoBtn'),
+  fullscreenBtn: $('#fullscreenBtn'),
+
+  previewCanvas: $('#previewCanvas'),
+  canvasWrap: $('#canvasWrap'),
+  emptyState: $('#emptyState'),
+  overlay: $('#overlay'),
+  overlayText: $('#overlayText'),
+  overlaySub: $('#overlaySub'),
+  viewTabs: $('#viewTabs'),
+
+  parallax: $('#parallax'),
+  parallaxNum: $('#parallaxNum'),
+  focus: $('#focus'),
+  focusVal: $('#focusVal'),
+  resetBtn: $('#resetBtn'),
+  fillMode: $('#fillMode'),
+
+  toast: $('#toast'),
+};
+
+/* ---------------------------------------------------------------------
+   状态
+   --------------------------------------------------------------------- */
+const S = {
+  HF: null,
+  libState: 'idle', // idle | loading | ready | error
+  pipe: null,
+  pipeKey: '',
+
+  modelId: MODELS[0].id,
+  host: 'https://huggingface.co',
+  device: 'auto',
+
+  file: null,
+  workCanvas: null,
+  W: 0,
+  H: 0,
+  srcData: null,
+
+  depthRaw: null,        // Float32Array, 0..1, 1 = near
+  depthProcessed: null,
+  depthCanvas: null,
+  depthLevels: [],
+
+  levels: [],
+  outL: null,
+  outR: null,
+  outW: 0,
+  outH: 0,
+  fullReady: false,
+
+  view: 'sbs',
+  parallax: 45,
+  focus: 50,
+  gain: 100,
+  invert: false,
+  smooth: true,
+  fillBg: true,
+  swap: false,
+
+  busy: false,
+  ready: false,
+  webgpu: null,
+  lastRenderAt: 0,
+};
+
+const bufCache = new Map();
+
+/* ---------------------------------------------------------------------
+   工具
+   --------------------------------------------------------------------- */
+function toast(msg, kind = 'info', ms = 3200) {
+  els.toast.textContent = msg;
+  els.toast.className = 'toast show' + (kind === 'error' ? ' error' : '');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { els.toast.className = 'toast'; }, ms);
+}
+
+function setOverlay(show, text = '', sub = '') {
+  if (show) {
+    els.overlayText.textContent = text || '正在处理';
+    els.overlaySub.textContent = sub || '';
+    els.overlay.classList.remove('hidden');
+  } else {
+    els.overlay.classList.add('hidden');
+  }
+}
+
+function setModelProgress(pct, file) {
+  const p = Math.max(0, Math.min(100, Number(pct) || 0));
+  els.modelProgress.classList.add('show');
+  els.mpFill.style.width = p + '%';
+  els.mpPct.textContent = Math.round(p) + '%';
+  if (file) els.mpFile.textContent = file;
+}
+
+function hideModelProgress(delay = 700) {
+  setTimeout(() => els.modelProgress.classList.remove('show'), delay);
+}
+
+function setModelBadge(text, cls = '') {
+  els.modelBadge.textContent = text;
+  els.modelBadge.className = 'badge' + (cls ? ' ' + cls : '');
+}
+
+function setEngineBadge(text, cls = '') {
+  els.engineBadge.textContent = text;
+  els.engineBadge.className = 'badge hide-mobile' + (cls ? ' ' + cls : '');
+}
+
+function updateEngineStatus(text) {
+  els.engineStatus.textContent = text;
+}
+
+function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+
+function fmtPx(v) {
+  const n = Math.round(v);
+  return String(n);
+}
+
+function baseName(name) {
+  return (name || 'image').replace(/\.[^.\\/]+$/, '');
+}
+
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      modelId: S.modelId,
+      host: S.host,
+      device: S.device,
+      outputSize: els.outputSize.value,
+      parallax: S.parallax,
+      focus: S.focus,
+      gain: S.gain,
+      invert: S.invert,
+      smooth: S.smooth,
+      fill: S.fillBg ? 'bg' : 'blend',
+      swap: S.swap,
+      view: S.view,
+    }));
+  } catch { /* ignore */ }
+}
+
+function loadSettings() {
+  let s = {};
+  try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {}; } catch { s = {}; }
+
+  if (MODELS.some(m => m.id === s.modelId)) S.modelId = s.modelId;
+  if (s.host === 'https://huggingface.co' || s.host === 'https://hf-mirror.com') S.host = s.host;
+  if (['auto', 'webgpu', 'wasm'].includes(s.device)) S.device = s.device;
+
+  if (['1280', '1600', '2048', '0'].includes(String(s.outputSize))) {
+    els.outputSize.value = String(s.outputSize);
+  }
+  if (Number.isFinite(s.parallax)) S.parallax = clamp(s.parallax, 0, 100);
+  if (Number.isFinite(s.focus)) S.focus = clamp(s.focus, 0, 100);
+  if (Number.isFinite(s.gain)) S.gain = clamp(s.gain, 50, 200);
+  if (typeof s.invert === 'boolean') S.invert = s.invert;
+  if (typeof s.smooth === 'boolean') S.smooth = s.smooth;
+  if (s.fill === 'blend') S.fillBg = false;
+  if (typeof s.swap === 'boolean') S.swap = s.swap;
+  if (['sbs', 'anaglyph', 'depth', 'source'].includes(s.view)) S.view = s.view;
+
+  els.modelSelect.value = S.modelId;
+  els.hostSelect.value = S.host;
+  els.deviceSelect.value = S.device;
+  els.parallax.value = S.parallax;
+  els.focus.value = S.focus;
+  els.depthGain.value = S.gain;
+  els.invertDepth.checked = S.invert;
+  els.smoothDepth.checked = S.smooth;
+  els.swapEyes.checked = S.swap;
+  els.fillMode.value = S.fillBg ? 'bg' : 'blend';
+}
+
+/* ---------------------------------------------------------------------
+   推理库
+   --------------------------------------------------------------------- */
+async function ensureLibrary() {
+  if (S.HF) return S.HF;
+  if (S.libState === 'loading') {
+    while (S.libState === 'loading') await new Promise(r => setTimeout(r, 80));
+    if (S.HF) return S.HF;
+    throw new Error('推理库加载失败');
+  }
+  S.libState = 'loading';
+  setEngineBadge('加载推理库', 'warn');
+  updateEngineStatus('正在加载 transformers.js…');
+
+  let lastErr = null;
+  for (const url of CDN_URLS) {
+    try {
+      const mod = await import(url);
+      if (!mod || typeof mod.pipeline !== 'function') throw new Error('模块内容不完整');
+      S.HF = mod;
+      S.libState = 'ready';
+      const env = mod.env;
+      env.allowLocalModels = false;
+      env.useBrowserCache = true;
+      env.remoteHost = S.host;
+      env.remotePathTemplate = '{model}/resolve/{revision}/';
+      setEngineBadge('推理库就绪', 'ok');
+      updateEngineStatus('transformers.js 已就绪');
+      return mod;
+    } catch (e) {
+      lastErr = e;
+      console.warn('[StereoLab] CDN 加载失败:', url, e);
+    }
+  }
+  S.libState = 'error';
+  setEngineBadge('推理库失败', 'err');
+  updateEngineStatus('推理库加载失败，请检查网络');
+  throw new Error('无法加载 transformers.js，请检查网络或更换 CDN');
+}
+
+async function detectWebGPU() {
+  if (S.webgpu !== null) return S.webgpu;
+  try {
+    if (!navigator.gpu) { S.webgpu = false; return false; }
+    const adapter = await navigator.gpu.requestAdapter();
+    S.webgpu = !!adapter;
+  } catch {
+    S.webgpu = false;
+  }
+  return S.webgpu;
+}
+
+function resolveDevice() {
+  if (S.device === 'webgpu') return 'webgpu';
+  if (S.device === 'wasm') return 'wasm';
+  return S.webgpu ? 'webgpu' : 'wasm';
+}
+
+function resolveDtype(model, device) {
+  return (model.dtypes && model.dtypes[device]) || (device === 'webgpu' ? 'fp16' : 'q8');
+}
+
+function modelById(id) {
+  return MODELS.find(m => m.id === id) || MODELS[0];
+}
+
+function pipeKey() {
+  return [S.modelId, S.host, resolveDevice(), resolveDtype(modelById(S.modelId), resolveDevice())].join('|');
+}
+
+async function ensureModel() {
+  await ensureLibrary();
+  const key = pipeKey();
+  if (S.pipe && S.pipeKey === key) return S.pipe;
+
+  // 已经用同一模型和同一模型源加载过时直接复用
+  // (即使实际后端与期望不同, 例如 WebGPU 回退到了 WASM)
+  if (S.pipe) {
+    const [loadedModel, loadedHost] = S.pipeKey.split('|');
+    if (loadedModel === S.modelId && loadedHost === S.host) return S.pipe;
+  }
+
+  const model = modelById(S.modelId);
+  const env = S.HF.env;
+  env.allowLocalModels = false;
+  env.useBrowserCache = true;
+  env.remotePathTemplate = '{model}/resolve/{revision}/';
+
+  if (S.pipe) {
+    try { await S.pipe.dispose(); } catch { /* ignore */ }
+    S.pipe = null;
+    S.pipeKey = '';
+  }
+
+  const primaryDevice = resolveDevice();
+  const attempts = [];
+  attempts.push({ host: S.host, device: primaryDevice, dtype: resolveDtype(model, primaryDevice) });
+  if (primaryDevice === 'webgpu') {
+    attempts.push({ host: S.host, device: 'wasm', dtype: resolveDtype(model, 'wasm') });
+  }
+  const altHost = S.host === 'https://huggingface.co' ? 'https://hf-mirror.com' : 'https://huggingface.co';
+  attempts.push({ host: altHost, device: 'wasm', dtype: resolveDtype(model, 'wasm') });
+
+  let lastErr = null;
+  for (let i = 0; i < attempts.length; i++) {
+    const a = attempts[i];
+    env.remoteHost = a.host;
+    els.modelProgress.classList.add('show');
+    setModelProgress(0, i === 0 ? '正在准备模型' : `正在尝试备用线路 ${i + 1}/${attempts.length}`);
+    setModelBadge('加载中', 'warn');
+    setEngineBadge(a.device === 'webgpu' ? 'WebGPU' : 'WASM', 'warn');
+    updateEngineStatus(`加载 ${model.name} · ${a.device === 'webgpu' ? 'WebGPU' : 'CPU'}`);
+
+    try {
+      const pipe = await S.HF.pipeline('depth-estimation', model.id, {
+        device: a.device,
+        dtype: a.dtype,
+        progress_callback: (p) => {
+          if (!p) return;
+          if (p.status === 'progress_total') {
+            setModelProgress(p.progress || 0, '正在下载模型');
+          } else if (p.status === 'progress') {
+            if (p.total) {
+              const pct = (p.loaded / p.total) * 100;
+              setModelProgress(pct, p.file || '正在下载模型');
+            }
+          } else if (p.status === 'initiate') {
+            if (p.file) els.mpFile.textContent = p.file;
+          } else if (p.status === 'ready') {
+            setModelProgress(100, '模型就绪');
+          }
+        },
+      });
+      S.pipe = pipe;
+      S.pipeKey = `${S.modelId}|${a.host}|${a.device}|${a.dtype}`;
+      S.host = a.host;
+      els.hostSelect.value = a.host;
+      setModelProgress(100, '模型就绪');
+      setModelBadge(model.name.replace('Depth Anything ', 'DA '), 'ok');
+      setEngineBadge(a.device === 'webgpu' ? 'WebGPU' : 'WASM', 'ok');
+      updateEngineStatus(`${model.name} · ${a.device === 'webgpu' ? 'WebGPU 加速' : 'CPU 推理'}`);
+      hideModelProgress(900);
+      return pipe;
+    } catch (e) {
+      lastErr = e;
+      console.warn('[StereoLab] 模型加载失败:', a, e);
+      setModelProgress(0, '加载失败，尝试备用方案…');
+    }
+  }
+
+  setModelBadge('加载失败', 'err');
+  setEngineBadge('加载失败', 'err');
+  hideModelProgress(500);
+  throw lastErr || new Error('模型加载失败');
+}
+
+/* ---------------------------------------------------------------------
+   图片载入
+   --------------------------------------------------------------------- */
+async function handleFile(file) {
+  if (!file) return;
+  if (!file.type || !file.type.startsWith('image/')) {
+    toast('请选择图片文件（JPG / PNG / WebP）', 'error');
+    return;
+  }
+  if (S.busy) {
+    toast('正在处理上一张图片，请稍候');
+    return;
+  }
+
+  S.busy = true;
+  S.ready = false;
+  els.downloadBtn.disabled = true;
+  els.downloadDepthBtn.disabled = true;
+  els.redoBtn.disabled = true;
+  els.emptyState.classList.add('hidden');
+  els.previewCanvas.hidden = true;
+
+  try {
+    setOverlay(true, '正在读取图片', '');
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+
+    const maxSide = Number(els.outputSize.value) || MAX_WORK_SIDE;
+    const limit = maxSide === 0 ? MAX_WORK_SIDE : Math.min(maxSide, MAX_WORK_SIDE);
+    const scale = Math.min(1, limit / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(2, Math.round(bitmap.width * scale));
+    const h = Math.max(2, Math.round(bitmap.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    if (bitmap.close) bitmap.close();
+
+    const data = ctx.getImageData(0, 0, w, h).data;
+
+    S.file = file;
+    S.workCanvas = canvas;
+    S.W = w;
+    S.H = h;
+    S.srcData = data;
+
+    S.depthRaw = null;
+    S.depthProcessed = null;
+    S.depthCanvas = null;
+    S.levels = [];
+    S.outL = null;
+    S.outR = null;
+    S.fullReady = false;
+    bufCache.clear();
+
+    els.fileName.textContent = file.name || 'image';
+    els.fileDims.textContent = `${w} × ${h}`;
+    els.fileInfo.classList.add('show');
+    els.replaceBtn.hidden = false;
+    els.depthCanvas.hidden = true;
+
+    setOverlay(true, '正在加载深度模型', '首次使用需要下载模型，之后会缓存在浏览器中');
+    await ensureModel();
+
+    setOverlay(true, '正在估计深度', '整个过程在本机完成，不会上传图片');
+    await runDepth();
+
+    buildDepthLevels();
+    rebuildLevels();
+    render(true);
+    updateParallaxUI();
+    S.ready = true;
+
+    els.downloadBtn.disabled = false;
+    els.downloadDepthBtn.disabled = false;
+    els.redoBtn.disabled = false;
+    els.previewCanvas.hidden = false;
+    els.emptyState.classList.add('hidden');
+    toast('完成 · 拖动视差把手调节立体强度');
+  } catch (e) {
+    console.error(e);
+    els.emptyState.classList.remove('hidden');
+    toast(friendlyError(e), 'error', 6000);
+    updateEngineStatus('处理失败: ' + friendlyError(e));
+  } finally {
+    S.busy = false;
+    setOverlay(false);
+  }
+}
+
+function friendlyError(e) {
+  const msg = String(e && (e.message || e));
+  if (/fetch|network|Failed to load|Load failed|NetworkError/i.test(msg)) {
+    return '模型下载失败，请检查网络，或在左侧切换“模型源”后重试。';
+  }
+  if (/webgpu|adapter/i.test(msg)) {
+    return 'WebGPU 初始化失败，请在左侧把“计算后端”改为 WASM 后重试。';
+  }
+  if (/memory|out of memory|OOM/i.test(msg)) {
+    return '内存不足，请换一张更小的图片，或把输出尺寸调低。';
+  }
+  if (/image|bitmap|decode/i.test(msg)) {
+    return '图片解码失败，请换 JPG / PNG / WebP 格式。';
+  }
+  return msg.length > 140 ? msg.slice(0, 140) + '…' : msg;
+}
+
+/* ---------------------------------------------------------------------
+   深度推理
+   --------------------------------------------------------------------- */
+async function runDepth() {
+  if (!S.pipe) throw new Error('模型尚未就绪');
+  const out = await S.pipe(S.workCanvas);
+  let depthSource = out && out.depth;
+
+  if (!depthSource && out && out.predicted_depth) {
+    depthSource = tensorToCanvas(out.predicted_depth);
+  } else if (depthSource && typeof depthSource.toCanvas === 'function') {
+    depthSource = depthSource.toCanvas();
+  }
+  if (!depthSource) throw new Error('模型没有返回深度图');
+
+  const c = document.createElement('canvas');
+  c.width = S.W;
+  c.height = S.H;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(depthSource, 0, 0, S.W, S.H);
+
+  const px = ctx.getImageData(0, 0, S.W, S.H).data;
+  const arr = new Float32Array(S.W * S.H);
+  for (let i = 0; i < arr.length; i++) {
+    arr[i] = px[i * 4] / 255;
+  }
+
+  S.depthRaw = arr;
+  processDepth();
+}
+
+function tensorToCanvas(t) {
+  const dims = t.dims || [];
+  if (dims.length < 2) throw new Error('深度张量维度异常');
+  const h = dims[dims.length - 2];
+  const w = dims[dims.length - 1];
+  const data = t.data;
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < w * h; i++) {
+    const v = data[i];
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  const range = (max - min) || 1;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  for (let i = 0; i < w * h; i++) {
+    const v = Math.round(((data[i] - min) / range) * 255);
+    img.data[i * 4] = v;
+    img.data[i * 4 + 1] = v;
+    img.data[i * 4 + 2] = v;
+    img.data[i * 4 + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function processDepth() {
+  if (!S.depthRaw) return;
+  const raw = S.depthRaw;
+  const out = new Float32Array(raw.length);
+  const gain = S.gain / 100;
+  const inv = S.invert;
+
+  for (let i = 0; i < raw.length; i++) {
+    let d = raw[i];
+    if (inv) d = 1 - d;
+    d = (d - 0.5) * gain + 0.5;
+    out[i] = d < 0 ? 0 : d > 1 ? 1 : d;
+  }
+  S.depthProcessed = S.smooth ? blurDepth(out, S.W, S.H) : out;
+  drawDepthThumb();
+}
+
+function blurDepth(src, w, h) {
+  const tmp = new Float32Array(w * h);
+  const out = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; x++) {
+      const i = row + x;
+      const l = x > 0 ? src[i - 1] : src[i];
+      const r = x < w - 1 ? src[i + 1] : src[i];
+      tmp[i] = 0.25 * l + 0.5 * src[i] + 0.25 * r;
+    }
+  }
+  for (let y = 0; y < h; y++) {
+    const row = y * w;
+    for (let x = 0; x < w; x++) {
+      const i = row + x;
+      const u = y > 0 ? tmp[i - w] : tmp[i];
+      const d = y < h - 1 ? tmp[i + w] : tmp[i];
+      out[i] = 0.25 * u + 0.5 * tmp[i] + 0.25 * d;
+    }
+  }
+  return out;
+}
+
+function drawDepthThumb() {
+  if (!S.depthProcessed) return;
+  const w = S.W;
+  const h = S.H;
+
+  let c = S.depthCanvas;
+  if (!c) {
+    c = document.createElement('canvas');
+    S.depthCanvas = c;
+  }
+  if (c.width !== w || c.height !== h) {
+    c.width = w;
+    c.height = h;
+  }
+
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(w, h);
+  const O = img.data;
+  const D = S.depthProcessed;
+
+  for (let i = 0; i < w * h; i++) {
+    let v = D[i];
+    v = v < 0 ? 0 : v > 1 ? 1 : v;
+    // 提亮暗部, 让深度层次在缩略图里更易读
+    v = Math.pow(v, 0.72) * 255;
+    const j = i * 4;
+    O[j] = v;
+    O[j + 1] = v;
+    O[j + 2] = v;
+    O[j + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+
+  els.depthCanvas.hidden = false;
+  els.depthCanvas.width = w;
+  els.depthCanvas.height = h;
+  els.depthCanvas.getContext('2d').drawImage(c, 0, 0);
+
+  const ph = els.depthThumb.querySelector('.ph');
+  if (ph) ph.style.display = 'none';
+}
+
+/* ---------------------------------------------------------------------
+   层级构建
+   --------------------------------------------------------------------- */
+function buildDepthLevels() {
+  S.depthLevels = [];
+  if (!S.depthProcessed) return;
+  const full = S.depthProcessed;
+  S.depthLevels.push({ w: S.W, h: S.H, depth: full });
+
+  const sw = Math.max(2, Math.round(S.W * PREVIEW_SCALE));
+  const sh = Math.max(2, Math.round(S.H * PREVIEW_SCALE));
+  S.depthLevels.push({ w: sw, h: sh, depth: resampleDepth(full, S.W, S.H, sw, sh) });
+}
+
+function rebuildLevels() {
+  if (!S.depthProcessed || !S.srcData) return;
+
+  const srcFull = S.srcData;
+  const sw = Math.max(2, Math.round(S.W * PREVIEW_SCALE));
+  const sh = Math.max(2, Math.round(S.H * PREVIEW_SCALE));
+
+  const small = resampleSource(S.workCanvas, sw, sh);
+  const smallDepth = S.depthLevels[1] && S.depthLevels[1].w === sw && S.depthLevels[1].h === sh
+    ? S.depthLevels[1].depth
+    : resampleDepth(S.depthProcessed, S.W, S.H, sw, sh);
+
+  S.levels = [
+    { w: S.W, h: S.H, src: srcFull, depth: S.depthProcessed, full: true },
+    { w: sw, h: sh, src: small, depth: smallDepth, full: false },
+  ];
+}
+
+function resampleSource(canvas, w, h) {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(canvas, 0, 0, w, h);
+  return ctx.getImageData(0, 0, w, h).data;
+}
+
+function resampleDepth(src, sw, sh, dw, dh) {
+  const out = new Float32Array(dw * dh);
+  for (let y = 0; y < dh; y++) {
+    const fy = ((y + 0.5) * sh / dh) - 0.5;
+    const y0 = Math.max(0, Math.floor(fy));
+    const y1 = Math.min(sh - 1, y0 + 1);
+    const wy = Math.max(0, fy - y0);
+    for (let x = 0; x < dw; x++) {
+      const fx = ((x + 0.5) * sw / dw) - 0.5;
+      const x0 = Math.max(0, Math.floor(fx));
+      const x1 = Math.min(sw - 1, x0 + 1);
+      const wx = Math.max(0, fx - x0);
+      const a = src[y0 * sw + x0] * (1 - wx) + src[y0 * sw + x1] * wx;
+      const b = src[y1 * sw + x0] * (1 - wx) + src[y1 * sw + x1] * wx;
+      out[y * dw + x] = a * (1 - wy) + b * wy;
+    }
+  }
+  return out;
+}
+
+/* ---------------------------------------------------------------------
+   核心: 深度引导的水平变形 + 遮挡补全
+   --------------------------------------------------------------------- */
+function parallaxPixels(w) {
+  return (S.parallax / 100) * w * 0.045;
+}
+
+function getBuffer(w, h, slot) {
+  const key = `${w}x${h}:${slot}`;
+  let b = bufCache.get(key);
+  if (!b) {
+    b = new ImageData(w, h);
+    bufCache.set(key, b);
+    if (bufCache.size > 12) {
+      const oldest = bufCache.keys().next().value;
+      bufCache.delete(oldest);
+    }
+  }
+  return b;
+}
+
+function warpHorizontal(src, depth, w, h, parallaxPx, focus, dir, dst) {
+  const rowMask = new Uint8Array(w);
+  const zbuf = new Float32Array(w);
+
+  for (let y = 0; y < h; y++) {
+    const rowOff = y * w;
+    zbuf.fill(-1e9);
+    rowMask.fill(0);
+
+    /* ---- 1. 前向变形, 近处覆盖远处 ---- */
+    for (let x = 0; x < w; x++) {
+      const idx = rowOff + x;
+      const d = depth[idx];
+      const s = parallaxPx * (d - focus);
+      let tx = Math.round(x + dir * s);
+      if (tx < 0) tx = 0;
+      else if (tx >= w) tx = w - 1;
+
+      if (d >= zbuf[tx]) {
+        zbuf[tx] = d;
+        rowMask[tx] = 1;
+        const si = idx * 4;
+        const di = (rowOff + tx) * 4;
+        dst[di] = src[si];
+        dst[di + 1] = src[si + 1];
+        dst[di + 2] = src[si + 2];
+        dst[di + 3] = 255;
+      }
+    }
+
+    /* ---- 2. 行内遮挡补全 ---- */
+    let x = 0;
+    while (x < w) {
+      if (rowMask[x]) { x++; continue; }
+
+      const start = x;
+      let r = x + 1;
+      while (r < w && !rowMask[r]) r++;
+      const end = r; // [start, end) 为空洞
+
+      let l = start - 1;
+      while (l >= 0 && !rowMask[l]) l--;
+
+      const hasL = l >= 0;
+      const hasR = end < w;
+
+      if (hasL && hasR) {
+        const li = (rowOff + l) * 4;
+        const ri = (rowOff + end) * 4;
+        const dl = depth[rowOff + l];
+        const dr = depth[rowOff + end];
+
+        if (S.fillBg && Math.abs(dl - dr) > 0.055) {
+          /* 深度不连续: 用更远的一侧(背景)延展, 避免前景边缘渗色 */
+          const useL = dl < dr;
+          const si = useL ? li : ri;
+          const cr = src[si];
+          const cg = src[si + 1];
+          const cb = src[si + 2];
+          for (let k = start; k < end; k++) {
+            const di = (rowOff + k) * 4;
+            dst[di] = cr;
+            dst[di + 1] = cg;
+            dst[di + 2] = cb;
+            dst[di + 3] = 255;
+          }
+        } else {
+          /* 连续表面: 线性混合 */
+          const span = end - l;
+          for (let k = start; k < end; k++) {
+            const t = (k - l) / span;
+            const di = (rowOff + k) * 4;
+            dst[di] = src[li] + (src[ri] - src[li]) * t;
+            dst[di + 1] = src[li + 1] + (src[ri + 1] - src[li + 1]) * t;
+            dst[di + 2] = src[li + 2] + (src[ri + 2] - src[li + 2]) * t;
+            dst[di + 3] = 255;
+          }
+        }
+      } else if (hasL) {
+        const li = (rowOff + l) * 4;
+        for (let k = start; k < end; k++) {
+          const di = (rowOff + k) * 4;
+          dst[di] = src[li];
+          dst[di + 1] = src[li + 1];
+          dst[di + 2] = src[li + 2];
+          dst[di + 3] = 255;
+        }
+      } else if (hasR) {
+        const ri = (rowOff + end) * 4;
+        for (let k = start; k < end; k++) {
+          const di = (rowOff + k) * 4;
+          dst[di] = src[ri];
+          dst[di + 1] = src[ri + 1];
+          dst[di + 2] = src[ri + 2];
+          dst[di + 3] = 255;
+        }
+      } else {
+        for (let k = start; k < end; k++) {
+          const di = (rowOff + k) * 4;
+          dst[di] = 0;
+          dst[di + 1] = 0;
+          dst[di + 2] = 0;
+          dst[di + 3] = 255;
+        }
+      }
+
+      x = end;
+    }
+  }
+}
+
+/* ---------------------------------------------------------------------
+   渲染与预览
+   --------------------------------------------------------------------- */
+let previewRaf = 0;
+let fullTimer = 0;
+
+function requestRender(preview = true) {
+  if (!S.levels.length || !S.ready) return;
+  if (preview) {
+    if (!previewRaf) {
+      previewRaf = requestAnimationFrame(() => {
+        previewRaf = 0;
+        render(false);
+      });
+    }
+  }
+  clearTimeout(fullTimer);
+  fullTimer = setTimeout(() => {
+    if (S.ready) render(true);
+  }, 190);
+}
+
+function render(full) {
+  if (!S.levels.length) return;
+  const level = full ? S.levels[0] : S.levels[S.levels.length - 1];
+  if (!level) return;
+
+  const t0 = performance.now();
+  const p = parallaxPixels(level.w);
+  const focus = S.focus / 100;
+
+  const L = getBuffer(level.w, level.h, 0);
+  const R = getBuffer(level.w, level.h, 1);
+
+  warpHorizontal(level.src, level.depth, level.w, level.h, p, focus, +1, L.data);
+  warpHorizontal(level.src, level.depth, level.w, level.h, p, focus, -1, R.data);
+
+  S.outL = L;
+  S.outR = R;
+  S.outW = level.w;
+  S.outH = level.h;
+  S.fullReady = !!full;
+  S.lastRenderAt = performance.now() - t0;
+
+  drawPreview();
+}
+
+function drawPreview() {
+  const c = els.previewCanvas;
+  const ctx = c.getContext('2d');
+
+  if (S.view === 'source') {
+    if (!S.workCanvas) return;
+    c.width = S.W;
+    c.height = S.H;
+    ctx.clearRect(0, 0, S.W, S.H);
+    ctx.drawImage(S.workCanvas, 0, 0);
+    c.hidden = false;
+    return;
+  }
+
+  if (S.view === 'depth') {
+    if (!S.depthCanvas) return;
+    c.width = S.depthCanvas.width;
+    c.height = S.depthCanvas.height;
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.drawImage(S.depthCanvas, 0, 0);
+    c.hidden = false;
+    return;
+  }
+
+  if (!S.outL || !S.outR) return;
+
+  const w = S.outW;
+  const h = S.outH;
+  const swap = els.swapEyes.checked;
+  const left = swap ? S.outR : S.outL;
+  const right = swap ? S.outL : S.outR;
+
+  if (S.view === 'anaglyph') {
+    c.width = w;
+    c.height = h;
+    const img = ctx.createImageData(w, h);
+    const A = left.data;
+    const B = right.data;
+    const O = img.data;
+    for (let i = 0, j = 0; i < w * h; i++, j += 4) {
+      O[j] = A[j];
+      O[j + 1] = B[j + 1];
+      O[j + 2] = B[j + 2];
+      O[j + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    c.hidden = false;
+    return;
+  }
+
+  c.width = w * 2;
+  c.height = h;
+  ctx.putImageData(left, 0, 0);
+  ctx.putImageData(right, w, 0);
+  c.hidden = false;
+}
+
+function showPreviewForView() {
+  if (!S.ready) return;
+  drawPreview();
+}
+
+/* ---------------------------------------------------------------------
+   下载
+   --------------------------------------------------------------------- */
+function composeOutput() {
+  if (!S.outL || !S.outR) return null;
+  const w = S.outW;
+  const h = S.outH;
+  const swap = els.swapEyes.checked;
+  const left = swap ? S.outR : S.outL;
+  const right = swap ? S.outL : S.outR;
+
+  if (S.view === 'anaglyph') {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext('2d');
+    const img = ctx.createImageData(w, h);
+    const A = left.data;
+    const B = right.data;
+    const O = img.data;
+    for (let i = 0, j = 0; i < w * h; i++, j += 4) {
+      O[j] = A[j];
+      O[j + 1] = B[j + 1];
+      O[j + 2] = B[j + 2];
+      O[j + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    return c;
+  }
+
+  const c = document.createElement('canvas');
+  c.width = w * 2;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.putImageData(left, 0, 0);
+  ctx.putImageData(right, w, 0);
+  return c;
+}
+
+async function downloadImage(kind) {
+  if (!S.ready) return;
+  toast(kind === 'depth' ? '正在生成深度图…' : '正在生成 3D 图…', 'info', 1400);
+
+  try {
+    if (kind !== 'depth') {
+      render(true);
+      await new Promise(r => setTimeout(r, 30));
+    }
+    let canvas;
+    let suffix;
+
+    if (kind === 'depth') {
+      if (!S.depthCanvas) return;
+      canvas = S.depthCanvas;
+      suffix = 'depth';
+    } else {
+      canvas = composeOutput();
+      suffix = S.view === 'anaglyph' ? 'anaglyph' : 'sbs';
+      if (!canvas) return;
+    }
+
+    canvas.toBlob((blob) => {
+      if (!blob) { toast('生成图片失败', 'error'); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const now = new Date();
+      const stamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+      a.href = url;
+      a.download = `${baseName(S.file && S.file.name)}-${suffix}-${stamp}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      toast('已开始下载');
+    }, 'image/png');
+  } catch (e) {
+    console.error(e);
+    toast('导出失败: ' + friendlyError(e), 'error');
+  }
+}
+
+/* ---------------------------------------------------------------------
+   UI 绑定
+   --------------------------------------------------------------------- */
+function updateParallaxUI() {
+  const px = S.workCanvas ? parallaxPixels(S.W) : 0;
+  els.parallaxNum.textContent = fmtPx(px);
+  els.focusVal.textContent = String(Math.round(S.focus));
+  els.gainVal.textContent = (S.gain / 100).toFixed(1) + 'x';
+}
+
+function setView(view) {
+  S.view = view;
+  $$('#viewTabs button').forEach(b => b.classList.toggle('on', b.dataset.view === view));
+  showPreviewForView();
+  saveSettings();
+}
+
+function updateModelNote() {
+  const m = modelById(S.modelId);
+  els.modelNote.innerHTML = `<b>${m.name}</b><br>${m.note}`;
+  els.modelSize.textContent = m.size;
+}
+
+function bindUI() {
+  els.fileInput.addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) handleFile(f);
+    e.target.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach(ev => {
+    els.dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      els.dropzone.classList.add('drag');
+    });
+    document.addEventListener(ev, (e) => {
+      e.preventDefault();
+      els.dropzone.classList.add('drag');
+    });
+  });
+  ['dragleave', 'drop'].forEach(ev => {
+    els.dropzone.addEventListener(ev, (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      els.dropzone.classList.remove('drag');
+    });
+  });
+  document.addEventListener('dragleave', (e) => {
+    if (e.relatedTarget === null) els.dropzone.classList.remove('drag');
+  });
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    els.dropzone.classList.remove('drag');
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) handleFile(f);
+  });
+
+  window.addEventListener('paste', (e) => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const it of items) {
+      if (it.type && it.type.startsWith('image/')) {
+        const f = it.getAsFile();
+        if (f) { handleFile(f); break; }
+      }
+    }
+  });
+
+  els.replaceBtn.addEventListener('click', () => els.fileInput.click());
+
+  els.modelSelect.addEventListener('change', () => {
+    S.modelId = els.modelSelect.value;
+    updateModelNote();
+    saveSettings();
+    if (S.pipe) {
+      S.pipe.dispose && S.pipe.dispose().catch(() => {});
+      S.pipe = null;
+      S.pipeKey = '';
+    }
+    if (S.ready) toast('模型已切换，重新估计深度以应用');
+  });
+
+  els.hostSelect.addEventListener('change', () => {
+    S.host = els.hostSelect.value;
+    saveSettings();
+    if (S.pipe) {
+      S.pipe.dispose && S.pipe.dispose().catch(() => {});
+      S.pipe = null;
+      S.pipeKey = '';
+    }
+  });
+
+  els.deviceSelect.addEventListener('change', () => {
+    S.device = els.deviceSelect.value;
+    saveSettings();
+    if (S.pipe) {
+      S.pipe.dispose && S.pipe.dispose().catch(() => {});
+      S.pipe = null;
+      S.pipeKey = '';
+    }
+  });
+
+  els.invertDepth.addEventListener('change', () => {
+    S.invert = els.invertDepth.checked;
+    processDepth();
+    buildDepthLevels();
+    rebuildLevels();
+    if (S.ready) requestRender(true);
+    saveSettings();
+  });
+
+  els.depthGain.addEventListener('input', () => {
+    S.gain = Number(els.depthGain.value);
+    els.gainVal.textContent = (S.gain / 100).toFixed(1) + 'x';
+    if (S.depthRaw) {
+      processDepth();
+      buildDepthLevels();
+      rebuildLevels();
+      if (S.ready) requestRender(true);
+    }
+  });
+  els.depthGain.addEventListener('change', saveSettings);
+
+  els.smoothDepth.addEventListener('change', () => {
+    S.smooth = els.smoothDepth.checked;
+    processDepth();
+    buildDepthLevels();
+    rebuildLevels();
+    if (S.ready) requestRender(true);
+    saveSettings();
+  });
+
+  els.outputSize.addEventListener('change', () => {
+    saveSettings();
+    if (S.file) {
+      toast('输出尺寸已改变，重新处理图片后生效');
+    }
+  });
+
+  els.swapEyes.addEventListener('change', () => {
+    S.swap = els.swapEyes.checked;
+    if (S.ready) drawPreview();
+    saveSettings();
+  });
+
+  els.downloadBtn.addEventListener('click', () => downloadImage('stereo'));
+  els.downloadDepthBtn.addEventListener('click', () => downloadImage('depth'));
+
+  els.redoBtn.addEventListener('click', async () => {
+    if (!S.file || S.busy) return;
+    S.busy = true;
+    els.downloadBtn.disabled = true;
+    try {
+      setOverlay(true, '正在重新估计深度');
+      if (!S.pipe) await ensureModel();
+      await runDepth();
+      buildDepthLevels();
+      rebuildLevels();
+      render(true);
+      toast('深度已更新');
+    } catch (e) {
+      console.error(e);
+      toast(friendlyError(e), 'error');
+    } finally {
+      S.busy = false;
+      setOverlay(false);
+      els.downloadBtn.disabled = !S.ready;
+    }
+  });
+
+  els.fullscreenBtn.addEventListener('click', async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await els.canvasWrap.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (e) {
+      toast('当前浏览器不支持全屏');
+    }
+  });
+
+  els.viewTabs.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-view]');
+    if (b) setView(b.dataset.view);
+  });
+
+  els.parallax.addEventListener('input', () => {
+    S.parallax = Number(els.parallax.value);
+    updateParallaxUI();
+    requestRender(true);
+  });
+  els.parallax.addEventListener('change', () => {
+    saveSettings();
+    requestRender(true);
+  });
+
+  els.focus.addEventListener('input', () => {
+    S.focus = Number(els.focus.value);
+    updateParallaxUI();
+    requestRender(true);
+  });
+  els.focus.addEventListener('change', saveSettings);
+
+  els.fillMode.addEventListener('change', () => {
+    S.fillBg = els.fillMode.value === 'bg';
+    if (S.ready) requestRender(true);
+    saveSettings();
+  });
+
+  els.resetBtn.addEventListener('click', () => {
+    S.parallax = 45;
+    S.focus = 50;
+    els.parallax.value = 45;
+    els.focus.value = 50;
+    updateParallaxUI();
+    requestRender(true);
+    saveSettings();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    const tag = (e.target && e.target.tagName) || '';
+    if (/INPUT|SELECT|TEXTAREA/.test(tag)) return;
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const step = e.shiftKey ? 5 : 1;
+    S.parallax = clamp(S.parallax + (e.key === 'ArrowRight' ? step : -step), 0, 100);
+    els.parallax.value = S.parallax;
+    updateParallaxUI();
+    requestRender(true);
+    saveSettings();
+  });
+
+  document.addEventListener('fullscreenchange', () => {
+    if (document.fullscreenElement) {
+      els.fullscreenBtn.title = '退出全屏';
+    } else {
+      els.fullscreenBtn.title = '全屏预览';
+    }
+  });
+}
+
+/* ---------------------------------------------------------------------
+   初始化
+   --------------------------------------------------------------------- */
+async function init() {
+  // 填充模型下拉
+  els.modelSelect.innerHTML = MODELS.map(m =>
+    `<option value="${m.id}">${m.name}</option>`
+  ).join('');
+
+  loadSettings();
+  updateModelNote();
+  updateParallaxUI();
+  bindUI();
+  setView(S.view);
+
+  els.engineBadge.textContent = '检测引擎…';
+  const has = await detectWebGPU();
+  if (has) {
+    setEngineBadge('WebGPU 可用', 'ok');
+  } else {
+    setEngineBadge('WASM 模式', 'warn');
+  }
+
+  detectWebGPU().then(() => {
+    if (!S.pipe) {
+      // 延迟到实际使用再加载模型, 仅预加载推理库
+    }
+  });
+
+  try {
+    await ensureLibrary();
+  } catch (e) {
+    setEngineBadge('推理库失败', 'err');
+    toast('推理库加载失败，请检查网络后刷新页面', 'error', 6000);
+  }
+}
+
+init();
+</script>
+</body>
+</html>

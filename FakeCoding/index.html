@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FakeCoding - 伪代码生成器</title>
+<link rel="stylesheet" href="main.css">
+</head>
+<body>
+<div class="app">
+  <aside class="panel">
+    <header class="brand">
+      <div class="logo" aria-hidden="true">
+        <span class="l1"></span><span class="l2"></span><span class="l3"></span>
+      </div>
+      <div class="brand-text">
+        <h1>FakeCoding</h1>
+      </div>
+    </header>
+
+    <section class="group">
+      <label class="label" for="lang">语言</label>
+      <div class="select-wrap">
+        <select id="lang"></select>
+      </div>
+    </section>
+
+    <section class="group">
+      <span class="label">生成模式</span>
+      <div class="segmented" id="mode" role="group" aria-label="生成模式">
+        <button type="button" data-mode="fixed" class="active">固定长度</button>
+        <button type="button" data-mode="stream">持续滚动</button>
+      </div>
+    </section>
+
+    <section class="group" id="lengthField">
+      <div class="label-row">
+        <label class="label" for="length">输出行数</label>
+        <output id="lengthOut" for="length">240</output>
+      </div>
+      <input type="range" id="length" min="20" max="1500" step="10" value="240">
+      <div class="scale"><span>20</span><span>1500</span></div>
+    </section>
+
+    <section class="group hidden" id="speedField">
+      <div class="label-row">
+        <label class="label" for="speed">生成速度</label>
+        <output id="speedOut" for="speed">14 行/秒</output>
+      </div>
+      <input type="range" id="speed" min="1" max="100" step="1" value="14">
+      <div class="scale"><span>1</span><span>100</span></div>
+    </section>
+
+    <section class="group">
+      <div class="label-row">
+        <label class="label" for="seed">随机种子</label>
+        <span class="hint">留空则随机</span>
+      </div>
+      <input type="text" id="seed" placeholder="例如 20261019" autocomplete="off" spellcheck="false">
+    </section>
+
+    <label class="check">
+      <input type="checkbox" id="comments" checked>
+      <span>生成注释</span>
+    </label>
+
+    <div class="actions">
+      <button type="button" id="run" class="btn primary">生成</button>
+    </div>
+    <div class="actions sub">
+      <button type="button" id="copy" class="btn ghost">复制</button>
+      <button type="button" id="download" class="btn ghost">下载</button>
+      <button type="button" id="clear" class="btn ghost">清空</button>
+    </div>
+
+    <div class="meta" id="meta">尚未生成</div>
+    <div class="tip">Ctrl + Enter 重新生成</div>
+  </aside>
+
+  <main class="editor">
+    <div class="tabbar">
+      <div class="tab active">
+        <span class="fileicon" id="fileicon">C</span>
+        <span class="filename" id="filename">main.c</span>
+        <span class="dot"></span>
+      </div>
+      <div class="tabbar-right">
+        <label class="follow"><input type="checkbox" id="follow" checked><span>自动滚动</span></label>
+      </div>
+    </div>
+    <div class="viewport" id="viewport">
+      <div class="code" id="code"></div>
+    </div>
+    <div class="statusbar">
+      <span id="status">就绪</span>
+      <span class="status-right">
+        <span id="statLines">0 行</span>
+        <span id="statSeed">seed -</span>
+        <span id="statLang">C</span>
+      </span>
+    </div>
+  </main>
+</div>
+<script defer src="js/main.js"></script>
+<script defer src="js/lang/c.js"></script>
+<script defer src="js/lang/python.js"></script>
+<script defer src="js/lang/js.js"></script>
+</body>
+</html>

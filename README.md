@@ -25,6 +25,12 @@ A static, offline-ready web app that simulates the CUHKSZ Passport, installable 
 ### [Daydream](Daydream)
 A click-to-advance mood piece: a full-screen illustration, typewriter text and one of three music tracks, after the game of the same name.
 
+### [FakeCoding](FakeCoding)
+A fake source-code generator: pick C, JavaScript or Python, choose a fixed line count or a continuous stream, and it emits plausible code, comments included, that can be copied or downloaded; a seed makes each run reproducible.
+
+### [Image3D](Image3D)
+A browser-only 2D-to-3D converter: Depth Anything V2 (via transformers.js on WebGPU or WASM) estimates a depth map from a photo, then renders it as a side-by-side or red/cyan stereo pair with adjustable parallax and focus; the stereo image and depth map can be downloaded.
+
 ### [ImgDiff](ImgDiff)
 A web app that allows users to compare two images and highlight the differences.
 
