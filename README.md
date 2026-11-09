@@ -16,6 +16,9 @@ A set of interactive animated wallpapers — an illustrated girl, chocolate, a s
 ### [Calendar](Calendar)
 An importable iCalendar (.ics) file of the 2026-2027 term 1 class timetable: each course repeats weekly until the end of term in the Asia/Shanghai time zone, ready to import into a phone or desktop calendar.
 
+### [Character](Character)
+A three.js VRM avatar stage: a MAMI model plays three VRMA clips (waiting, appearing, liked) that cross-fade on switch, five procedural motions layer on top with 0-1 weight sliders, and orbit controls plus keys 1-3 drive the action.
+
 ### [Color565](Color565)
 An RGB565 color picker: R/G/B sliders in 5/6/5 bits, with the packed 16-bit value, its bit-by-bit layout and the 8-bit approximation shown live, plus a hex round-trip comparison against the original color.
 
