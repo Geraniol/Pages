@@ -170,10 +170,12 @@
   .lil-gui.root {
     top: 20px;
     right: 20px;
+    max-height: calc(100vh - 40px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .lil-gui .controller.base-active button {
@@ -209,6 +211,7 @@
       display: none;
       top: 52px;
       right: 10px;
+      max-height: calc(100vh - 64px);
       --width: 230px;
     }
     body.panel-open .lil-gui.root { display: block; }
@@ -288,6 +291,38 @@ const motionDefs = [
 ];
 
 /* ------------------------------------------------------------------ *
+ * 动作库：来自 tk256ailab/vrm-viewer 的 MIT 示例 VRMA
+ * 这些动作首尾姿势不同，因此按一次性动作播放，结束后回到待机
+ * ------------------------------------------------------------------ */
+const libraryDefs = [
+  { key: 'clapping',   label: '鼓掌', file: './motions/library/clapping.vrma' },
+  { key: 'goodbye',    label: '再见', file: './motions/library/goodbye.vrma' },
+  { key: 'angry',      label: '生气', file: './motions/library/angry.vrma' },
+  { key: 'blush',      label: '害羞', file: './motions/library/blush.vrma' },
+  { key: 'jump',       label: '跳跃', file: './motions/library/jump.vrma' },
+  { key: 'lookaround', label: '张望', file: './motions/library/lookaround.vrma' },
+  { key: 'relax',      label: '放松', file: './motions/library/relax.vrma' },
+  { key: 'sad',        label: '失落', file: './motions/library/sad.vrma' },
+  { key: 'sleepy',     label: '犯困', file: './motions/library/sleepy.vrma' },
+  { key: 'surprised',  label: '惊讶', file: './motions/library/surprised.vrma' },
+  { key: 'thinking',   label: '思考', file: './motions/library/thinking.vrma' },
+];
+
+/* ------------------------------------------------------------------ *
+ * 表情：MAMI 实际可用的 VRM 预设
+ * joy/sorrow/fun 会被 three-vrm 映射为 happy/sad/relaxed；
+ * blinkLeft/blinkRight 在这个模型里没有绑定，所以不放入面板。
+ * ------------------------------------------------------------------ */
+const expressionDefs = [
+  { key: 'happy',   label: '高兴' },
+  { key: 'angry',   label: '生气' },
+  { key: 'sad',     label: '悲伤' },
+  { key: 'relaxed', label: '放松' },
+  { key: 'aa',      label: '张嘴' },
+  { key: 'blink',   label: '眨眼' },
+];
+
+/* ------------------------------------------------------------------ *
  * 叠加动作：程序化生成的四元数增量轨道，权重 0-1 可调
  * 坐标约定：归一化骨骼的局部轴在静止姿态下与世界轴同向
  * ------------------------------------------------------------------ */
@@ -353,12 +388,18 @@ const additiveDefs = [
 let vrm = null;
 let mixer = null;
 let currentBase = null;
+let currentGesture = null;
 let characterHeight = 1.5;
 let guiInstance = null;
+let gestureController = null;
 
 const baseActions = {};
 const additiveActions = {};
+const gestureActions = {};
 const baseControllers = {};
+const expressionControllers = {};
+const expressionOverrides = new Map();
+const gestureSelection = { key: 'none' };
 const clock = new THREE.Clock();
 
 /* ------------------------------------------------------------------ *
@@ -496,26 +537,69 @@ function buildAdditiveClip(name, duration, bones) {
   return clip;
 }
 
-function setBase(key, fadeDuration = 0.35) {
-  const next = baseActions[key];
-  if (!next || next === currentBase) return;
+function fadeToAction(action, previousAction, fadeDuration) {
+  action.enabled = true;
+  action.reset();
+  action.setEffectiveTimeScale(1);
+  action.setEffectiveWeight(1);
+  action.play();
 
-  const previous = currentBase;
-  next.action.enabled = true;
-  next.action.reset();
-  next.action.setEffectiveTimeScale(1);
-  next.action.setEffectiveWeight(1);
-  next.action.play();
-
-  if (previous) {
-    next.action.crossFadeFrom(previous.action, fadeDuration, false);
+  if (previousAction && previousAction !== action) {
+    action.crossFadeFrom(previousAction, fadeDuration, false);
   }
+}
 
-  currentBase = next;
-
+function updateBaseButtons(key) {
   for (const [k, controller] of Object.entries(baseControllers)) {
     controller.domElement.classList.toggle('base-active', k === key);
   }
+}
+
+function setGestureSelection(key) {
+  if (gestureController) {
+    gestureController.setValue(key);
+  } else {
+    gestureSelection.key = key;
+  }
+}
+
+function setBase(key, fadeDuration = 0.35) {
+  const next = baseActions[key];
+  if (!next) return;
+  if (next === currentBase && !currentGesture) return;
+
+  const hadGesture = !!currentGesture;
+  const previous = currentGesture?.action || currentBase?.action || null;
+  fadeToAction(next.action, previous, fadeDuration);
+
+  currentBase = next;
+  currentGesture = null;
+  updateBaseButtons(key);
+  if (hadGesture) setGestureSelection('none');
+}
+
+function playGesture(key, fadeDuration = 0.35) {
+  const next = gestureActions[key];
+  if (!next || next === currentGesture) return;
+
+  const previous = currentGesture?.action || currentBase?.action || null;
+  fadeToAction(next.action, previous, fadeDuration);
+
+  currentGesture = next;
+  updateBaseButtons(null);
+}
+
+function returnToWaiting(fadeDuration = 0.6) {
+  const waiting = baseActions.waiting;
+  if (!waiting) return;
+
+  const previous = currentGesture?.action || currentBase?.action || null;
+  fadeToAction(waiting.action, previous, fadeDuration);
+
+  currentBase = waiting;
+  currentGesture = null;
+  updateBaseButtons('waiting');
+  setGestureSelection('none');
 }
 
 function setAdditiveWeight(key, weight) {
@@ -523,6 +607,24 @@ function setAdditiveWeight(key, weight) {
   if (!entry) return;
   entry.weight = weight;
   entry.action.setEffectiveWeight(weight);
+}
+
+function setExpressionWeight(key, weight) {
+  expressionOverrides.set(key, weight);
+  if (weight <= 0 && vrm?.expressionManager) {
+    vrm.expressionManager.setValue(key, 0);
+  }
+}
+
+// 在 mixer.update() 之后、vrm.update() 之前调用，
+// 让手动表情覆盖 VRMA 动作自带的 aa/blink/relaxed 轨道。
+function applyExpressionOverrides() {
+  if (!vrm?.expressionManager) return;
+  for (const [key, weight] of expressionOverrides) {
+    if (weight > 0) {
+      vrm.expressionManager.setValue(key, weight);
+    }
+  }
 }
 
 function resetCamera() {
@@ -544,6 +646,23 @@ function buildGUI() {
   }
   baseFolder.open();
 
+  const libraryFolder = gui.addFolder('动作库（示例）');
+  const gestureOptions = { '-': 'none' };
+  for (const def of libraryDefs) {
+    if (gestureActions[def.key]) gestureOptions[def.label] = def.key;
+  }
+  gestureController = libraryFolder
+    .add(gestureSelection, 'key', gestureOptions)
+    .name('选择动作')
+    .onChange((key) => {
+      if (key === 'none') {
+        if (currentGesture) returnToWaiting(0.35);
+      } else {
+        playGesture(key);
+      }
+    });
+  libraryFolder.open();
+
   const additiveFolder = gui.addFolder('叠加动作（权重）');
   for (const def of additiveDefs) {
     additiveFolder
@@ -552,6 +671,23 @@ function buildGUI() {
       .onChange((value) => setAdditiveWeight(def.key, value));
   }
   additiveFolder.open();
+
+  const expressionFolder = gui.addFolder('表情');
+  for (const def of expressionDefs) {
+    const state = { weight: 0 };
+    expressionControllers[def.key] = expressionFolder
+      .add(state, 'weight', 0, 1, 0.01)
+      .name(def.label)
+      .onChange((value) => setExpressionWeight(def.key, value));
+  }
+  expressionFolder.add({
+    reset: () => {
+      for (const controller of Object.values(expressionControllers)) {
+        controller.setValue(0);
+      }
+    },
+  }, 'reset').name('重置表情');
+  expressionFolder.open();
 
   const generalFolder = gui.addFolder('播放控制');
   generalFolder.add({ speed: 1 }, 'speed', 0, 1.5, 0.01)
@@ -624,10 +760,10 @@ async function main() {
   mixer = new THREE.AnimationMixer(vrm.scene);
 
   // 基础动作
-  setLoadingText('正在加载动作（1/3）…');
+  setLoadingText('正在加载基础动作…');
   for (let i = 0; i < motionDefs.length; i++) {
     const def = motionDefs[i];
-    setLoadingText(`正在加载动作（${i + 1}/${motionDefs.length}）… ${def.label}`);
+    setLoadingText(`正在加载基础动作（${i + 1}/${motionDefs.length}）… ${def.label}`);
 
     let animGltf;
     try {
@@ -659,6 +795,31 @@ async function main() {
     baseActions[def.key] = { ...def, action };
   }
 
+  // 动作库（一次性动作，加载失败时跳过，不影响页面）
+  for (let i = 0; i < libraryDefs.length; i++) {
+    const def = libraryDefs[i];
+    setLoadingText(`正在加载动作库（${i + 1}/${libraryDefs.length}）… ${def.label}`);
+
+    try {
+      const animGltf = await loader.loadAsync(def.file);
+      const vrmAnimation = animGltf.userData.vrmAnimations?.[0];
+      if (!vrmAnimation) throw new Error('没有 VRM 动画数据');
+
+      const clip = createVRMAnimationClip(vrmAnimation, vrm);
+      clip.name = def.key;
+
+      const action = mixer.clipAction(clip);
+      action.setLoop(THREE.LoopOnce, 1);
+      action.clampWhenFinished = true;
+      action.setEffectiveWeight(0);
+      action.play();
+
+      gestureActions[def.key] = { ...def, action };
+    } catch (error) {
+      console.warn(`[library] 跳过无法加载的动作 ${def.file}`, error);
+    }
+  }
+
   // 叠加动作
   for (const def of additiveDefs) {
     const clip = buildAdditiveClip(def.key, def.duration, def.bones);
@@ -671,8 +832,12 @@ async function main() {
 
   // 一次性动作播完后自动回到待机
   mixer.addEventListener('finished', (event) => {
+    if (currentGesture) {
+      if (event.action === currentGesture.action) returnToWaiting(0.6);
+      return;
+    }
     if (currentBase && event.action === currentBase.action && currentBase.loop === 'once') {
-      setBase('waiting', 0.6);
+      returnToWaiting(0.6);
     }
   });
 
@@ -709,6 +874,7 @@ async function main() {
   renderer.setAnimationLoop(() => {
     const delta = Math.min(clock.getDelta(), 0.05);
     mixer.update(delta);
+    applyExpressionOverrides();
     vrm.update(delta);
     controls.update();
     renderer.render(scene, camera);
@@ -716,7 +882,8 @@ async function main() {
 
   // 调试用，方便在控制台切换动作
   window.__mami = {
-    THREE, vrm, mixer, baseActions, additiveActions, additiveDefs, setBase, setAdditiveWeight, resetCamera,
+    THREE, vrm, mixer, baseActions, additiveActions, gestureActions, additiveDefs, expressionDefs,
+    setBase, setAdditiveWeight, setExpressionWeight, playGesture, resetCamera,
     gui: guiInstance, scene, camera, renderer,
   };
 
