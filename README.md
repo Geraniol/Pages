@@ -17,7 +17,7 @@ A set of interactive animated wallpapers — an illustrated girl, chocolate, a s
 An importable iCalendar (.ics) file of the 2026-2027 term 1 class timetable: each course repeats weekly until the end of term in the Asia/Shanghai time zone, ready to import into a phone or desktop calendar.
 
 ### [Character](Character)
-A three.js VRM avatar stage: a MAMI model plays three VRMA clips (waiting, appearing, liked) that cross-fade on switch, five procedural motions layer on top with 0-1 weight sliders, and orbit controls plus keys 1-3 drive the action.
+A three.js VRM avatar stage: a MAMI model plays three looping VRMA base motions plus eleven one-shot gestures from tk256ailab/vrm-viewer, cross-fading between them, and layers five procedural motions and six facial expressions on 0-1 weight sliders; orbit controls and keys 1-3 drive it.
 
 ### [Color565](Color565)
 An RGB565 color picker: R/G/B sliders in 5/6/5 bits, with the packed 16-bit value, its bit-by-bit layout and the 8-bit approximation shown live, plus a hex round-trip comparison against the original color.
@@ -42,6 +42,9 @@ A checklist page with collapsible categories, per-item priority colours and loca
 
 ### [LissajousCurve](LissajousCurve)
 A 6×6 grid of Lissajous curves drawn at prime frequency ratios, with a draggable phase offset, an auto-evolving phase, a light point travelling along each curve and toggleable guide lines.
+
+### [Metronome](Metronome)
+A single-file metronome: 30-300 BPM with tap tempo and Italian tempo names, 1-12 beats per bar with 1-4 subdivisions and an optional accent, synthesized Web Audio clicks scheduled by a lookahead worker, plus keyboard shortcuts and localStorage settings.
 
 ### [PolarAxis](PolarAxis)
 A 3D viewfinder simulator that shows how polar alignment errors smear stars into trails, with draggable dials for the polar, mount and camera axes.
